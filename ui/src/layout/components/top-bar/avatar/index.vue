@@ -20,14 +20,14 @@
             </el-text>
           </p>
         </div>
-        <el-dropdown-item class="border-t p-8" @click="openResetPassword">
+        <!-- <el-dropdown-item class="border-t p-8" @click="openResetPassword">
           {{ $t('views.login.resetPassword') }}
         </el-dropdown-item>
         <div v-hasPermission="new ComplexPermission([], ['x-pack'], 'OR')">
           <el-dropdown-item class="border-t p-8" @click="openAPIKeyDialog">
             {{ $t('layout.apiKey') }}
           </el-dropdown-item>
-        </div>
+        </div> -->
         <el-dropdown-item class="border-t" style="padding: 0" @click.stop>
           <el-dropdown class="w-full" trigger="hover" placement="left-start">
             <div class="flex-between w-full" style="line-height: 22px; padding: 12px 11px">

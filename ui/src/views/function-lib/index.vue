@@ -53,7 +53,7 @@
             :lg="6"
             :xl="6"
             class="mb-16"
-            v-if="functionType === 'PUBLIC'"
+            v-if="functionType === 'PUBLIC' && user.getRole() === 'ADMIN'"
           >
             <el-card shadow="hover" class="application-card-add" style="--el-card-padding: 8px">
               <div class="card-add-button flex align-center cursor p-8" @click="openCreateDialog()">

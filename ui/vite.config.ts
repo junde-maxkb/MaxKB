@@ -5,9 +5,11 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import DefineOptions from 'unplugin-vue-define-options/vite'
 
+
 const envDir = './env'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  
   const ENV = loadEnv(mode, envDir)
   const prefix = process.env.VITE_DYNAMIC_PREFIX || ENV.VITE_BASE_PATH
   const proxyConf: Record<string, string | ProxyOptions> = {}

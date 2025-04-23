@@ -27,19 +27,19 @@ const settingRouter = {
       },
       component: () => import('@/views/user-manage/index.vue')
     },
-    {
-      path: '/team',
-      name: 'team',
-      meta: {
-        icon: 'app-team',
-        iconActive: 'app-team-active',
-        title: 'views.team.title',
-        activeMenu: '/setting',
-        parentPath: '/setting',
-        parentName: 'setting'
-      },
-      component: () => import('@/views/team/index.vue')
-    },
+    // {
+    //   path: '/team',
+    //   name: 'team',
+    //   meta: {
+    //     icon: 'app-team',
+    //     iconActive: 'app-team-active',
+    //     title: 'views.team.title',
+    //     activeMenu: '/setting',
+    //     parentPath: '/setting',
+    //     parentName: 'setting'
+    //   },
+    //   component: () => import('@/views/team/index.vue')
+    // },
     {
       path: '/template',
       name: 'template',
@@ -49,7 +49,8 @@ const settingRouter = {
         title: 'views.template.title',
         activeMenu: '/setting',
         parentPath: '/setting',
-        parentName: 'setting'
+        parentName: 'setting',
+        permission: new Role('ADMIN')
       },
       component: () => import('@/views/template/index.vue')
     },

@@ -48,6 +48,7 @@
                   $t('views.applicationOverview.appInfo.publicAccessLink')
                 }}</el-text>
                 <el-switch
+                  v-if="user.getRole() === 'ADMIN'"
                   v-model="accessToken.is_active"
                   class="ml-8"
                   size="small"
@@ -56,6 +57,9 @@
                   :inactive-text="$t('views.applicationOverview.appInfo.closeText')"
                   :before-change="() => changeState(accessToken.is_active)"
                 />
+                <el-text v-else class="ml-8" type="info">
+                  {{ accessToken.is_active ? $t('views.applicationOverview.appInfo.openText') : $t('views.applicationOverview.appInfo.closeText') }}
+                </el-text>
               </div>
 
               <div class="mt-4 mb-16 url-height flex align-center" style="margin-bottom: 37px">
@@ -92,24 +96,18 @@
                 <el-button v-else :disabled="!accessToken?.is_active" type="primary">
                   {{ $t('views.applicationOverview.appInfo.demo') }}
                 </el-button>
-                <el-button :disabled="!accessToken?.is_active" @click="openDialog">
-                  {{ $t('views.applicationOverview.appInfo.embedInWebsite') }}
-                </el-button>
-                <el-button @click="openLimitDialog">
-                  {{ $t('views.applicationOverview.appInfo.accessControl') }}
-                </el-button>
                 <el-button @click="openDisplaySettingDialog">
                   {{ $t('views.applicationOverview.appInfo.displaySetting') }}
                 </el-button>
               </div>
             </el-col>
             <el-col :span="12" class="mt-16">
-              <div class="flex">
+              <div class="flex" v-if="user.getRole() === 'ADMIN'">
                 <el-text type="info"
                   >{{ $t('views.applicationOverview.appInfo.apiAccessCredentials') }}
                 </el-text>
               </div>
-              <div class="mt-4 mb-16 url-height">
+              <div class="mt-4 mb-16 url-height" v-if="user.getRole() === 'ADMIN'">
                 <div>
                   <el-text>API {{ $t('common.fileUpload.document') }}：</el-text
                   ><el-button
@@ -136,7 +134,7 @@
                   </el-tooltip>
                 </div>
               </div>
-              <div>
+              <div v-if="user.getRole() === 'ADMIN'">
                 <el-button @click="openAPIKeyDialog">{{
                   $t('views.applicationOverview.appInfo.apiKey')
                 }}</el-button>
@@ -177,13 +175,7 @@
         </div>
       </div>
     </el-scrollbar>
-    <EmbedDialog
-      ref="EmbedDialogRef"
-      :data="detail"
-      :api-input-params="mapToUrlParams(apiInputParams)"
-    />
     <APIKeyDialog ref="APIKeyDialogRef" />
-    <LimitDialog ref="LimitDialogRef" @refresh="refresh" />
     <EditAvatarDialog ref="EditAvatarDialogRef" @refresh="refreshIcon" />
     <XPackDisplaySettingDialog
       ref="XPackDisplaySettingDialogRef"
@@ -224,9 +216,7 @@ const baseUrl = window.location.origin + '/api/application/'
 const DisplaySettingDialogRef = ref()
 const XPackDisplaySettingDialogRef = ref()
 const EditAvatarDialogRef = ref()
-const LimitDialogRef = ref()
 const APIKeyDialogRef = ref()
-const EmbedDialogRef = ref()
 
 const accessToken = ref<any>({})
 const detail = ref<any>(null)
@@ -335,6 +325,9 @@ function refreshAccessToken() {
     .catch(() => {})
 }
 function changeState(bool: Boolean) {
+  if (user.getRole() !== 'ADMIN') {
+    return false
+  }
   const obj = {
     is_active: !bool
   }
@@ -355,16 +348,10 @@ async function updateAccessToken(obj: any, str: string) {
   })
 }
 
-function openLimitDialog() {
-  LimitDialogRef.value.open(accessToken.value)
-}
-
 function openAPIKeyDialog() {
   APIKeyDialogRef.value.open()
 }
-function openDialog() {
-  EmbedDialogRef.value.open(accessToken.value?.access_token)
-}
+
 function getAccessToken() {
   application.asyncGetAccessToken(id, loading).then((res: any) => {
     accessToken.value = res?.data

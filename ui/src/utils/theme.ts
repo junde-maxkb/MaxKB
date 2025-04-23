@@ -41,11 +41,11 @@ export const defaultSetting = {
 }
 
 export const defaultPlatformSetting = {
-  showUserManual: true,
+  showUserManual: false,
   userManualUrl: t('layout.userManualUrl'),
-  showForum: true,
+  showForum: false,
   forumUrl: t('layout.forumUrl'),
-  showProject: true,
+  showProject: false,
   projectUrl: 'https://github.com/1Panel-dev/MaxKB'
 }
 

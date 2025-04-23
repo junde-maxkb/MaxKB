@@ -66,6 +66,9 @@ import SettingAPIKeyDialog from './SettingAPIKeyDialog.vue'
 import { datetimeFormat } from '@/utils/time'
 import { MsgSuccess, MsgConfirm } from '@/utils/message'
 import { t } from '@/locales'
+import useStore from '@/stores'
+const { user } = useStore()
+
 const route = useRoute()
 const {
   params: { id }
@@ -134,6 +137,9 @@ function createApiKey() {
 }
 
 const open = () => {
+  if (user.getRole() !== 'ADMIN') {
+    return
+  }
   getApiKeyList()
   dialogVisible.value = true
 }
