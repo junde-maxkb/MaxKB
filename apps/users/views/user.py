@@ -188,6 +188,8 @@ class Login(APIView):
         user = login_request.is_valid(raise_exception=True)
         token = login_request.get_user_token()
         token_cache.set(token, user, timeout=JWT_AUTH['JWT_EXPIRATION_DELTA'])
+
+
         return result.success(token)
 
 
