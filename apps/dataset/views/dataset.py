@@ -304,3 +304,59 @@ class Dataset(APIView):
                     data={'user_id': request.user.id, 'model_type': 'LLM'}).list(
                     with_valid=True)
             )
+
+    class DatasetMembers(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["GET"], detail=False)
+        @swagger_auto_schema(operation_summary=_('获取知识库团队成员及其权限'),
+                             operation_id=_('获取知识库团队成员及其权限'),
+                             manual_parameters=DataSetSerializers.Operate.get_request_params_api(),
+                             responses=get_api_response({
+                                 'type': 'object',
+                                 'properties': {
+                                     'dataset_id': {'type': 'string'},
+                                     'members': {
+                                         'type': 'array',
+                                         'items': {
+                                             'type': 'object',
+                                             'properties': {
+                                                 'user_id': {'type': 'string'},
+                                                 'username': {'type': 'string'},
+                                                 'permission': {'type': 'string'}
+                                             }
+                                         }
+                                     }
+                                 }
+                             }),
+                             tags=[_('Knowledge Base')])
+        @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.MANAGE,
+                                                        dynamic_tag=keywords.get('dataset_id')))
+        def get(self, request: Request, dataset_id: str):
+            from setting.models.team_management import TeamMember, TeamMemberPermission
+            from django.db.models import Q
+            
+            # 获取团队成员
+            team_members = TeamMember.objects.filter(
+                Q(team__user_id=request.user.id) | Q(user_id=request.user.id)
+            ).distinct()
+            
+            # 获取每个成员对当前知识库的权限
+            members_with_permissions = []
+            for member in team_members:
+                permissions = TeamMemberPermission.objects.filter(
+                    member_id=member.id,
+                    target=dataset_id,
+                    auth_target_type='DATASET'
+                ).first()
+                
+                members_with_permissions.append({
+                    'user_id': str(member.user_id),
+                    'username': member.user.username,
+                    'permission': permissions.operate[0] if permissions else 'READ'
+                })
+            
+            return result.success({
+                'dataset_id': dataset_id,
+                'members': members_with_permissions
+            })

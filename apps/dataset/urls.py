@@ -19,6 +19,7 @@ urlpatterns = [
     path('dataset/<str:dataset_id>/hit_test', views.Dataset.HitTest.as_view()),
     path('dataset/<str:dataset_id>/document', views.Document.as_view(), name='document'),
     path('dataset/<str:dataset_id>/model', views.Dataset.Model.as_view()),
+    path('dataset/<str:dataset_id>/members', views.Dataset.DatasetMembers.as_view()),
     path('dataset/document/template/export', views.Template.as_view()),
     path('dataset/document/table_template/export', views.TableTemplate.as_view()),
     path('dataset/<str:dataset_id>/document/web', views.WebDocument.as_view()),
