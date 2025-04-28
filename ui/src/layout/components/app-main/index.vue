@@ -23,11 +23,11 @@ onBeforeUpdate(() => {
 })
 
 // 监听路由变化,确保组件更新
-watch(() => route.fullPath, () => {
-  // 强制组件更新
-  const component = document.querySelector('.view-container')
-  if (component) {
-    component.innerHTML = ''
-  }
-})
+// watch(() => route.fullPath, () => {
+//   // 强制组件更新
+//   const component = document.querySelector('.view-container')
+//   if (component) {
+//     component.innerHTML = ''
+//   }
+// })
 </script>
