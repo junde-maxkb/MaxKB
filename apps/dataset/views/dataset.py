@@ -353,7 +353,7 @@ class Dataset(APIView):
                 members_with_permissions.append({
                     'user_id': str(member.user_id),
                     'username': member.user.username,
-                    'permission': permissions.operate[0] if permissions else 'READ'
+                    'permission': permissions.operate[0] if permissions else 'NONE'
                 })
             
             return result.success({
