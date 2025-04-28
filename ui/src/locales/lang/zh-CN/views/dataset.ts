@@ -25,6 +25,17 @@ export default {
     confirmMessage1: '此知识库关联',
     confirmMessage2: '个应用，删除后无法恢复，请谨慎操作。'
   },
+  tabs: {
+    myDataset: '我的知识库',
+    sharedDataset: '共享知识库',
+    organizationDataset: '机构知识库',
+    sharedToMeDataset: '共享给我的知识库',
+    searchDataset: '知识库检索'
+  },
+  search: {
+    placeholder: '输入关键词搜索知识库',
+    noResults: '暂无搜索结果'
+  },
 
   datasetForm: {
     title: {
@@ -90,5 +101,8 @@ export default {
     complete: '整体同步',
     completeText: '先删除本地知识库所有文档，重新获取 Web 站点文档',
     tip: '注意：所有同步都会删除已有数据重新获取新数据，请谨慎操作。'
-  }
+  },
+  myDatasets: '我的知识库',
+  sharedDatasets: '共享知识库',
+  searchDatasets: '知识库检索'
 }

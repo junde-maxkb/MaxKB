@@ -1,8 +1,32 @@
 <template>
   <div class="dataset-list-container p-24" style="padding-top: 16px">
+    <el-tabs v-model="datasetType" @tab-change="tabChangeHandle">
+      <el-tab-pane :label="$t('views.dataset.tabs.myDataset')" name="MY"></el-tab-pane>
+      <el-tab-pane :label="$t('views.dataset.tabs.sharedDataset')" name="SHARED">
+        <el-tabs v-model="sharedType" @tab-change="sharedTabChangeHandle" class="mt-16">
+          <el-tab-pane :label="$t('views.dataset.tabs.organizationDataset')" name="ORGANIZATION"></el-tab-pane>
+          <el-tab-pane :label="$t('views.dataset.tabs.sharedToMeDataset')" name="SHARED_TO_ME"></el-tab-pane>
+        </el-tabs>
+      </el-tab-pane>
+      <el-tab-pane :label="$t('views.dataset.tabs.searchDataset')" name="SEARCH"></el-tab-pane>
+    </el-tabs>
     <div class="flex-between mb-16">
-      <h4>{{ $t('views.dataset.title') }}</h4>
+      <h4></h4>
       <div class="flex-between">
+        <el-select
+          v-if="datasetType === 'MY'"
+          v-model="sortField"
+          class="mr-12"
+          @change="searchHandle"
+          style="max-width: 240px; width: 150px"
+        >
+          <el-option
+            v-for="item in sortOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
         <el-select
           v-model="selectUserId"
           class="mr-12"
@@ -175,7 +199,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, watch } from 'vue'
 import SyncWebDialog from '@/views/dataset/component/SyncWebDialog.vue'
 import CreateDatasetDialog from './component/CreateDatasetDialog.vue'
 import datasetApi from '@/api/dataset'
@@ -216,6 +240,51 @@ interface UserOption {
 const userOptions = ref<UserOption[]>([])
 
 const selectUserId = ref('all')
+
+const datasetType = ref('MY')
+const sharedType = ref('ORGANIZATION')
+
+const sortField = ref('name')
+const sortOptions = [
+  { label: '按名称排序', value: 'name' },
+  { label: '按创建时间排序', value: 'create_time' },
+  { label: '按修改时间排序', value: 'update_time' }
+]
+
+function sortDatasetList(list: any[]) {
+  const field = sortField.value
+  return [...list].sort((a, b) => {
+    if (field === 'name') {
+      return a.name.localeCompare(b.name)
+    } else if (field === 'create_time') {
+      return new Date(b.create_time).getTime() - new Date(a.create_time).getTime()
+    } else if (field === 'update_time') {
+      return new Date(b.update_time).getTime() - new Date(a.update_time).getTime()
+    }
+    return 0
+  })
+}
+
+watch(
+  [datasetType, sharedType],
+  ([newDatasetType, newSharedType]) => {
+    paginationConfig.total = 0
+    paginationConfig.current_page = 1
+    datasetList.value = []
+    getList()
+  },
+  { immediate: true }
+)
+
+function tabChangeHandle() {
+  selectUserId.value = 'all'
+  searchValue.value = ''
+}
+
+function sharedTabChangeHandle() {
+  selectUserId.value = 'all'
+  searchValue.value = ''
+}
 
 function openCreateDialog() {
   common.asyncGetValid(ValidType.Dataset, ValidCount.Dataset, loading).then(async (res: any) => {
@@ -290,7 +359,9 @@ function getList() {
   const params = {
     ...(searchValue.value && { name: searchValue.value }),
     ...(selectUserId.value &&
-      selectUserId.value !== 'all' && { select_user_id: selectUserId.value })
+      selectUserId.value !== 'all' && { select_user_id: selectUserId.value }),
+    type: datasetType.value,
+    ...(datasetType.value === 'SHARED' && { shared_type: sharedType.value })
   }
   datasetApi.getDataset(paginationConfig, params, loading).then((res) => {
     res.data.records.forEach((item: any) => {
@@ -301,7 +372,8 @@ function getList() {
       }
     })
     paginationConfig.total = res.data.total
-    datasetList.value = [...datasetList.value, ...res.data.records]
+    const newRecords = sortDatasetList(res.data.records)
+    datasetList.value = [...datasetList.value, ...newRecords]
   })
 }
 
@@ -320,7 +392,6 @@ function getUserList() {
           selectUserId.value = selectUserIdValue
         }
       }
-      getList()
     }
   })
 }

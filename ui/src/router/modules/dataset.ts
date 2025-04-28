@@ -76,6 +76,19 @@ const datasetRouter = {
             parentName: 'DatasetDetail'
           },
           component: () => import('@/views/dataset/DatasetSetting.vue')
+        },
+        {
+          path: 'share',
+          name: 'DatasetShare',
+          meta: {
+            icon: 'Share',
+            iconActive: 'Share',
+            title: 'views.dataset.shareSetting',
+            active: 'share',
+            parentPath: '/dataset/:id',
+            parentName: 'DatasetDetail'
+          },
+          component: () => import('@/views/dataset/DatasetShare.vue')
         }
       ]
     },

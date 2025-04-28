@@ -61,6 +61,10 @@ function showMenu() {
 function clickHandle(item?: any) {
   if (isWorkFlow(type) && item?.name === 'AppSetting') {
     router.push({ path: `/application/${id}/workflow` })
+  } else {
+    const currentPath = route.path
+    const basePath = currentPath.split('/').slice(0, 3).join('/')
+    router.push({ path: `${basePath}/${item?.path}` })
   }
 }
 const menuIcon = computed(() => {
