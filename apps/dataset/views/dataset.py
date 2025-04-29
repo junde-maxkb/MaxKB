@@ -26,6 +26,7 @@ from dataset.serializers.dataset_serializers import DataSetSerializers
 from dataset.views.common import get_dataset_operation_object
 from setting.serializers.provider_serializers import ModelSerializer
 from django.utils.translation import gettext_lazy as _
+from dataset.models.data_set import DataSet, DatasetShare
 
 
 class Dataset(APIView):
@@ -344,19 +345,66 @@ class Dataset(APIView):
             # 获取每个成员对当前知识库的权限
             members_with_permissions = []
             for member in team_members:
-                permissions = TeamMemberPermission.objects.filter(
-                    member_id=member.id,
-                    target=dataset_id,
-                    auth_target_type='DATASET'
+                permissions = DatasetShare.objects.filter(
+                    shared_with_id=member.user.id,
+                    shared_with_type='USER',
+                    dataset_id_id=dataset_id,
                 ).first()
                 
                 members_with_permissions.append({
-                    'user_id': str(member.user_id),
+                    'user_id': str(member.user.id),
                     'username': member.user.username,
-                    'permission': permissions.operate[0] if permissions else 'NONE'
+                    'permission': permissions.permission if permissions else 'NONE'
                 })
             
             return result.success({
                 'dataset_id': dataset_id,
                 'members': members_with_permissions
             })
+
+    class PutMemberPermissions(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["PUT"], detail=False)
+        @swagger_auto_schema(operation_summary=_('更新数据集分享权限'),
+                             operation_id=_('更新数据集分享权限'),
+                             manual_parameters=DataSetSerializers.Operate.get_request_params_api(),
+                             request_body={
+                                 'type': 'object',
+                                 'properties': {
+                                     'user_id': {'type': 'string', 'description': '用户ID'},
+                                     'permission': {'type': 'string', 'description': '权限类型'}
+                                 },
+                                 'required': ['user_id', 'permission']
+                             },
+                             responses=result.get_default_response(),
+                             tags=[_('Knowledge Base')])
+        @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.MANAGE,
+                                                        dynamic_tag=keywords.get('dataset_id')))
+        @log(menu='Knowledge Base', operate="更新数据集分享权限",
+             get_operation_object=lambda r, keywords: get_dataset_operation_object(keywords.get('dataset_id')))
+        def put(self, request: Request, dataset_id: str):
+            from dataset.models.data_set import DatasetShare
+            from django.utils import timezone
+            
+            user_id = request.data.get('user_id')
+            permission = request.data.get('permission') if request.data.get('permission') else 'NONE'
+            
+            # 检查数据集是否存在
+            dataset = DataSet.objects.filter(id=dataset_id).first()
+            if not dataset:
+                return result.error(_('数据集不存在'))
+            
+            # 查找或创建分享记录
+            share_record, created = DatasetShare.objects.get_or_create(
+                dataset_id_id=dataset.id,
+                shared_with_type='USER',
+                shared_with_id=user_id,
+            )
+            
+            # 如果记录已存在，更新权限
+            if not created:
+                share_record.permission = permission
+                share_record.save()
+            
+            return result.success({'message': '权限更新成功'})
