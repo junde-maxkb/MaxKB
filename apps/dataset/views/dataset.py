@@ -408,3 +408,56 @@ class Dataset(APIView):
                 share_record.save()
             
             return result.success({'message': '权限更新成功'})
+
+    class ShareToMePage(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_('获取共享给我的知识库分页列表'),
+                             operation_id=_('获取共享给我的知识库分页列表'),
+                             manual_parameters=DataSetSerializers.SharePageQuery.get_request_params_api(),
+                             responses=get_page_api_response(DataSetSerializers.SharePageQuery.get_response_body_api()),
+                             tags=[_('Knowledge Base')]
+                             )
+        @has_permissions(PermissionConstants.DATASET_READ, compare=CompareConstants.AND)
+        def get(self, request: Request, current_page, page_size):
+            # 1. 获取共享给我的知识库ID列表及权限
+            shared_datasets = DatasetShare.objects.filter(
+                shared_with_type='USER',
+                shared_with_id=str(request.user.id)
+            ).select_related('dataset_id')  # 预加载关联的知识库对象
+            
+            # 如果没有共享的数据集，直接返回空结果
+            if not shared_datasets:
+                return result.success({
+                    'records': [],
+                    'total': 0,
+                    'page': current_page,
+                    'page_size': page_size
+                })
+            
+            # 2. 构建查询参数
+            query_params = {
+                'name': request.query_params.get('name', None),
+                'desc': request.query_params.get("desc", None),
+                'user_id': str(request.user.id),
+                'dataset_ids': [str(share.dataset_id_id) for share in shared_datasets]
+            }
+            
+            # 3. 使用SharePageQuery获取知识库列表
+            d = DataSetSerializers.SharePageQuery(data=query_params)
+            d.is_valid()
+            result_data = d.page(current_page, page_size)
+            
+            # 4. 为每个知识库添加权限信息
+            permission_map = {str(share.dataset_id_id): share.permission for share in shared_datasets}
+            for item in result_data['list']:
+                item['permission'] = permission_map.get(item['id'], 'NONE')
+            
+            # 5. 修改返回数据结构，将list改为records
+            return result.success({
+                'records': result_data['list'],
+                'total': result_data['total'],
+                'page': result_data['page'],
+                'page_size': result_data['page_size']
+            })

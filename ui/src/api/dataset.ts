@@ -292,6 +292,58 @@ const generateRelated: (
   return put(`${prefix}/${dataset_id}/generate_related`, data, null, loading)
 }
 
+/**
+ * 获取知识库团队成员及其权限
+ * @param dataset_id 知识库ID
+ * @param loading 加载状态
+ * @returns 团队成员及其权限信息
+ */
+const getDatasetMembers: (
+  dataset_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<{
+  dataset_id: string;
+  members: Array<{
+    user_id: string;
+    username: string;
+    permission: string;
+  }>;
+}>> = (dataset_id, loading) => {
+  return get(`${prefix}/${dataset_id}/members`, undefined, loading);
+}
+
+/**
+ * 更新知识库成员权限
+ * @param dataset_id 知识库ID
+ * @param data 更新数据 { user_id: string, permission: string }
+ * @param loading 加载状态
+ * @returns 更新结果
+ */
+const putMemberPermission: (
+  dataset_id: string,
+  data: { user_id: string; permission: string },
+  loading?: Ref<boolean>
+) => Promise<Result<boolean>> = (dataset_id, data, loading) => {
+  return put(`${prefix}/${dataset_id}/members/put_permissions`, data, undefined, loading);
+}
+
+/**
+ * 获取共享给我的知识库列表
+ * @param page 分页参数
+ * @param param 查询参数
+ * @param loading 加载状态
+ */
+const getSharedToMeDataset: (
+  page: pageRequest,
+  param: {
+    name?: string;
+    select_user_id?: string;
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (page, param, loading) => {
+  return get(`${prefix}/share/${page.current_page}/${page.page_size}`, param, loading)
+}
+
 export default {
   getDataset,
   getAllDataset,
@@ -312,5 +364,8 @@ export default {
   getLarkDocumentList,
   importLarkDocument,
   putLarkDataset,
-  generateRelated
+  generateRelated,
+  getDatasetMembers,
+  putMemberPermission,
+  getSharedToMeDataset
 }

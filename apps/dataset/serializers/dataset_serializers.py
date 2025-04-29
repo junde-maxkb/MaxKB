@@ -54,10 +54,10 @@ from smartdoc.conf import PROJECT_DIR
 from django.utils.translation import gettext_lazy as _
 
 """
-# __exact  精确等于 like ‘aaa’
+# __exact  精确等于 like 'aaa'
 # __iexact 精确等于 忽略大小写 ilike 'aaa'
 # __contains 包含like '%aaa%'
-# __icontains 包含 忽略大小写 ilike ‘%aaa%’，但是对于sqlite来说，contains的作用效果等同于icontains。
+# __icontains 包含 忽略大小写 ilike '%aaa%',但是对于sqlite来说，contains的作用效果等同于icontains。
 # __gt  大于
 # __gte 大于等于
 # __lt 小于
@@ -148,6 +148,7 @@ class DataSetSerializers(serializers.ModelSerializer):
 
         user_id = serializers.CharField(required=True)
         select_user_id = serializers.CharField(required=False)
+        dataset_ids = serializers.ListField(required=False, child=serializers.UUIDField(), allow_empty=True)
 
         def get_query_set(self):
             user_id = self.data.get("user_id")
@@ -162,6 +163,8 @@ class DataSetSerializers(serializers.ModelSerializer):
                 query_set = query_set.filter(**{'temp.name__icontains': self.data.get("name")})
             if "select_user_id" in self.data and self.data.get('select_user_id') is not None:
                 query_set = query_set.filter(**{'temp.user_id__exact': self.data.get("select_user_id")})
+            if "dataset_ids" in self.data and self.data.get('dataset_ids'):
+                query_set = query_set.filter(**{'temp.id__in': self.data.get("dataset_ids")})
             query_set = query_set.order_by("-temp.create_time", "temp.id")
             query_set_dict['default_sql'] = query_set
 
@@ -983,3 +986,197 @@ class DataSetSerializers(serializers.ModelSerializer):
                                       required=True,
                                       description=_('dataset id')),
                     ]
+
+    class ShareQuery(ApiMixin, serializers.Serializer):
+        """
+        共享知识库查询对象
+        """
+        name = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('dataset name')),
+                                     max_length=64,
+                                     min_length=1)
+
+        desc = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('dataset description')),
+                                     max_length=256,
+                                     min_length=1,
+                                     )
+
+        user_id = serializers.CharField(required=True)
+        dataset_ids = serializers.ListField(required=True, child=serializers.UUIDField(), allow_empty=True)
+
+        def get_query_set(self):
+            query_set = QuerySet(DataSet)
+            
+            # 使用dataset_ids过滤
+            query_set = query_set.filter(id__in=self.data.get("dataset_ids"))
+            
+            # 添加其他过滤条件
+            if "desc" in self.data and self.data.get('desc') is not None:
+                query_set = query_set.filter(desc__icontains=self.data.get("desc"))
+            if "name" in self.data and self.data.get('name') is not None:
+                query_set = query_set.filter(name__icontains=self.data.get("name"))
+            
+            return query_set.order_by("-create_time", "id")
+
+        def page(self, current_page: int, page_size: int):
+            query_set = self.get_query_set()
+            total = query_set.count()
+            start = (current_page - 1) * page_size
+            end = start + page_size
+            items = query_set[start:end]
+            
+            return {
+                'list': [{
+                    'id': str(item.id),
+                    'name': item.name,
+                    'desc': item.desc,
+                    'user_id': str(item.user_id),
+                    'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'document_count': QuerySet(Document).filter(dataset_id=item.id).count(),
+                    'char_length': QuerySet(Document).filter(dataset_id=item.id).aggregate(
+                        total_length=models.Sum('char_length')
+                    )['total_length'] or 0
+                } for item in items],
+                'total': total,
+                'page': current_page,
+                'page_size': page_size
+            }
+
+        def list(self):
+            query_set = self.get_query_set()
+            return [{
+                'id': str(item.id),
+                'name': item.name,
+                'desc': item.desc,
+                'user_id': str(item.user_id),
+                'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'document_count': QuerySet(Document).filter(dataset_id=item.id).count(),
+                'char_length': QuerySet(Document).filter(dataset_id=item.id).aggregate(
+                    total_length=models.Sum('char_length')
+                )['total_length'] or 0
+            } for item in query_set]
+
+        @staticmethod
+        def get_request_params_api():
+            return [openapi.Parameter(name='name',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('dataset name')),
+                    openapi.Parameter(name='desc',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('dataset description'))
+                    ]
+
+        @staticmethod
+        def get_response_body_api():
+            return DataSetSerializers.Operate.get_response_body_api()
+
+    class SharePageQuery(ApiMixin, serializers.Serializer):
+        """
+        共享知识库分页查询对象
+        """
+        name = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('dataset name')),
+                                     max_length=64,
+                                     min_length=1)
+
+        desc = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('dataset description')),
+                                     max_length=256,
+                                     min_length=1)
+
+        user_id = serializers.CharField(required=True)
+        dataset_ids = serializers.ListField(required=True, child=serializers.UUIDField(), allow_empty=True)
+
+        def get_query_set(self):
+            """
+            获取共享知识库查询集
+            """
+            query_set = QuerySet(DataSet)
+            
+            # 使用dataset_ids过滤
+            query_set = query_set.filter(id__in=self.data.get("dataset_ids"))
+            
+            # 添加其他过滤条件
+            if "desc" in self.data and self.data.get('desc') is not None:
+                query_set = query_set.filter(desc__icontains=self.data.get("desc"))
+            if "name" in self.data and self.data.get('name') is not None:
+                query_set = query_set.filter(name__icontains=self.data.get("name"))
+            
+            return query_set.order_by("-create_time", "id")
+
+        def page(self, current_page: int, page_size: int):
+            """
+            分页获取共享知识库列表
+            """
+            query_set = self.get_query_set()
+            total = query_set.count()
+            start = (current_page - 1) * page_size
+            end = start + page_size
+            items = query_set[start:end]
+            
+            return {
+                'list': [{
+                    'id': str(item.id),
+                    'name': item.name,
+                    'desc': item.desc,
+                    'user_id': str(item.user_id),
+                    'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'document_count': QuerySet(Document).filter(dataset_id=item.id).count(),
+                    'char_length': QuerySet(Document).filter(dataset_id=item.id).aggregate(
+                        total_length=models.Sum('char_length')
+                    )['total_length'] or 0
+                } for item in items],
+                'total': total,
+                'page': current_page,
+                'page_size': page_size
+            }
+
+        @staticmethod
+        def get_request_params_api():
+            return [openapi.Parameter(name='name',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('dataset name')),
+                    openapi.Parameter(name='desc',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('dataset description'))
+                    ]
+
+        @staticmethod
+        def get_response_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['list', 'total', 'page', 'page_size'],
+                properties={
+                    'list': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset id')),
+                                'name': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset name')),
+                                'desc': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset description')),
+                                'user_id': openapi.Schema(type=openapi.TYPE_STRING, description=_('user id')),
+                                'create_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('create time')),
+                                'update_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('update time')),
+                                'document_count': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('document count')),
+                                'char_length': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('char length'))
+                            }
+                        )
+                    ),
+                    'total': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('total count')),
+                    'page': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('current page')),
+                    'page_size': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('page size'))
+                }
+            )

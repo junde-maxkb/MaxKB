@@ -75,5 +75,6 @@ urlpatterns = [
     path('image/<str:image_id>', views.Image.Operate.as_view()),
     path('image', views.Image.as_view()),
     path('file/<str:file_id>', views.FileView.Operate.as_view()),
-    path('file', views.FileView.as_view())
+    path('file', views.FileView.as_view()),
+    path('dataset/share/<int:current_page>/<int:page_size>', views.Dataset.ShareToMePage.as_view(), name="share_to_me"),
 ]
