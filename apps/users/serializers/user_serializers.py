@@ -563,6 +563,11 @@ class UserSerializer(ApiMixin, serializers.ModelSerializer):
         users.extend(other_users)
         return users
 
+    @staticmethod
+    def get_user_by_username(username):
+        user = User.objects.filter(username=username).first()
+        return user
+
 
 class UserInstanceSerializer(ApiMixin, serializers.ModelSerializer):
     class Meta:
@@ -662,16 +667,16 @@ class UserManageSerializer(serializers.Serializer):
         username = serializers.CharField(required=True,
                                          error_messages=ErrMessage.char(_("Username")),
                                          max_length=20,
-                                         min_length=6,
+                                         min_length=1,
                                          validators=[
-                                             validators.RegexValidator(regex=re.compile("^.{6,20}$"),
+                                             validators.RegexValidator(regex=re.compile("^.{1,20}$"),
                                                                        message=_(
                                                                            'Username must be 6-20 characters long'))
                                          ])
         password = serializers.CharField(required=True, error_messages=ErrMessage.char(_("Password")),
                                          validators=[validators.RegexValidator(regex=re.compile(
                                              "^(?![a-zA-Z]+$)(?![A-Z0-9]+$)(?![A-Z_!@#$%^&*`~.()-+=]+$)(?![a-z0-9]+$)(?![a-z_!@#$%^&*`~()-+=]+$)"
-                                             "(?![0-9_!@#$%^&*`~()-+=]+$)[a-zA-Z0-9_!@#$%^&*`~.()-+=]{6,20}$")
+                                             "(?![0-9_!@#$%^&*`~()-+=]+$)[a-zA-Z0-9_!@#$%^&*`~.()-+=]{1,20}$")
                                              , message=_(
                                                  "The password must be 6-20 characters long and must be a combination of letters, numbers, and special characters."))])
 
@@ -772,6 +777,21 @@ class UserManageSerializer(serializers.Serializer):
             if self.data.get('password') != self.data.get('re_password'):
                 raise ExceptionCodeConstants.PASSWORD_NOT_EQ_RE_PASSWORD.value.to_app_api_exception()
 
+    class SetAdminInstance(ApiMixin, serializers.Serializer):
+        user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.char(_('user id')))
+
+        @staticmethod
+        def get_request_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=["user_id"],
+            )
+
+        def is_valid(self, *, raise_exception=False):
+            super().is_valid(raise_exception=True)
+            if self.data.get('id') != self.data.get('re_password'):
+                raise ExceptionCodeConstants.PASSWORD_NOT_EQ_RE_PASSWORD.value.to_app_api_exception()
+
     @valid_license(model=User, count=2,
                    message=_(
                        'The community version supports up to 2 users. If you need more users, please contact us (https://fit2cloud.com/).'))
@@ -862,5 +882,17 @@ class UserManageSerializer(serializers.Serializer):
                 UserManageSerializer.RePasswordInstance(data=instance).is_valid(raise_exception=True)
             user = QuerySet(User).filter(id=self.data.get('id')).first()
             user.password = password_encrypt(instance.get('password'))
+            user.save()
+            return True
+
+        def set_admin(self, instance, operate_user_id, with_valid=True):
+            if with_valid:
+                self.is_valid(raise_exception=True),
+                user = QuerySet(User).filter(id=operate_user_id).first()
+                print("user", user)
+                if user.role != RoleConstants.ADMIN.name:
+                    raise AppApiException(1004, _('User is not admin'))
+            user = QuerySet(User).filter(id=self.data.get('id')).first()
+            user.role = "ADMIN"
             user.save()
             return True

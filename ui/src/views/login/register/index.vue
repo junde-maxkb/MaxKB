@@ -120,7 +120,7 @@ const rules = ref<FormRules<RegisterRequest>>({
       trigger: 'blur'
     },
     {
-      min: 6,
+      min: 2,
       max: 20,
       message: t('views.user.userForm.form.username.lengthMessage'),
       trigger: 'blur'

@@ -105,7 +105,7 @@ const rules = reactive({
       trigger: 'blur'
     },
     {
-      min: 6,
+      min: 1,
       max: 20,
       message: t('views.user.userForm.form.username.lengthMessage'),
       trigger: 'blur'

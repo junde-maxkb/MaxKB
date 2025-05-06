@@ -50,5 +50,10 @@ export const routes: Array<RouteRecordRaw> = [
     path: '/:pathMatch(.*)',
     name: '404',
     component: () => import('@/views/404/index.vue')
+  },
+  {
+    path: '/oauth_login',
+    name: 'oauth_login',
+    component: () => import('@/views/oauth-login/index.vue')
   }
 ]

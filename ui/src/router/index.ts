@@ -25,16 +25,25 @@ router.beforeEach(
       return
     }
     const { user } = useStore()
-    const notAuthRouteNameList = ['register', 'login', 'forgot_password', 'reset_password', 'Chat']
-
+    const notAuthRouteNameList = ["oauth_login", 'register', 'login', 'forgot_password', 'reset_password', 'Chat']
     if (!notAuthRouteNameList.includes(to.name ? to.name.toString() : '')) {
       if (to.query && to.query.token) {
         localStorage.setItem('token', to.query.token.toString())
+        //移除 token 参数并重定向（不刷新页面）
+        const newQuery = { ...to.query }
+        delete newQuery.token
+        next({
+          path: to.path,
+          query: newQuery,
+          replace: true
+        })
+        return
+
       }
       const token = user.getToken()
       if (!token) {
         next({
-          path: '/login'
+          path: '/oauth_login'
         })
         return
       }

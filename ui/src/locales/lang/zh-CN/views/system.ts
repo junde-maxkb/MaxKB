@@ -147,5 +147,25 @@ export default {
     smtpPasswordPlaceholder: '请输入发件人密码',
     enableSSL: '启用 SSL（如果 SMTP 端口是 465，通常需要启用 SSL）',
     enableTLS: '启用 TLS（如果 SMTP 端口是 587，通常需要启用 TLS）'
+  },
+  login_auth: {
+    title: '登录认证',
+    authorizedUrl: '授权端地址',
+    authorizedUrlPlaceholder: '请输入授权端地址',
+    tokenUrl: 'Token端地址',
+    tokenUrlPlaceholder: '请输入Token端地址',
+    userInfoUrl: '用户信息端地址',
+    userInfoUrlPlaceholder: '请输入用户信息端地址',
+    connectRange: '连接范围',
+    connectRangePlaceholder: '请输入连接范围',
+    clientId: '客户端ID',
+    clientIdPlaceholder: '请输入客户端ID',
+    clientSecret: '客户端秘钥',
+    clientSecretPlaceholder: '请输入客户端秘钥',
+    callBackUrl: '回调地址',
+    callBackUrlPlaceholder: '请输入回调地址',
+    fieldMap: '字段映射',
+    fieldMapPlaceholder: '请输入回调地址',
+    enableOauth2: '启用 OAUTH2认证'
   }
 }

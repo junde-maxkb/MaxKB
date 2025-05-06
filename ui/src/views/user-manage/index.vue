@@ -64,7 +64,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column :label="$t('common.operation')" width="110" align="left" fixed="right">
+        <el-table-column :label="$t('common.operation')" width="150" align="left" fixed="right">
           <template #default="{ row }">
             <span class="mr-4">
               <el-tooltip effect="dark" :content="$t('common.edit')" placement="top">
@@ -74,6 +74,17 @@
               </el-tooltip>
             </span>
             <span class="mr-4">
+              <el-tooltip effect="dark" :content="$t('views.user.setting.setAdmin')" placement="top">
+                <el-button type="primary" 
+                :disabled="row.role === 'ADMIN'"
+                text @click.stop="setAdmin(row)">
+                  <el-icon><User /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </span>
+            <span class="mr-4"></span>
+            <span class="mr-4">
+            
               <el-tooltip
                 effect="dark"
                 :content="$t('views.user.setting.updatePwd')"
@@ -108,7 +119,7 @@
 import { ref, onMounted, reactive } from 'vue'
 import UserDialog from './component/UserDialog.vue'
 import UserPwdDialog from './component/UserPwdDialog.vue'
-import { MsgSuccess, MsgConfirm, MsgAlert } from '@/utils/message'
+import { MsgSuccess, MsgConfirm, MsgAlert, MsgError} from '@/utils/message'
 import userApi from '@/api/user-manage'
 import { datetimeFormat } from '@/utils/time'
 import useStore from '@/stores'
@@ -189,6 +200,31 @@ function deleteUserManage(row: any) {
       userApi.delUserManage(row.id, loading).then(() => {
         MsgSuccess(t('common.deleteSuccess'))
         getList()
+      })
+    })
+    .catch(() => {})
+}
+
+function setAdmin(row: any) {
+  MsgConfirm(
+    `${t('views.user.setAdmin.confirmTitle')}${row.username} ?`,
+    t('views.user.setAdmin.confirmMessage'),
+    {
+      confirmButtonText: t('views.user.setting.setAdmin'),
+      confirmButtonClass: 'danger'
+    }
+  )
+    .then(() => {
+      loading.value = true
+      userApi.setAdminManage(row.id, loading).then((res) => {
+        if (res.code == 200){
+          MsgSuccess(t('views.user.setAdmin.setAdminSuccess'))
+          getList()
+        }else{
+          MsgError(t('views.user.setAdmin.setAdminFailed'))
+          loading.value = false
+        }
+        
       })
     })
     .catch(() => {})

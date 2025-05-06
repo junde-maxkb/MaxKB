@@ -7491,3 +7491,18 @@ msgstr ""
 
 msgid "Generate related"
 msgstr ""
+
+msgid "Invalid state"
+msgstr "无效的state,请退出重试下！"
+
+msgid "Authorization failed: code missing"
+msgstr "授权服务器未返回code"
+
+msgid "Failed to get access token"
+msgstr "获取accesstoken失败"
+
+msgid "Access token missing"
+msgstr "授权服务器未返回Access token"
+
+msgid "User not have permission to use"
+msgstr "用户名与maxkb用户名不一致，请修改用户名后重试！"

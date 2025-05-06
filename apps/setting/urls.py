@@ -25,6 +25,7 @@ urlpatterns = [
     path('model/<str:model_id>/pause_download', views.Model.PauseDownload.as_view(), name='model/operate'),
     path('model/<str:model_id>/meta', views.Model.ModelMeta.as_view(), name='model/operate/meta'),
     path('email_setting', views.SystemSetting.Email.as_view(), name='email_setting'),
+    path('login_auth_setting', views.SystemSetting.LoginAuth.as_view(), name='login_auth_setting'),
     path('valid/<str:valid_type>/<int:valid_count>', views.Valid.as_view())
 
 ]

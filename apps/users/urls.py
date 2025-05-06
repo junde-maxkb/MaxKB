@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .views import OauthCallbackView, AuthConnect
 
 app_name = "user"
 urlpatterns = [
@@ -20,7 +21,10 @@ urlpatterns = [
     path("user_manage/<str:user_id>", views.UserManage.Operate.as_view(), name="user_manage_operate"),
     path("user_manage/<str:user_id>/re_password", views.UserManage.RePassword.as_view(),
          name="user_manage_re_password"),
+    path("user_manage/<str:user_id>/set_admin", views.UserManage.SetAdminManage.as_view(), name='set_admin'),
     path("user_manage/<int:current_page>/<int:page_size>", views.UserManage.Page.as_view(),
          name="user_manage_re_password"),
     path('user/list/<str:type>', views.UserListView.as_view()),
+    path('github_auth/', AuthConnect.as_view(), name='github_auth'),
+    path('oauth_callback/', OauthCallbackView.as_view(), name='oauth_callback'),
 ]

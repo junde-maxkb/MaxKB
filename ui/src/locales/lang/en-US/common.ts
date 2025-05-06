@@ -8,6 +8,7 @@ export default {
   saveSuccess: 'Successful',
   delete: 'Delete',
   deleteSuccess: 'Successful',
+  setAdminSuccess: 'Successful',
   setting: 'Settings',
   settingSuccess: 'Successful',
   submit: 'Submit',
