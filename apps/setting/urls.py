@@ -9,6 +9,7 @@ urlpatterns = [
     path('team/member', views.TeamMember.as_view(), name="team"),
     path('team/member/_batch', views.TeamMember.Batch.as_view()),
     path('team/member/<str:member_id>', views.TeamMember.Operate.as_view(), name='member'),
+    path('team/user_teams', views.UserTeams.as_view(), name='user_teams'),
     path('provider/<str:provider>/<str:method>', views.Provide.Exec.as_view(), name='provide_exec'),
     path('provider', views.Provide.as_view(), name='provide'),
     path('provider/model_type_list', views.Provide.ModelTypeList.as_view(), name="provider/model_type_list"),

@@ -22,8 +22,89 @@ from django.utils.translation import gettext_lazy as _
 from setting.views.common import get_member_operation_object, get_member_operation_object_batch
 
 
+class UserTeams(APIView):
+    authentication_classes = [TokenAuth]
+
+    @action(methods=['GET'], detail=False)
+    @swagger_auto_schema(operation_summary=_('获取当前用户所在的所有团队'),
+                         operation_id=_('获取当前用户所在的所有团队'),
+                         responses=result.get_api_response(get_response_body_api()),
+                         tags=[_('Team')])
+    @has_permissions(PermissionConstants.TEAM_READ)
+    def get(self, request: Request):
+        from setting.models.team_management import Team, TeamMember
+        from django.db.models import Q
+        
+        # 获取用户作为管理员的团队
+        managed_team = TeamMember.objects.filter(team_id=request.user.id)
+        
+        # 获取用户作为成员的团队
+        member_teams = TeamMember.objects.filter(user_id=request.user.id).select_related('team').values(
+            'team_id', 'team__name'
+        )
+        print(request.user)
+        print(managed_team)
+        print(member_teams)
+        
+        # 合并结果
+        teams = []
+        for team in managed_team:
+            teams.append({
+                'id': str(team.team_id),
+                'name': team.team.name,
+                'role': 'manager'
+            })
+            
+        for team in member_teams:
+            teams.append({
+                'id': str(team['team_id']),
+                'name': team['team__name'],
+                'role': 'member'
+            })
+            
+        return result.success(teams)
+
+
 class TeamMember(APIView):
     authentication_classes = [TokenAuth]
+
+    @action(methods=['GET'], detail=False)
+    @swagger_auto_schema(operation_summary=_('获取当前用户所在的所有团队'),
+                         operation_id=_('获取当前用户所在的所有团队'),
+                         responses=result.get_api_response(get_response_body_api()),
+                         tags=[_('Team')])
+    @has_permissions(PermissionConstants.TEAM_READ)
+    def get_user_teams(self, request: Request):
+        from setting.models.team_management import Team, TeamMember
+        from django.db.models import Q
+        print(request.user.id)
+        # 获取用户作为管理员的团队
+        managed_teams = Team.objects.filter(user_id=request.user.id).values('id', 'name', 'user_id')
+        
+        # 获取用户作为成员的团队
+        member_teams = TeamMember.objects.filter(user_id=request.user.id).select_related('team').values(
+            'team_id', 'team__name', 'team__user_id'
+        )
+        
+        # 合并结果
+        teams = []
+        for team in managed_teams:
+            teams.append({
+                'id': team['id'],
+                'name': team['name'],
+                'user_id': str(team['user_id']),
+                'role': 'manager'
+            })
+            
+        for team in member_teams:
+            teams.append({
+                'id': str(team['team_id']),
+                'name': team['team__name'],
+                'user_id': str(team['team__user_id']),
+                'role': 'member'
+            })
+            
+        return result.success(teams)
 
     @action(methods=['GET'], detail=False)
     @swagger_auto_schema(operation_summary=_('Get a list of team members'),

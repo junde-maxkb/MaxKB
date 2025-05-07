@@ -27,6 +27,7 @@ from dataset.views.common import get_dataset_operation_object
 from setting.serializers.provider_serializers import ModelSerializer
 from django.utils.translation import gettext_lazy as _
 from dataset.models.data_set import DataSet, DatasetShare
+from users.models import User
 
 
 class Dataset(APIView):
@@ -336,26 +337,48 @@ class Dataset(APIView):
         def get(self, request: Request, dataset_id: str):
             from setting.models.team_management import TeamMember, TeamMemberPermission
             from django.db.models import Q
-            
-            # 获取团队成员
-            team_members = TeamMember.objects.filter(
-                Q(team__user_id=request.user.id) | Q(user_id=request.user.id)
-            ).distinct()
+            from setting.models.team_management import Team
+            # # 获取团队成员
+            # team_members = TeamMember.objects.filter(
+            #     # Q(team__user_id=request.user.id) | Q(user_id=request.user.id)
+            # ).distinct()
+            ignore_user_ids = []
+            # 查询知识库所有者ID
+            ignore_user_ids.append(DataSet.objects.get(id=dataset_id).user_id)
+            ignore_user_ids.append(request.user.id)
+
+            dataset_share = DatasetShare.objects.filter(
+                dataset_id_id=dataset_id,
+                shared_with_type='USER'
+            ).exclude(
+                shared_with_id__in=ignore_user_ids
+            ).select_related('dataset_id')
+            dataset_share_team = DatasetShare.objects.filter(
+                dataset_id_id=dataset_id,
+                shared_with_type='TEAM'
+            ).select_related('dataset_id')
             
             # 获取每个成员对当前知识库的权限
             members_with_permissions = []
-            for member in team_members:
-                permissions = DatasetShare.objects.filter(
-                    shared_with_id=member.user.id,
-                    shared_with_type='USER',
-                    dataset_id_id=dataset_id,
-                ).first()
+            for share in dataset_share:
+                user = User.objects.get(id=share.shared_with_id)
                 
                 members_with_permissions.append({
-                    'user_id': str(member.user.id),
-                    'username': member.user.username,
-                    'permission': permissions.permission if permissions else 'NONE'
+                    'user_id': str(share.shared_with_id),
+                    'type': 'USER',
+                    'username': user.username,
+                    'permission': share.permission if share.permission else 'NONE'
                 })
+            for share in dataset_share_team:
+                Team = Team.objects.get(user_id=share.shared_with_id)
+                
+                members_with_permissions.append({
+                    'user_id': str(share.shared_with_id),
+                    'type': 'TEAM',
+                    'username': Team.name,
+                    'permission': share.permission if share.permission else 'NONE'
+                })
+                
             
             return result.success({
                 'dataset_id': dataset_id,
@@ -386,26 +409,71 @@ class Dataset(APIView):
         def put(self, request: Request, dataset_id: str):
             from dataset.models.data_set import DatasetShare
             from django.utils import timezone
-            
+            from setting.models.team_management import TeamMember
             user_id = request.data.get('user_id')
             permission = request.data.get('permission') if request.data.get('permission') else 'NONE'
+            share_with_type = request.data.get('share_with_type')
             
             # 检查数据集是否存在
             dataset = DataSet.objects.filter(id=dataset_id).first()
             if not dataset:
                 return result.error(_('数据集不存在'))
             
-            # 查找或创建分享记录
-            share_record, created = DatasetShare.objects.get_or_create(
-                dataset_id_id=dataset.id,
-                shared_with_type='USER',
-                shared_with_id=user_id,
-            )
-            
-            # 如果记录已存在，更新权限
-            if not created:
-                share_record.permission = permission
-                share_record.save()
+            if share_with_type == "USER":
+                # 查找或创建分享记录
+                share_record, created = DatasetShare.objects.get_or_create(
+                    dataset_id_id=dataset.id,
+                    shared_with_type='USER',
+                    shared_with_id=user_id,
+                    defaults={'permission': permission}
+                )
+                # 如果记录已存在但权限不同，更新权限
+                if not created and share_record.permission != permission:
+                    share_record.permission = permission
+                    share_record.save()
+                    
+            else:  # 团队类型
+                # 假设share_with_id是团队ID
+                team_id = user_id
+                
+                # 获取团队所有成员
+                team_members = TeamMember.objects.filter(
+                    team_id=user_id 
+                ).values_list('team__user_id', flat=True)
+                
+                # 批量创建/更新对应的分享记录
+                share_records_to_create = []
+                
+                # 检查已存在的分享记录
+                existing_shares = DatasetShare.objects.filter(
+                    dataset_id_id=dataset.id,
+                    shared_with_type=share_with_type,
+                    shared_with_id__in=team_members
+                ).values_list('shared_with_id', flat=True)
+                
+                # 对于已存在的记录，更新权限
+                DatasetShare.objects.filter(
+                    dataset_id_id=dataset.id,
+                    shared_with_type=share_with_type,
+                    shared_with_id__in=existing_shares
+                ).update(permission=permission)
+                
+                # 对于不存在的记录，准备批量创建
+                members_to_create = set(team_members) - set(existing_shares)
+                
+                for member_id in members_to_create:
+                    share_records_to_create.append(
+                        DatasetShare(
+                            dataset_id_id=dataset.id,
+                            shared_with_type='TEAM',
+                            shared_with_id=member_id,
+                            permission=permission
+                        )
+                    )
+                
+                # 如果有需要创建的记录，执行批量创建
+                if share_records_to_create:
+                    DatasetShare.objects.bulk_create(share_records_to_create)
             
             return result.success({'message': '权限更新成功'})
 
@@ -421,12 +489,24 @@ class Dataset(APIView):
                              )
         @has_permissions(PermissionConstants.DATASET_READ, compare=CompareConstants.AND)
         def get(self, request: Request, current_page, page_size):
+            from setting.models.team_management import TeamMember
             # 1. 获取共享给我的知识库ID列表及权限
-            shared_datasets = DatasetShare.objects.filter(
+            user_teams = TeamMember.objects.filter(user_id=request.user.id).values_list('team_id', flat=True)
+            
+            # 分别获取团队共享和用户共享的数据集，并预先加载关联
+            team_shared_datasets = DatasetShare.objects.filter(
+                shared_with_type='TEAM',
+                shared_with_id__in=[str(team_id) for team_id in user_teams]
+            ).exclude(permission='NONE').select_related('dataset_id')
+            
+            user_shared_datasets = DatasetShare.objects.filter(
                 shared_with_type='USER',
                 shared_with_id=str(request.user.id)
-            ).select_related('dataset_id')  # 预加载关联的知识库对象
+            ).exclude(permission='NONE').select_related('dataset_id')
             
+            # 合并两个查询集
+            shared_datasets = list(team_shared_datasets) + list(user_shared_datasets)
+
             # 如果没有共享的数据集，直接返回空结果
             if not shared_datasets:
                 return result.success({
