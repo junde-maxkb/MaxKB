@@ -104,5 +104,49 @@ export default {
   },
   myDatasets: '我的知识库',
   sharedDatasets: '共享知识库',
-  searchDatasets: '知识库检索'
+  searchDatasets: '知识库检索',
+  shareSetting: '共享设置',
+  memberName: '成员名称',
+  permission: '权限',
+  permissionNone: '无权限',
+  permissionManage: '管理',
+  permissionWrite: '编辑',
+  permissionRead: '只读',
+  selectMemberOrTeam: '选择成员或团队',
+  selectTypePlaceholder: '请选择类型',
+  selectPlaceholder: '请选择',
+  member: '成员',
+  team: '团队',
+  type: '共享类型',
+  existingPermissions: '现有权限',
+  confirmRemovePermission: '确定要移除该权限吗？',
+  members: {
+    title: '知识库成员',
+    addMember: '添加成员',
+    removeMember: '移除成员',
+    permission: {
+      read: '只读',
+      write: '读写',
+      admin: '管理员'
+    },
+    searchPlaceholder: '搜索成员',
+    noMembers: '暂无成员',
+    confirmRemove: '确认移除成员',
+    confirmRemoveMessage: '确定要移除该成员吗？'
+  },
+  statistics: {
+    title: '知识库统计',
+    totalDocuments: '总文档数',
+    totalSegments: '总分段数',
+    totalCharacters: '总字符数',
+    lastUpdated: '最后更新时间'
+  },
+  settings: {
+    title: '知识库设置',
+    basicInfo: '基本信息',
+    advancedSettings: '高级设置',
+    embeddingSettings: '向量化设置',
+    syncSettings: '同步设置',
+    saveSuccess: '设置保存成功'
+  }
 }

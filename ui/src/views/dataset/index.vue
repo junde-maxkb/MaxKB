@@ -61,7 +61,7 @@
         :loading="loading"
       >
         <el-row :gutter="15">
-          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" class="mb-16">
+          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" class="mb-16" v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType !== 'SHARED_TO_ME')">
             <CardAdd :title="$t('views.dataset.createDataset')" @click="openCreateDialog" />
           </el-col>
           <template v-for="(item, index) in datasetList" :key="index">
@@ -359,11 +359,21 @@ function getList() {
   const params = {
     ...(searchValue.value && { name: searchValue.value }),
     ...(selectUserId.value &&
-      selectUserId.value !== 'all' && { select_user_id: selectUserId.value }),
-    type: datasetType.value,
-    ...(datasetType.value === 'SHARED' && { shared_type: sharedType.value })
+      selectUserId.value !== 'all' && { select_user_id: selectUserId.value })
   }
-  datasetApi.getDataset(paginationConfig, params, loading).then((res) => {
+  
+  let apiPromise
+  if (datasetType.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME') {
+    apiPromise = datasetApi.getSharedToMeDataset(paginationConfig, params, loading)
+  } else {
+    apiPromise = datasetApi.getDataset(paginationConfig, {
+      ...params,
+      type: datasetType.value,
+      ...(datasetType.value === 'SHARED' && { shared_type: sharedType.value })
+    }, loading)
+  }
+
+  apiPromise.then((res) => {
     res.data.records.forEach((item: any) => {
       if (user.userInfo && item.user_id === user.userInfo.id) {
         item.username = user.userInfo.username

@@ -10,4 +10,12 @@ interface TeamMember {
   user_id: string
 }
 
-export type { TeamMember }
+interface Team {
+  id: string
+  name: string
+  description?: string
+  create_time: string
+  update_time: string
+}
+
+export type { TeamMember, Team }

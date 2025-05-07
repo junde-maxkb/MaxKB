@@ -321,7 +321,7 @@ const getDatasetMembers: (
  */
 const putMemberPermission: (
   dataset_id: string,
-  data: { user_id: string; permission: string },
+  data: { user_id: string; permission: string ,share_with_type: string},
   loading?: Ref<boolean>
 ) => Promise<Result<boolean>> = (dataset_id, data, loading) => {
   return put(`${prefix}/${dataset_id}/members/put_permissions`, data, undefined, loading);

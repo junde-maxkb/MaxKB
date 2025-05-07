@@ -1,6 +1,6 @@
 import { Result } from '@/request/Result'
 import { get, post, del, put } from '@/request/index'
-import type { TeamMember } from '@/api/type/team'
+import type { TeamMember, Team } from '@/api/type/team'
 
 const prefix = '/team/member'
 
@@ -58,10 +58,18 @@ const putMemberPermissions: (member_id: String, body: any) => Promise<Result<any
   return put(`${prefix}/${member_id}`, body)
 }
 
+/**
+ * 获取当前用户所在所有团队
+ */
+const getCurrentUserTeams: () => Promise<Result<Team[]>> = () => {
+  return get('/team/user_teams')
+}
+
 export default {
   getTeamMember,
   postCreatTeamMember,
   delTeamMember,
   getMemberPermissions,
-  putMemberPermissions
+  putMemberPermissions,
+  getCurrentUserTeams
 }
