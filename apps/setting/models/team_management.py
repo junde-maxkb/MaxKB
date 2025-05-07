@@ -42,6 +42,9 @@ class Team(AppModelMixin):
 
 
 class TeamMember(AppModelMixin):
+    """
+    团队成员表
+    """
     id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
     team = models.ForeignKey(Team, on_delete=models.DO_NOTHING, verbose_name="团队id")
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING, verbose_name="成员用户id")
@@ -52,10 +55,10 @@ class TeamMember(AppModelMixin):
 
 
 class TeamMemberPermission(AppModelMixin):
-    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
     """
     团队成员权限
     """
+    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
     member = models.ForeignKey(TeamMember, on_delete=models.DO_NOTHING, verbose_name="团队成员")
 
     auth_target_type = models.CharField(verbose_name='授权目标', max_length=128, choices=AuthTargetType.choices,

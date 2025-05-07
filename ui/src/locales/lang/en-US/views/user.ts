@@ -2,6 +2,7 @@ export default {
   title: 'User',
   createUser: 'Create User',
   editUser: 'Edit User',
+  setAdmin: 'Set Admin',
   setting: {
     updatePwd: 'Change Password'
   },

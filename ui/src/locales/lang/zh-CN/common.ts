@@ -6,6 +6,7 @@ export default {
   copyError: '复制失败',
   save: '保存',
   saveSuccess: '保存成功',
+  saveError: '保存失败',
   delete: '删除',
   deleteSuccess: '删除成功',
   setting: '设置',

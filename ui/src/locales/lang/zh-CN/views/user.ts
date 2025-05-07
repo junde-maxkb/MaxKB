@@ -3,7 +3,8 @@ export default {
   createUser: '创建用户',
   editUser: '编辑用户',
   setting: {
-    updatePwd: '修改用户密码'
+    updatePwd: '修改用户密码',
+    setAdmin: '设置系统管理员'
   },
   tip: {
     professionalMessage: '社区版最多支持 2 个用户，如需拥有更多用户，请升级为专业版。',
@@ -12,6 +13,12 @@ export default {
   delete: {
     confirmTitle: '是否删除用户：',
     confirmMessage: '删除用户，该用户创建的资源（应用、知识库、模型）都会删除，请谨慎操作。'
+  },
+  setAdmin: {
+    confirmTitle: '是否设置用户为系统管理员：',
+    confirmMessage: '警告：您即将授予该用户系统管理员权限',
+    setAdminFailed: "设置系统管理员失败",
+    setAdminSuccess: "设置系统管理员成功"
   },
   disabled: {
     confirmTitle: '是否禁用函数：',
@@ -23,7 +30,7 @@ export default {
         label: '用户名',
         placeholder: '请输入用户名',
         requiredMessage: '请输入用户名',
-        lengthMessage: '长度在 6 到 20 个字符'
+        lengthMessage: '长度在 2 到 20 个字符'
       },
       nick_name: {
         label: '姓名',

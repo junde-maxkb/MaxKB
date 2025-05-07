@@ -18,6 +18,8 @@ class SettingType(models.IntegerChoices):
 
     RSA = 1, "私钥秘钥"
 
+    LOGINAUTH = 2, "登录认证"
+
 
 class SystemSetting(AppModelMixin):
     """

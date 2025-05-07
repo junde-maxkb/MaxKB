@@ -76,3 +76,15 @@ def get_email_details(request):
         'body': {**body, 'email_host_password': encryption_str(email_host_password)},
         'query': query
     }
+
+
+def get_login_auth_details(request):
+    path = request.path
+    body = request.data
+    query = request.query_params
+    client_secret = body.get('client_secret', '')
+    return {
+        'path': path,
+        'body': {**body, 'client_secret': encryption_str(client_secret)},
+        'query': query
+    }

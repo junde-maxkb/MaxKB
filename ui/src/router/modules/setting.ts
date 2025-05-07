@@ -102,6 +102,18 @@ const settingRouter = {
             permission: new Role('ADMIN')
           },
           component: () => import('@/views/email/index.vue')
+        },
+        {
+          path: '/system/login_auth',
+          name: 'login_auth',
+          meta: {
+            title: 'views.system.login_auth.title',
+            activeMenu: '/setting',
+            parentPath: '/setting',
+            parentName: 'setting',
+            permission: new Role('ADMIN')
+          },
+          component: () => import('@/views/system/login_auth.vue')
         }
       ]
     },

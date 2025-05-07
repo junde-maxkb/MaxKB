@@ -68,10 +68,22 @@ const putUserManagePassword: (
   return put(`${prefix}/${user_id}/re_password`, data, undefined, loading)
 }
 
+/**
+ * 设置用户为系统管理员
+ */
+
+
+const setAdminManage: (user_id: string,loading?: Ref<boolean>) => Promise<Result<any>>
+ = (user_id,
+  loading) => {
+  return put(`${prefix}/${user_id}/set_admin`, undefined, loading)
+}
+
 export default {
   getUserManage,
   delUserManage,
   postUserManage,
   putUserManage,
-  putUserManagePassword
+  putUserManagePassword,
+  setAdminManage
 }

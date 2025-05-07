@@ -17,10 +17,10 @@ from common.constants.permission_constants import RoleConstants
 from common.log.log import log
 from common.response import result
 from setting.serializers.system_setting import SystemSettingSerializer
-from setting.swagger_api.system_setting import SystemSettingEmailApi
+from setting.swagger_api.system_setting import SystemSettingEmailApi, SystemSettingLoginAuthApi
 from django.utils.translation import gettext_lazy as _
 
-from setting.views.common import get_email_details
+from setting.views.common import get_email_details, get_login_auth_details
 
 
 class SystemSetting(APIView):
@@ -65,3 +65,45 @@ class SystemSetting(APIView):
         def get(self, request: Request):
             return result.success(
                 SystemSettingSerializer.EmailSerializer.one())
+
+    class LoginAuth(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['PUT'], detail=False)
+        @swagger_auto_schema(operation_summary=_('Create or update login auth settings'),
+                             operation_id=_('Create or update login auth  settings'),
+                             request_body=SystemSettingEmailApi.get_request_body_api(), tags=[_('LoginAuth settings')],
+                             responses=result.get_api_response(SystemSettingEmailApi.get_response_body_api()))
+        @has_permissions(RoleConstants.ADMIN)
+        @log(menu='LoginAuth settings', operate='Create or update LoginAuth settings',
+             get_details=get_login_auth_details
+             )
+        def put(self, request: Request):
+            return result.success(
+                SystemSettingSerializer.LoginAuthSerializer.Create(
+                    data=request.data).update_or_save(request))
+
+        @action(methods=['POST'], detail=False)
+        @swagger_auto_schema(operation_summary=_('Test login_auth settings'),
+                             operation_id=_('Test login_auth settings'),
+                             request_body=SystemSettingLoginAuthApi.get_request_body_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('LoginAuth settings')])
+        @has_permissions(RoleConstants.ADMIN)
+        @log(menu='LoginAuth settings', operate='Test login_auth settings',
+             get_details=get_email_details
+             )
+        def post(self, request: Request):
+            return result.success(
+                SystemSettingSerializer.LoginAuthSerializer.Create(
+                    data=request.data).is_valid())
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_('Get login auth settings'),
+                             operation_id=_('Get login auth settings'),
+                             responses=result.get_api_response(SystemSettingEmailApi.get_response_body_api()),
+                             tags=[_('LoginAuth settings')])
+        @has_permissions(RoleConstants.ADMIN)
+        def get(self, request: Request):
+            return result.success(
+                SystemSettingSerializer.LoginAuthSerializer.one())

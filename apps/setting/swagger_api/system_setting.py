@@ -76,3 +76,43 @@ class SystemSettingEmailApi(ApiMixin):
                                                                description=_('Sender\'s email'))
                               }
                               )
+
+
+class SystemSettingLoginAuthApi(ApiMixin):
+    @staticmethod
+    def get_request_body_api():
+        return openapi.Schema(type=openapi.TYPE_OBJECT,
+                              title=_('LoginAuth related parameters'),
+                              description=_('LoginAuth related parameters'),
+                              required=['authorized_url', 'token_url', 'user_info_url', 'connect_range',
+                                        'client_id', 'client_secret', 'callback_url', 'field_map', 'enable_oauth2'],
+                              properties={
+                                  'authorized_url': openapi.Schema(type=openapi.TYPE_STRING,
+                                                                   title=_('Authorized Url'),
+                                                                   description=_('Authorized Url')),
+                                  'token_url': openapi.Schema(type=openapi.TYPE_STRING,
+                                                              title=_('Token Url'),
+                                                              description=_('Token Url')),
+                                  'user_info_url': openapi.Schema(type=openapi.TYPE_STRING,
+                                                                  title=_('User Info Url'),
+                                                                  description=_('User Info Url')),
+                                  'connect_range': openapi.Schema(type=openapi.TYPE_STRING,
+                                                                  title=_('Connect Range'),
+                                                                  description=_('Connect Range')),
+                                  'client_id': openapi.Schema(type=openapi.TYPE_STRING,
+                                                              title=_('Client Id'),
+                                                              description=_('Client Id')),
+                                  'client_secret': openapi.Schema(type=openapi.TYPE_STRING,
+                                                                  title=_('Client Secret'),
+                                                                  description=_('Client Secret')),
+                                  'callback_url': openapi.Schema(type=openapi.TYPE_STRING,
+                                                                 title=_('Callback Url'),
+                                                                 description=_('Callback Url')),
+                                  'field_map': openapi.Schema(type=openapi.TYPE_STRING,
+                                                              title=_('Field Map'),
+                                                              description=_('Field Map')),
+                                  'enable_oauth2': openapi.Schema(type=openapi.TYPE_BOOLEAN,
+                                                                  title=_('Enable Oauth2'),
+                                                                  description=_('Enable Oauth2'))
+                              }
+                              )

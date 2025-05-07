@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'django_apscheduler',
     'common',
     'function_lib',
-    'django_celery_beat'
+    'django_celery_beat',
+    'django.contrib.sessions'
 
 ]
 
@@ -149,6 +150,15 @@ EMAIL_HOST = CONFIG.get('EMAIL_HOST')  # 发送邮件的邮箱 的 SMTP服务器
 EMAIL_PORT = CONFIG.get('EMAIL_PORT')  # 发件箱的SMTP服务器端口
 EMAIL_HOST_USER = CONFIG.get('EMAIL_HOST_USER')  # 发送邮件的邮箱地址
 EMAIL_HOST_PASSWORD = CONFIG.get('EMAIL_HOST_PASSWORD')  # 发送邮件的邮箱密码(这里使用的是授权码)
+
+# OAuth2认证登录配置
+OAUTH2_CLIENT_ID = CONFIG.get('OAUTH2_CLIENT_ID')
+OAUTH2_REDIRECT_URI = CONFIG.get('OAUTH2_REDIRECT_URI')
+OAUTH2_CLIENT_SECRET = CONFIG.get('OAUTH2_CLIENT_SECRET')
+OAUTH2_AUTHORIZE_URI = "https://gitee.com/oauth/authorize"
+OAUTH2_TOKEN_URI = "https://gitee.com/oauth/token"
+OAUTH2_USER_URL = "https://gitee.com/api/v5/user"
+MAXKB_HOME_URL = "http://127.0.0.1:3000/ui/application"
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases

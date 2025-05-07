@@ -6,7 +6,9 @@
     @date：2023/9/4 10:57
     @desc:
 """
-from django.core import cache
+import secrets
+
+from django.core import cache, signing
 from django.utils.translation import gettext_lazy as _
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -18,16 +20,21 @@ from rest_framework.views import Request
 
 from common.auth.authenticate import TokenAuth
 from common.auth.authentication import has_permissions
+from common.constants.authentication_type import AuthenticationType
 from common.constants.permission_constants import PermissionConstants, CompareConstants, ViewPermission, RoleConstants
 from common.log.log import log
 from common.response import result
 from common.util.common import encryption
+from setting.serializers.system_setting import SystemSettingSerializer
+from smartdoc import settings
 from smartdoc.settings import JWT_AUTH
 from users.serializers.user_serializers import RegisterSerializer, LoginSerializer, CheckCodeSerializer, \
     RePasswordSerializer, \
     SendEmailSerializer, UserProfile, UserSerializer, UserManageSerializer, UserInstanceSerializer, SystemSerializer, \
     SwitchLanguageSerializer
 from users.views.common import get_user_operation_object, get_re_password_details
+import requests
+from django.shortcuts import redirect
 
 user_cache = cache.caches['user_cache']
 token_cache = cache.caches['token_cache']
@@ -325,6 +332,26 @@ class UserManage(APIView):
             return result.success(
                 UserManageSerializer.Operate(data={'id': user_id}).re_password(request.data, with_valid=True))
 
+    class SetAdminManage(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['PUT'], detail=False)
+        @swagger_auto_schema(operation_summary=_("Change password"),
+                             operation_id=_("Change password"),
+                             manual_parameters=UserInstanceSerializer.get_request_params_api(),
+                             request_body=UserManageSerializer.RePasswordInstance.get_request_body_api(),
+                             responses=result.get_default_response(),
+                             tags=[_("User management")])
+        @has_permissions(ViewPermission(
+            [RoleConstants.ADMIN],
+            [PermissionConstants.USER_READ],
+            compare=CompareConstants.AND))
+        def put(self, request: Request, user_id):
+            operate_user_id = request.user.id
+            return result.success(
+                UserManageSerializer.Operate(data={'id': user_id}).set_admin(request.data, operate_user_id,
+                                                                             with_valid=True))
+
     class Operate(APIView):
         authentication_classes = [TokenAuth]
 
@@ -387,3 +414,75 @@ class UserListView(APIView):
     @has_permissions(PermissionConstants.USER_READ)
     def get(self, request: Request, type):
         return result.success(UserSerializer().listByType(type, request.user.id))
+
+
+class AuthConnect(APIView):
+    def get(self, request):
+        """
+        生成GitHub授权URL并跳转
+        """
+        # 生成随机state防止CSRF
+        state = secrets.token_urlsafe(16)
+        request.session['oauth_state'] = state  # 存储到session
+        oauth = SystemSettingSerializer.LoginAuthSerializer.one()
+        params = {
+            'client_id': oauth.get('client_id') if oauth.get('client_id') else settings.base.OAUTH2_CLIENT_ID,
+            'redirect_uri': oauth.get('callback_url') if oauth.get(
+                'callback_url') else settings.base.OAUTH2_REDIRECT_URI,
+            'scope': oauth.get('connect_range') if oauth.get('connect_range') else 'user_info',  # 按需申请权限
+            'state': state,
+            'response_type': 'code'
+        }
+        auth_url = f"{oauth.get('authorized_url') if oauth.get('authorized_url') else settings.base.OAUTH2_AUTHORIZE_URI}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
+        return result.success(auth_url)
+
+
+class OauthCallbackView(APIView):
+    def get(self, request):
+        """处理GitHub回调"""
+        # 1. 验证state参数（防止CSRF）
+        state = request.session.get('oauth_state', None)
+        if 'state' not in request.GET or request.GET['state'] != state:
+            return result.error(_("Invalid state'"))
+
+        # 2. 获取临时code
+        code = request.GET.get('code')
+        if not code:
+            return result.error(_("Authorization failed: code missing"))
+        oauth = SystemSettingSerializer.LoginAuthSerializer.one()
+        # 3. 用code换取access_token
+        token_data = {
+            'grant_type': "authorization_code",
+            'client_id': oauth.get('client_id') if oauth.get('client_id') else settings.base.OAUTH2_CLIENT_ID,
+            'client_secret': oauth.get('client_secret') if oauth.get(
+                'client_secret') else settings.base.OAUTH2_CLIENT_SECRET,
+            'code': code,
+            'redirect_uri': oauth.get('callback_url') if oauth.get(
+                'callback_url') else settings.base.OAUTH2_REDIRECT_URI
+        }
+        headers = {'Accept': 'application/json'}
+        response = requests.post(oauth.get('token_url') if oauth.get('token_url') else settings.base.OAUTH2_TOKEN_URI,
+                                 data=token_data, headers=headers)
+
+        if response.status_code != 200:
+            return result.error(_("Failed to get access token"))
+        access_token = response.json().get('access_token')
+        if not access_token:
+            return result.error(_("Access token missing"))
+        # 4. 使用access_token获取用户信息
+        headers = {'Authorization': f'Bearer {access_token}'}
+        user_response = requests.get(oauth.get('user_url') if oauth.get('user_url') else settings.base.OAUTH2_USER_URL,
+                                     headers=headers)
+        user_data = user_response.json()
+
+        user = UserSerializer.get_user_by_username(user_data.get('name'))
+        if not user:
+            return result.error(_("User not have permission to use"))
+
+        token = signing.dumps({'username': user.username,
+                               'id': str(user.id),
+                               'email': user.email,
+                               'type': AuthenticationType.USER.value})
+
+        token_cache.set(token, user, timeout=JWT_AUTH['JWT_EXPIRATION_DELTA'])
+        return redirect(f"{settings.base.MAXKB_HOME_URL}?token={token}")
