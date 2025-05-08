@@ -126,6 +126,22 @@
                     style="height: 22px"
                     >{{ $t('views.dataset.yuque') }}</el-tag
                   >
+                  <el-tag
+                    v-if="datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME'"
+                    :class="{
+                      'purple-tag': item.permission === 'MANAGE',
+                      'blue-tag': item.permission === 'WRITE',
+                      'green-tag': item.permission === 'READ'
+                    }"
+                    style="height: 22px; margin-left: 8px"
+                    >{{ 
+                      item.permission === 'MANAGE' 
+                        ? $t('views.dataset.permissionManage') 
+                        : item.permission === 'WRITE' 
+                          ? $t('views.dataset.permissionWrite') 
+                          : $t('views.dataset.permissionRead') 
+                    }}</el-tag
+                  >
                 </div>
 
                 <template #footer>
@@ -425,6 +441,13 @@ onMounted(() => {
   }
   :deep(.el-divider__text) {
     background: var(--app-layout-bg-color);
+  }
+  
+  // 权限标签样式
+  :deep(.green-tag) {
+    background-color: var(--el-color-success-light-9);
+    border-color: var(--el-color-success-light-7);
+    color: var(--el-color-success);
   }
 }
 </style>
