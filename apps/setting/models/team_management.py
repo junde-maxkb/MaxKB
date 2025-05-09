@@ -33,9 +33,8 @@ class Team(AppModelMixin):
     """
     团队表
     """
-    user = models.OneToOneField(User, primary_key=True, on_delete=models.DO_NOTHING, verbose_name="团队所有者")
-
-    name = models.CharField(max_length=128, verbose_name="团队名称")
+    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
+    name = models.CharField(max_length=128, unique=True, verbose_name="团队名称")
 
     class Meta:
         db_table = "team"
