@@ -69,8 +69,8 @@
               <CardBox
                 :title="item.name"
                 :description="item.desc"
-                class="cursor"
-                @click="router.push({ path: `/dataset/${item.id}/document` })"
+                :class="{'cursor': item.permission !== 'READ'}"
+                @click="item.permission !== 'READ' && router.push({ path: `/dataset/${item.id}/document` })"
               >
                 <template #icon>
                   <AppAvatar
@@ -155,20 +155,21 @@
                       {{ $t('views.dataset.relatedApp_count') }}
                     </div>
                     <div @click.stop>
-                      <el-dropdown trigger="click">
+                      <el-dropdown trigger="click" v-if="datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME'">
                         <el-button text @click.stop>
                           <el-icon><MoreFilled /></el-icon>
                         </el-button>
                         <template #dropdown>
                           <el-dropdown-menu>
                             <el-dropdown-item
+                              v-if="item.permission === 'MANAGE' && item.type === '1'"
                               icon="Refresh"
                               @click.stop="syncDataset(item)"
-                              v-if="item.type === '1'"
                               >{{ $t('views.dataset.setting.sync') }}</el-dropdown-item
                             >
-
-                            <el-dropdown-item @click="reEmbeddingDataset(item)">
+                            <el-dropdown-item 
+                              v-if="item.permission === 'MANAGE' || item.permission === 'WRITE'"
+                              @click="reEmbeddingDataset(item)">
                               <AppIcon
                                 iconName="app-document-refresh"
                                 style="font-size: 16px"
@@ -176,26 +177,41 @@
                               {{ $t('views.dataset.setting.vectorization') }}</el-dropdown-item
                             >
                             <el-dropdown-item
+                              v-if="item.permission === 'MANAGE'"
                               icon="Connection"
                               @click.stop="openGenerateDialog(item)"
                               >{{ $t('views.document.generateQuestion.title') }}</el-dropdown-item
                             >
                             <el-dropdown-item
+                              v-if="item.permission === 'MANAGE'"
                               icon="Setting"
                               @click.stop="router.push({ path: `/dataset/${item.id}/setting` })"
                             >
                               {{ $t('common.setting') }}</el-dropdown-item
                             >
-                            <el-dropdown-item @click.stop="export_dataset(item)">
+                            <el-dropdown-item 
+                              v-if="item.permission === 'MANAGE'"
+                              @click.stop="export_dataset(item)">
                               <AppIcon iconName="app-export"></AppIcon
                               >{{ $t('views.document.setting.export') }} Excel</el-dropdown-item
                             >
-                            <el-dropdown-item @click.stop="export_zip_dataset(item)">
+                            <el-dropdown-item 
+                              v-if="item.permission === 'MANAGE'"
+                              @click.stop="export_zip_dataset(item)">
                               <AppIcon iconName="app-export"></AppIcon
                               >{{ $t('views.document.setting.export') }} ZIP</el-dropdown-item
                             >
-                            <el-dropdown-item icon="Delete" @click.stop="deleteDataset(item)">{{
-                              $t('common.delete')
+                            <el-dropdown-item 
+                              v-if="item.permission === 'MANAGE'"
+                              icon="Close"
+                              @click.stop="exitDataset(item)">{{
+                              $t('common.exit')
+                            }}</el-dropdown-item>
+                            <el-dropdown-item 
+                              v-if="item.permission === 'WRITE' || item.permission === 'READ'"
+                              icon="Close"
+                              @click.stop="exitDataset(item)">{{
+                              $t('common.exit')
                             }}</el-dropdown-item>
                           </el-dropdown-menu>
                         </template>
@@ -391,14 +407,24 @@ function getList() {
 
   apiPromise.then((res) => {
     res.data.records.forEach((item: any) => {
-      if (user.userInfo && item.user_id === user.userInfo.id) {
-        item.username = user.userInfo.username
+      if (datasetType.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME') {
+        item.username = item.username || item.creator_name
       } else {
-        item.username = userOptions.value.find((v) => v.value === item.user_id)?.label
+        if (user.userInfo && item.user_id === user.userInfo.id) {
+          item.username = user.userInfo.username
+        } else {
+          item.username = userOptions.value.find((v) => v.value === item.user_id)?.label
+        }
       }
     })
     paginationConfig.total = res.data.total
-    const newRecords = sortDatasetList(res.data.records)
+    let newRecords = sortDatasetList(res.data.records)
+    
+    if (datasetType.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME' && user.userInfo?.id) {
+      newRecords = newRecords.filter(item => item.user_id !== user.userInfo.id)
+      paginationConfig.total = datasetList.value.length + newRecords.length
+    }
+    
     datasetList.value = [...datasetList.value, ...newRecords]
   })
 }
@@ -420,6 +446,27 @@ function getUserList() {
       }
     }
   })
+}
+
+function exitDataset(row: any) {
+  if (!user.userInfo?.id) return
+  MsgConfirm(
+    t('views.dataset.exit.confirmTitle'),
+    t('views.dataset.exit.confirmMessage'),
+    {
+      confirmButtonText: t('common.confirm'),
+      confirmButtonClass: 'danger'
+    }
+  )
+    .then(() => {
+      datasetApi.putExitShare(row.id).then(() => {
+        paginationConfig.current_page = 1
+        datasetList.value = []
+        getList()
+        MsgSuccess(t('common.exitSuccess'))
+      })
+    })
+    .catch(() => {})
 }
 
 onMounted(() => {

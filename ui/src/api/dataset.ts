@@ -324,7 +324,19 @@ const putMemberPermission: (
   data: { user_id: string; permission: string ,share_with_type: string},
   loading?: Ref<boolean>
 ) => Promise<Result<boolean>> = (dataset_id, data, loading) => {
-  return put(`${prefix}/${dataset_id}/members/put_permissions`, data, undefined, loading);
+  return put(`${prefix}/${dataset_id}/members/put_permissions`, data, undefined, loading)
+}
+
+/**
+ * 退出共享知识库
+ * @param dataset_id 知识库ID
+ * @param loading 加载状态
+ */
+const putExitShare: (
+  dataset_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<boolean>> = (dataset_id, loading) => {
+  return put(`${prefix}/${dataset_id}/exit_share`, undefined, undefined, loading)
 }
 
 /**
@@ -367,5 +379,6 @@ export default {
   generateRelated,
   getDatasetMembers,
   putMemberPermission,
-  getSharedToMeDataset
+  getSharedToMeDataset,
+  putExitShare
 }

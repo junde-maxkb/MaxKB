@@ -25,6 +25,11 @@ export default {
     confirmMessage1: '此知识库关联',
     confirmMessage2: '个应用，删除后无法恢复，请谨慎操作。'
   },
+  exit: {
+    confirmTitle: '是否退出知识库',
+    confirmMessage: '退出后，如果通过团队还拥有权限，将保留团队权限；如果完全失去权限，将无法访问该知识库。',
+    success: '退出成功'
+  },
   tabs: {
     myDataset: '我的知识库',
     sharedDataset: '共享知识库',
