@@ -33,7 +33,7 @@ class Team(AppModelMixin):
     """
     团队表
     """
-    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
+    id = models.UUIDField(primary_key=True, default=uuid.uuid1, editable=False, verbose_name="主键id")
     name = models.CharField(max_length=128, unique=True, verbose_name="团队名称")
 
     class Meta:
@@ -44,7 +44,7 @@ class TeamMember(AppModelMixin):
     """
     团队成员表
     """
-    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
+    id = models.UUIDField(primary_key=True, default=uuid.uuid1, editable=False, verbose_name="主键id")
     team = models.ForeignKey(Team, on_delete=models.DO_NOTHING, verbose_name="团队id")
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING, verbose_name="成员用户id")
     is_manager = models.BooleanField(verbose_name="是否管理员", default=False)

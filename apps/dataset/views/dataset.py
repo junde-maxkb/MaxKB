@@ -374,7 +374,7 @@ class Dataset(APIView):
                     'permission': share.permission if share.permission else 'NONE'
                 })
             for share in dataset_share_team:
-                Team = Team.objects.get(user_id=share.shared_with_id)
+                Team = Team.objects.get(id=share.shared_with_id)
                 
                 members_with_permissions.append({
                     'user_id': str(share.shared_with_id),
@@ -437,47 +437,20 @@ class Dataset(APIView):
                     share_record.save()
                     
             else:  # 团队类型
-                # 假设share_with_id是团队ID
+                # 假设user_id是团队ID
                 team_id = user_id
-                
-                # 获取团队所有成员
-                team_members = TeamMember.objects.filter(
-                    team_id=user_id 
-                ).values_list('team__user_id', flat=True)
-                
-                # 批量创建/更新对应的分享记录
-                share_records_to_create = []
-                
-                # 检查已存在的分享记录
-                existing_shares = DatasetShare.objects.filter(
+                print(f"团队ID: {team_id}")
+                # 查找或创建团队分享记录
+                share_record, created = DatasetShare.objects.get_or_create(
                     dataset_id_id=dataset.id,
-                    shared_with_type=share_with_type,
-                    shared_with_id__in=team_members
-                ).values_list('shared_with_id', flat=True)
-                
-                # 对于已存在的记录，更新权限
-                DatasetShare.objects.filter(
-                    dataset_id_id=dataset.id,
-                    shared_with_type=share_with_type,
-                    shared_with_id__in=existing_shares
-                ).update(permission=permission)
-                
-                # 对于不存在的记录，准备批量创建
-                members_to_create = set(team_members) - set(existing_shares)
-                
-                for member_id in members_to_create:
-                    share_records_to_create.append(
-                        DatasetShare(
-                            dataset_id_id=dataset.id,
-                            shared_with_type='TEAM',
-                            shared_with_id=member_id,
-                            permission=permission
-                        )
-                    )
-                
-                # 如果有需要创建的记录，执行批量创建
-                if share_records_to_create:
-                    DatasetShare.objects.bulk_create(share_records_to_create)
+                    shared_with_type='TEAM',
+                    shared_with_id=team_id,
+                    defaults={'permission': permission}
+                )
+                # 如果记录已存在但权限不同，更新权限
+                if not created and share_record.permission != permission:
+                    share_record.permission = permission
+                    share_record.save()
             
             return result.success({'message': '权限更新成功'})
 

@@ -36,10 +36,12 @@ class UserTeams(APIView):
         from django.db.models import Q
         
         # 获取用户作为管理员的团队
-        managed_team = TeamMember.objects.filter(team_id=request.user.id)
+        managed_team = TeamMember.objects.filter(user_id=request.user.id, is_manager=True).select_related('team').values(
+            'team_id', 'team__name'
+        )
         
         # 获取用户作为成员的团队
-        member_teams = TeamMember.objects.filter(user_id=request.user.id).select_related('team').values(
+        member_teams = TeamMember.objects.filter(user_id=request.user.id,is_manager=False).select_related('team').values(
             'team_id', 'team__name'
         )
         print(request.user)
@@ -50,8 +52,8 @@ class UserTeams(APIView):
         teams = []
         for team in managed_team:
             teams.append({
-                'id': str(team.team_id),
-                'name': team.team.name,
+                'id': str(team['team_id']),
+                'name': team['team__name'],
                 'role': 'manager'
             })
             
@@ -78,21 +80,27 @@ class TeamMember(APIView):
         from setting.models.team_management import Team, TeamMember
         from django.db.models import Q
         print(request.user.id)
+        print("调试信息: 用户ID", request.user.id)
+        
         # 获取用户作为管理员的团队
-        managed_teams = Team.objects.filter(user_id=request.user.id).values('id', 'name', 'user_id')
+        managed_teams = TeamMember.objects.filter(user_id=request.user.id, is_manager=True).select_related('team').values(
+            'team_id', 'team__name', 'team__user_id'
+        )
+        print("调试信息: 管理的团队", managed_teams)
         
         # 获取用户作为成员的团队
         member_teams = TeamMember.objects.filter(user_id=request.user.id).select_related('team').values(
             'team_id', 'team__name', 'team__user_id'
         )
+        print("调试信息: 成员的团队", member_teams)
         
         # 合并结果
         teams = []
         for team in managed_teams:
             teams.append({
-                'id': team['id'],
-                'name': team['name'],
-                'user_id': str(team['user_id']),
+                'id': str(team['team_id']),
+                'name': team['team__name'],
+                'user_id': str(team['team__id']),
                 'role': 'manager'
             })
             
@@ -100,10 +108,11 @@ class TeamMember(APIView):
             teams.append({
                 'id': str(team['team_id']),
                 'name': team['team__name'],
-                'user_id': str(team['team__user_id']),
+                'user_id': str(team['team__id']),
                 'role': 'member'
             })
-            
+        
+        print("调试信息: 最终团队列表", teams)
         return result.success(teams)
 
     @action(methods=['GET'], detail=False)
@@ -182,3 +191,77 @@ class TeamMember(APIView):
         def delete(self, request: Request, member_id: str):
             return result.success(TeamMemberSerializer.Operate(
                 data={'member_id': member_id, 'team_id': str(request.user.id)}).delete())
+
+class ShareableList(APIView):
+    authentication_classes = [TokenAuth]
+
+    @action(methods=['GET'], detail=False)
+    @swagger_auto_schema(operation_summary=_('获取可共享的用户和团队列表'),
+                         operation_id=_('获取可共享的用户和团队列表'),
+                         responses=result.get_api_response(get_response_body_api()),
+                         tags=[_('Team')])
+    @has_permissions(PermissionConstants.TEAM_READ)
+    def get(self, request: Request):
+        from setting.models.team_management import Team, TeamMember
+        from django.db.models import Q
+        from django.contrib.auth import get_user_model
+        
+        
+        # 获取用户作为管理员的团队
+        managed_teams = TeamMember.objects.filter(
+            user_id=request.user.id, 
+            is_manager=True
+        ).select_related('team').values(
+            'team_id', 
+            'team__name'
+        )
+        
+        # 获取用户作为成员的团队
+        member_teams = TeamMember.objects.filter(
+            user_id=request.user.id,
+            is_manager=False
+        ).select_related('team').values(
+            'team_id', 
+            'team__name'
+        )
+        
+        # 获取所有团队成员
+        team_members = TeamMember.objects.filter(
+            team__in=[team['team_id'] for team in managed_teams]
+        ).select_related('user').values(
+            'user_id',
+            'user__username',
+            'user__email'
+        ).distinct()
+        
+        # 构建返回结果
+        shareable_list = {
+            'teams': [],
+            'users': []
+        }
+        
+        # 添加团队信息
+        for team in managed_teams:
+            shareable_list['teams'].append({
+                'id': str(team['team_id']),
+                'name': team['team__name'],
+                'type': 'TEAM'
+            })
+            
+        for team in member_teams:
+            shareable_list['teams'].append({
+                'id': str(team['team_id']),
+                'name': team['team__name'],
+                'type': 'TEAM'
+            })
+            
+        # 添加用户信息
+        for member in team_members:
+            shareable_list['users'].append({
+                'id': str(member['user_id']),
+                'name': member['user__username'],
+                'email': member['user__email'],
+                'type': 'USER'
+            })
+            
+        return result.success(shareable_list)

@@ -133,35 +133,35 @@ def has_permissions(*permission, compare=CompareConstants.OR, dataset_permission
 
     def inner(func):
         def run(view, request, **kwargs):
-            print(f"正在检查用户 {request.user.id} 的权限")
+            # print(f"正在检查用户 {request.user.id} 的权限")
             exit_list = list(
                 map(lambda p: exist(request.auth.role_list, request.auth.permission_list, p, request, **kwargs),
                     permission))
-            print(f"权限检查结果: {exit_list}")
+            # print(f"权限检查结果: {exit_list}")
             
             # 检查知识库权限
             dataset_permission_passed = True  # 默认通过知识库权限检查
             if dataset_permission:
                 dataset_id = kwargs.get('dataset_id')
                 if dataset_id:
-                    print(f"正在检查用户 {request.user.id} 对知识库 {dataset_id} 的权限")
+                    # print(f"正在检查用户 {request.user.id} 对知识库 {dataset_id} 的权限")
                     user_dataset_permission = get_user_dataset_permission(request.user, dataset_id)
                     print(f"用户 {request.user.id} 对知识库 {dataset_id} 的权限: {user_dataset_permission}")
                     if user_dataset_permission:
                         if dataset_permission == 'MANAGE' and user_dataset_permission != 'MANAGE':
-                            print(f"用户 {request.user.id} 没有管理知识库 {dataset_id} 的权限")
+                            # print(f"用户 {request.user.id} 没有管理知识库 {dataset_id} 的权限")
                             dataset_permission_passed = False
                             raise AppUnauthorizedFailed(403, _('无权管理此知识库'))
                         elif dataset_permission == 'WRITE' and user_dataset_permission not in ['MANAGE', 'WRITE']:
-                            print(f"用户 {request.user.id} 没有写入知识库 {dataset_id} 的权限")
+                            # print(f"用户 {request.user.id} 没有写入知识库 {dataset_id} 的权限")
                             dataset_permission_passed = False
                             raise AppUnauthorizedFailed(403, _('无权写入此知识库'))
                         elif dataset_permission == 'READ' and user_dataset_permission not in ['MANAGE', 'WRITE', 'READ']:
-                            print(f"用户 {request.user.id} 没有读取知识库 {dataset_id} 的权限")
+                            # print(f"用户 {request.user.id} 没有读取知识库 {dataset_id} 的权限")
                             dataset_permission_passed = False
                             raise AppUnauthorizedFailed(403, _('无权读取此知识库'))
                     else:
-                        print(f"用户 {request.user.id} 没有访问知识库 {dataset_id} 的权限")
+                        # print(f"用户 {request.user.id} 没有访问知识库 {dataset_id} 的权限")
                         dataset_permission_passed = False
                         raise AppUnauthorizedFailed(403, _('无权访问此知识库'))
 
@@ -174,10 +174,10 @@ def has_permissions(*permission, compare=CompareConstants.OR, dataset_permission
             general_permission_passed = any(exit_list) if compare == CompareConstants.OR else all(exit_list)
             print(dataset_permission_passed)
             if general_permission_passed or dataset_permission_passed:
-                print(f"用户 {request.user.id} 通过权限检查")
+                # print(f"用户 {request.user.id} 通过权限检查")
                 return func(view, request, **kwargs)
             
-            print(f"用户 {request.user.id} 没有访问权限")
+            # print(f"用户 {request.user.id} 没有访问权限")
             raise AppUnauthorizedFailed(403, _('无访问权限'))
 
         return run

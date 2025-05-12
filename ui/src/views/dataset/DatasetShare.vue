@@ -143,31 +143,38 @@ async function getMemberList() {
 }
 
 // 获取可用成员列表
-async function getAvailableMembers() {
+async function getAvailableUsersOrTeams() {
   try {
-    const res = await teamApi.getTeamMember()
-    availableMembers.value = (res.data || []).map((member: any) => ({
-      id: member.user_id,
-      name: member.username,
+    const res = await teamApi.getAvailableUsersOrTeams()
+    interface ApiResponse {
+      teams: Array<{
+        id: string;
+        name: string;
+        type: string;
+      }>;
+      users: Array<{
+        id: string;
+        name: string;
+        email: string;
+        type: string;
+      }>;
+    }
+    
+    const data = (res.data as unknown) as ApiResponse;
+    // 处理用户数据
+    availableMembers.value = (data.users || []).map((member) => ({
+      id: member.id,
+      name: member.name,
       type: 'USER'
     }))
-  } catch (error) {
-    console.error('获取可用成员列表失败:', error)
-  }
-}
-
-// 获取可用团队列表
-async function getAvailableTeams() {
-  try {
-    const res = await teamApi.getCurrentUserTeams()
-    availableTeams.value = (res.data || []).map((team: any) => ({
+    // 处理团队数据
+    availableTeams.value = (data.teams || []).map((team) => ({
       id: team.id,
       name: team.name,
-      type: 'TEAM',
-      role: team.role
+      type: 'TEAM'
     }))
   } catch (error) {
-    console.error('获取可用团队列表失败:', error)
+    console.error('获取可用用户和团队列表失败:', error)
   }
 }
 
@@ -257,8 +264,7 @@ watch(() => route.params.id, (newId) => {
   if (newId) {
     id.value = newId as string
     getMemberList()
-    getAvailableMembers()
-    getAvailableTeams()
+    getAvailableUsersOrTeams()
     getUserPermission() // 获取用户权限
   }
 }, { immediate: true })

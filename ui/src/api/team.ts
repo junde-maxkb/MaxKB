@@ -65,11 +65,20 @@ const getCurrentUserTeams: () => Promise<Result<Team[]>> = () => {
   return get('/team/user_teams')
 }
 
+/**
+ * 获取可选用户或团队列表
+ * @param 参数 keyword 搜索关键词
+ */
+const getAvailableUsersOrTeams: (keyword?: string) => Promise<Result<any[]>> = (keyword) => {
+  return get('/team/shareable-list', { params: { keyword } })
+}
+
 export default {
   getTeamMember,
   postCreatTeamMember,
   delTeamMember,
   getMemberPermissions,
   putMemberPermissions,
-  getCurrentUserTeams
+  getCurrentUserTeams,
+  getAvailableUsersOrTeams
 }
