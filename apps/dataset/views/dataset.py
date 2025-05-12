@@ -28,6 +28,7 @@ from setting.serializers.provider_serializers import ModelSerializer
 from django.utils.translation import gettext_lazy as _
 from dataset.models.data_set import DataSet, DatasetShare
 from users.models import User
+from django.db.models import Q
 
 
 class Dataset(APIView):
@@ -249,10 +250,13 @@ class Dataset(APIView):
                              responses=get_api_response(DataSetSerializers.Operate.get_response_body_api()),
                              tags=[_('Knowledge Base')])
         @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.USE,
-                                                        dynamic_tag=keywords.get('dataset_id')))
+                                                        dynamic_tag=keywords.get('dataset_id')),dataset_permission='WRITE')
         def get(self, request: Request, dataset_id: str):
-            return result.success(DataSetSerializers.Operate(data={'id': dataset_id, 'user_id': request.user.id}).one(
-                user_id=request.user.id))
+            print(f"正在获取知识库详情, 知识库ID: {dataset_id}, 用户ID: {request.user.id}")
+            data = DataSetSerializers.Operate(data={'id': dataset_id, 'user_id': request.user.id}).one(
+                user_id=request.user.id)
+            print(f"获取知识库详情成功: {data}")
+            return result.success(data)
 
         @action(methods="PUT", detail=False)
         @swagger_auto_schema(operation_summary=_('Modify knowledge base information'),
@@ -403,7 +407,7 @@ class Dataset(APIView):
                              responses=result.get_default_response(),
                              tags=[_('Knowledge Base')])
         @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.MANAGE,
-                                                        dynamic_tag=keywords.get('dataset_id')))
+                                                        dynamic_tag=keywords.get('dataset_id')),dataset_permission='MANAGE')
         @log(menu='Knowledge Base', operate="更新数据集分享权限",
              get_operation_object=lambda r, keywords: get_dataset_operation_object(keywords.get('dataset_id')))
         def put(self, request: Request, dataset_id: str):
@@ -490,8 +494,9 @@ class Dataset(APIView):
         @has_permissions(PermissionConstants.DATASET_READ, compare=CompareConstants.AND)
         def get(self, request: Request, current_page, page_size):
             from setting.models.team_management import TeamMember
+            from users.models import User
             # 1. 获取共享给我的知识库ID列表及权限
-            user_teams = TeamMember.objects.filter(user_id=request.user.id).values_list('team_id', flat=True)
+            user_teams = TeamMember.objects.filter(Q(user_id=request.user.id) | Q(team_id=request.user.id)).values_list('team_id', flat=True)
             
             # 分别获取团队共享和用户共享的数据集，并预先加载关联
             team_shared_datasets = DatasetShare.objects.filter(
@@ -529,10 +534,16 @@ class Dataset(APIView):
             d.is_valid()
             result_data = d.page(current_page, page_size)
             
-            # 4. 为每个知识库添加权限信息
+            # 4. 为每个知识库添加权限信息和创建人信息
             permission_map = {str(share.dataset_id_id): share.permission for share in shared_datasets}
+            
+            # 获取所有知识库的创建人信息
+            creator_ids = [item['user_id'] for item in result_data['list']]
+            creators = {str(user.id): user.username for user in User.objects.filter(id__in=creator_ids)}
+            
             for item in result_data['list']:
                 item['permission'] = permission_map.get(item['id'], 'NONE')
+                item['creator_name'] = creators.get(str(item['user_id']), '')
             
             # 5. 修改返回数据结构，将list改为records
             return result.success({
@@ -541,3 +552,47 @@ class Dataset(APIView):
                 'page': result_data['page'],
                 'page_size': result_data['page_size']
             })
+
+    class ExitShare(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["PUT"], detail=False)
+        @swagger_auto_schema(operation_summary=_('退出共享知识库'),
+                             operation_id=_('退出共享知识库'),
+                             manual_parameters=DataSetSerializers.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Knowledge Base')])
+        def put(self, request: Request, dataset_id: str):
+            from setting.models.team_management import TeamMember
+            from dataset.models.data_set import DatasetShare
+
+            # 获取用户所在的团队
+            user_teams = TeamMember.objects.filter(user_id=request.user.id).values_list('team_id', flat=True)
+            
+            # 检查团队共享
+            team_share = DatasetShare.objects.filter(
+                dataset_id_id=dataset_id,
+                shared_with_type='TEAM',
+                shared_with_id__in=[str(team_id) for team_id in user_teams]
+            ).exclude(permission='NONE').exists()
+            
+            # 检查个人共享
+            user_share = DatasetShare.objects.filter(
+                dataset_id_id=dataset_id,
+                shared_with_type='USER',
+                shared_with_id=str(request.user.id)
+            ).exclude(permission='NONE').exists()
+            
+            # 如果只有团队共享，不允许退出
+            if team_share and not user_share:
+                return result.error(_('该知识库是通过团队共享的，无法退出'))
+            
+            # 如果有个人共享，将个人权限设置为NONE
+            if user_share:
+                DatasetShare.objects.filter(
+                    dataset_id_id=dataset_id,
+                    shared_with_type='USER',
+                    shared_with_id=str(request.user.id)
+                ).update(permission='NONE')
+            
+            return result.success({'message': '成功退出共享知识库'})

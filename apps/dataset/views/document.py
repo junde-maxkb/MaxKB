@@ -135,7 +135,7 @@ class Document(APIView):
                          tags=[_('Knowledge Base/Documentation')])
     @has_permissions(
         lambda r, k: Permission(group=Group.DATASET, operate=Operate.MANAGE,
-                                dynamic_tag=k.get('dataset_id')))
+                                dynamic_tag=k.get('dataset_id')),dataset_permission='WRITE')
     @log(menu='document', operate="Create document",
          get_operation_object=lambda r, keywords: get_dataset_document_operation_object(
              get_dataset_operation_object(keywords.get('dataset_id')),
@@ -447,7 +447,7 @@ class Document(APIView):
                              tags=[_('Knowledge Base/Documentation')])
         @has_permissions(
             lambda r, k: Permission(group=Group.DATASET, operate=Operate.USE,
-                                    dynamic_tag=k.get('dataset_id')))
+                                    dynamic_tag=k.get('dataset_id')),dataset_permission='WRITE')
         def get(self, request: Request, dataset_id: str, document_id: str):
             operate = DocumentSerializers.Operate(data={'document_id': document_id, 'dataset_id': dataset_id})
             operate.is_valid(raise_exception=True)
@@ -541,7 +541,7 @@ class Document(APIView):
                              tags=[_('Knowledge Base/Documentation')])
         @has_permissions(
             lambda r, k: Permission(group=Group.DATASET, operate=Operate.USE,
-                                    dynamic_tag=k.get('dataset_id')))
+                                    dynamic_tag=k.get('dataset_id')),dataset_permission='WRITE')
         def get(self, request: Request, dataset_id: str, current_page, page_size):
             d = DocumentSerializers.Query(
                 data={**query_params_to_single_dict(request.query_params), 'dataset_id': dataset_id})

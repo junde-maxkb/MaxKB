@@ -42,7 +42,7 @@
                   <span>{{ permissionLabel(user.permission) }}</span>
                   <div v-if="user.showDropdown" class="permission-dropdown">
                     <div
-                      v-for="option in PERMISSION_OPTIONS"
+                      v-for="option in getPermissionOptions(user)"
                       :key="option.value"
                       class="permission-option"
                       :class="{ selected: user.permission === option.value }"
@@ -83,6 +83,7 @@ const saving = ref(false)
 const memberList = ref<any[]>([])
 const availableMembers = ref<any[]>([])
 const availableTeams = ref<any[]>([])
+const userPermission = ref<string>('')
 
 const PERMISSION_OPTIONS = [
   { value: 'READ', label: '只读权限' },
@@ -112,6 +113,11 @@ const filteredResults = computed(() => {
   return allItems.filter(item =>
     item.name.toLowerCase().includes(query)
   )
+})
+
+// 计算属性：判断用户是否有权限管理共享设置
+const canManageShare = computed(() => {
+  return userPermission.value === 'MANAGE'
 })
 
 // 获取成员列表
@@ -162,6 +168,20 @@ async function getAvailableTeams() {
     }))
   } catch (error) {
     console.error('获取可用团队列表失败:', error)
+  }
+}
+
+// 获取用户对当前知识库的权限
+async function getUserPermission() {
+  if (!id.value) return
+  try {
+    const res = await datasetApi.getDatasetMembers(id.value)
+    const currentUser = res.data.members.find((member: any) => member.user_id === localStorage.getItem('userId'))
+    if (currentUser) {
+      userPermission.value = currentUser.permission
+    }
+  } catch (error) {
+    console.error('获取用户权限失败:', error)
   }
 }
 
@@ -239,6 +259,7 @@ watch(() => route.params.id, (newId) => {
     getMemberList()
     getAvailableMembers()
     getAvailableTeams()
+    getUserPermission() // 获取用户权限
   }
 }, { immediate: true })
 
@@ -279,8 +300,22 @@ function openDropdown(user: any) {
 }
 
 function changePermission(user: any, value: string) {
-  user.permission = value
+  // 如果是团队类型，强制设置为只读权限
+  if (user.type === 'TEAM') {
+    user.permission = 'READ'
+  } else {
+    user.permission = value
+  }
   user.showDropdown = false
+}
+
+// 获取权限选项
+function getPermissionOptions(user: any) {
+  // 如果是团队类型，只返回只读权限选项
+  if (user.type === 'TEAM') {
+    return PERMISSION_OPTIONS.filter(opt => opt.value === 'READ')
+  }
+  return PERMISSION_OPTIONS
 }
 
 function onBlur() {

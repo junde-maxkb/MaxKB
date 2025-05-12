@@ -41,7 +41,7 @@ from common.util.file_util import get_file_content
 from common.util.fork import ChildLink, Fork
 from common.util.split_model import get_split_model
 from dataset.models.data_set import DataSet, Document, Paragraph, Problem, Type, ProblemParagraphMapping, TaskType, \
-    State, File, Image
+    State, File, Image, DatasetShare
 from dataset.serializers.common_serializers import list_paragraph, MetaSerializer, ProblemParagraphManage, \
     get_embedding_model_by_dataset_id, get_embedding_model_id_by_dataset_id, write_image, zip_dir, \
     GenerateRelatedSerializer
@@ -850,9 +850,20 @@ class DataSetSerializers(serializers.ModelSerializer):
             if with_valid:
                 self.is_valid(raise_exception=True)
             dataset = QuerySet(DataSet).get(id=self.data.get("id"))
+            
+            # 获取所有匹配的共享权限记录
+            dataset_share_permissions = QuerySet(DatasetShare).filter(
+                shared_with_id=self.data.get("user_id")
+            )
+            permissions = []
+            # 如果存在共享权限记录，返回所有权限列表
+            if dataset_share_permissions.exists():
+                permissions = [share.permission for share in dataset_share_permissions]
+            
+            # 如果没有共享权限记录，继续执行原有的应用列表查询
             return select_list(get_file_content(
                 os.path.join(PROJECT_DIR, "apps", "dataset", 'sql', 'list_dataset_application.sql')),
-                [self.data.get('user_id') if self.data.get('user_id') == str(dataset.user_id) else None,
+                [self.data.get('user_id') if self.data.get('user_id') == str(dataset.user_id) or (permissions and any(p is not None for p in permissions)) else None,
                  dataset.user_id, self.data.get('user_id')])
 
         def one(self, user_id, with_valid=True):
@@ -873,15 +884,61 @@ class DataSetSerializers(serializers.ModelSerializer):
                                                                               default=AuthOperate.USE)
                                               )})).filter(
                     **{'user_id': user_id, 'team_member_permission.operate__contains': ['USE']})}
+            
+            # 获取数据集基本信息
+            dataset = QuerySet(DataSet).filter(id=self.data.get("id")).first()
+            if not dataset:
+                raise AppApiException(300, _('知识库不存在'))
+            
+            # 获取文档列表
+            documents = QuerySet(Document).filter(dataset_id=dataset.id)
+            document_list = [{
+                'id': str(doc.id),
+                'name': doc.name,
+                'type': doc.type,
+                'char_length': doc.char_length,
+                'create_time': doc.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'update_time': doc.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'meta': doc.meta,
+                'is_active': doc.is_active
+            } for doc in documents]
+            
+            # 获取应用列表
             all_application_list = [str(adm.get('id')) for adm in self.list_application(with_valid=False)]
-            return {**native_search(query_set_dict, select_string=get_file_content(
-                os.path.join(PROJECT_DIR, "apps", "dataset", 'sql', 'list_dataset.sql')), with_search_one=True),
+            
+            # 构建基本响应
+            response = {
+                'id': str(dataset.id),
+                'name': dataset.name,
+                'desc': dataset.desc,
+                'user_id': str(dataset.user_id),
+                'create_time': dataset.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'update_time': dataset.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'document_count': len(document_list),
+                'char_length': sum(doc['char_length'] for doc in document_list),
+                'document_list': document_list,
                 'application_id_list': list(
                     filter(lambda application_id: all_application_list.__contains__(application_id),
-                           [str(application_dataset_mapping.application_id) for
+                        [str(application_dataset_mapping.application_id) for
                             application_dataset_mapping in
                             QuerySet(ApplicationDatasetMapping).filter(
-                                dataset_id=self.data.get('id'))]))}
+                                dataset_id=self.data.get('id'))])
+                ),
+                'embedding_mode_id': str(dataset.embedding_mode_id) if dataset.embedding_mode_id else None,
+                'type': dataset.type,
+                'meta': dataset.meta
+            }
+            
+            # 尝试获取额外信息
+            try:
+                extra_info = native_search(query_set_dict, select_string=get_file_content(
+                    os.path.join(PROJECT_DIR, "apps", "dataset", 'sql', 'list_dataset_share.sql')), with_search_one=True)
+                if extra_info:
+                    response.update(extra_info)
+            except Exception as e:
+                print(f"获取额外信息时出错: {str(e)}")
+            
+            return response
 
         @transaction.atomic
         def edit(self, dataset: Dict, user_id: str):

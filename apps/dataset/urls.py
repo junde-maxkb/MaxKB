@@ -77,4 +77,5 @@ urlpatterns = [
     path('file/<str:file_id>', views.FileView.Operate.as_view()),
     path('file', views.FileView.as_view()),
     path('dataset/share/<int:current_page>/<int:page_size>', views.Dataset.ShareToMePage.as_view(), name="share_to_me"),
+    path('dataset/<str:dataset_id>/exit_share', views.Dataset.ExitShare.as_view(), name="exit_share"),
 ]
