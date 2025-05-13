@@ -14,7 +14,6 @@
       <h4></h4>
       <div class="flex-between">
         <el-select
-          v-if="datasetType === 'MY'"
           v-model="sortField"
           class="mr-12"
           @change="searchHandle"
@@ -155,20 +154,20 @@
                       {{ $t('views.dataset.relatedApp_count') }}
                     </div>
                     <div @click.stop>
-                      <el-dropdown trigger="click" v-if="datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME'">
+                      <el-dropdown trigger="click">
                         <el-button text @click.stop>
                           <el-icon><MoreFilled /></el-icon>
                         </el-button>
                         <template #dropdown>
                           <el-dropdown-menu>
                             <el-dropdown-item
-                              v-if="item.permission === 'MANAGE' && item.type === '1'"
+                              v-if="(datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION')) && item.type === '1'"
                               icon="Refresh"
                               @click.stop="syncDataset(item)"
                               >{{ $t('views.dataset.setting.sync') }}</el-dropdown-item
                             >
                             <el-dropdown-item 
-                              v-if="item.permission === 'MANAGE' || item.permission === 'WRITE'"
+                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && (item.permission === 'MANAGE' || item.permission === 'WRITE'))"
                               @click="reEmbeddingDataset(item)">
                               <AppIcon
                                 iconName="app-document-refresh"
@@ -177,41 +176,41 @@
                               {{ $t('views.dataset.setting.vectorization') }}</el-dropdown-item
                             >
                             <el-dropdown-item
-                              v-if="item.permission === 'MANAGE'"
+                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
                               icon="Connection"
                               @click.stop="openGenerateDialog(item)"
                               >{{ $t('views.document.generateQuestion.title') }}</el-dropdown-item
                             >
                             <el-dropdown-item
-                              v-if="item.permission === 'MANAGE'"
+                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
                               icon="Setting"
                               @click.stop="router.push({ path: `/dataset/${item.id}/setting` })"
                             >
                               {{ $t('common.setting') }}</el-dropdown-item
                             >
                             <el-dropdown-item 
-                              v-if="item.permission === 'MANAGE'"
+                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
                               @click.stop="export_dataset(item)">
                               <AppIcon iconName="app-export"></AppIcon
                               >{{ $t('views.document.setting.export') }} Excel</el-dropdown-item
                             >
                             <el-dropdown-item 
-                              v-if="item.permission === 'MANAGE'"
+                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
                               @click.stop="export_zip_dataset(item)">
                               <AppIcon iconName="app-export"></AppIcon
                               >{{ $t('views.document.setting.export') }} ZIP</el-dropdown-item
                             >
                             <el-dropdown-item 
-                              v-if="item.permission === 'MANAGE'"
+                              v-if="datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && (item.permission === 'MANAGE' || item.permission === 'WRITE' || item.permission === 'READ')"
                               icon="Close"
                               @click.stop="exitDataset(item)">{{
                               $t('common.exit')
                             }}</el-dropdown-item>
                             <el-dropdown-item 
-                              v-if="item.permission === 'WRITE' || item.permission === 'READ'"
-                              icon="Close"
-                              @click.stop="exitDataset(item)">{{
-                              $t('common.exit')
+                              v-if="datasetType === 'MY'"
+                              icon="Delete"
+                              @click.stop="deleteDataset(item)">{{
+                              $t('common.delete')
                             }}</el-dropdown-item>
                           </el-dropdown-menu>
                         </template>

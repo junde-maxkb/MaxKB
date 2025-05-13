@@ -42,7 +42,7 @@ export default {
   required: '必填',
   noData: '暂无数据',
   result: '结果',
-  exit: '退出',
+  exit: '退出共享',
   exitSuccess: '退出成功',
   fileUpload: {
     document: '文档',
