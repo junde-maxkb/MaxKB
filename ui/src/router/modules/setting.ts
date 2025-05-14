@@ -9,7 +9,7 @@ const settingRouter = {
     if (hasPermission(new Role('ADMIN'), 'AND')) {
       return '/user'
     }
-    return '/team'
+    return '/system/team_manage'
   },
   component: Layout,
   children: [
@@ -64,7 +64,7 @@ const settingRouter = {
         activeMenu: '/setting',
         parentPath: '/setting',
         parentName: 'setting',
-        permission: new Role('ADMIN')
+        // permission: new Role('ADMIN')
       },
       children: [
         {
@@ -79,18 +79,18 @@ const settingRouter = {
           },
           component: () => import('@/views/theme/index.vue')
         },
-        {
-          path: '/system/authentication',
-          name: 'authentication',
-          meta: {
-            title: 'views.system.authentication.title',
-            activeMenu: '/setting',
-            parentPath: '/setting',
-            parentName: 'setting',
-            permission: new ComplexPermission(['ADMIN'], ['x-pack'], 'AND')
-          },
-          component: () => import('@/views/authentication/index.vue')
-        },
+        // {
+        //   path: '/system/authentication',
+        //   name: 'authentication',
+        //   meta: {
+        //     title: 'views.system.authentication.title',
+        //     activeMenu: '/setting',
+        //     parentPath: '/setting',
+        //     parentName: 'setting',
+        //     // permission: new ComplexPermission(['ADMIN'], ['x-pack'], 'AND')
+        //   },
+        //   component: () => import('@/views/authentication/index.vue')
+        // },
         {
           path: '/system/email',
           name: 'email',
@@ -111,9 +111,21 @@ const settingRouter = {
             activeMenu: '/setting',
             parentPath: '/setting',
             parentName: 'setting',
-            permission: new Role('ADMIN')
+            // permission: new Role('ADMIN')
           },
           component: () => import('@/views/system/login_auth.vue')
+        },
+        {
+          path: '/system/team_manage',
+          name: 'team_manage',
+          meta: {
+            title: 'views.teamManage.title',
+            activeMenu: '/setting',
+            parentPath: '/setting',
+            parentName: 'setting',
+            // permission: new Role('ADMIN')
+          },
+          component: () => import('@/views/system/teamManage/index.vue')
         }
       ]
     },

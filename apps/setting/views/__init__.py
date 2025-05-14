@@ -7,6 +7,7 @@
     @desc:
 """
 from .Team import *
+from .team_manage import *
 from .model import *
 from .system_setting import *
 from .valid import *

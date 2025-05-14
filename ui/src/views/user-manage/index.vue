@@ -76,7 +76,7 @@
             <span class="mr-4">
               <el-tooltip effect="dark" :content="$t('views.user.setting.setAdmin')" placement="top">
                 <el-button type="primary" 
-                :disabled="row.role === 'ADMIN'"
+                :disabled="row.role !== 'USER'"
                 text @click.stop="setAdmin(row)">
                   <el-icon><User /></el-icon>
                 </el-button>
@@ -236,7 +236,7 @@ function handleSizeChange() {
 }
 
 function getList() {
-  return userApi.getUserManage(paginationConfig, searchValue.value, loading).then((res) => {
+  return userApi.getUserManage(paginationConfig, searchValue.value).then((res) => {
     tableData.value = res.data.records
     paginationConfig.total = res.data.total
   })
