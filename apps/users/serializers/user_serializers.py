@@ -808,7 +808,7 @@ class UserManageSerializer(serializers.Serializer):
                     is_active=True)
         user.save()
         # 初始化用户团队
-        Team(**{'user': user, 'name': user.username + _('team')}).save()
+        # Team(**{'user': user, 'name': user.username + _('team')}).save()
         return UserInstanceSerializer(user).data
 
     class Operate(serializers.Serializer):

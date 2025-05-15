@@ -14,6 +14,7 @@ import log from './log'
 import applicationWorkflow from './application-workflow'
 import login from './login'
 import operateLog from './operate-log'
+import teamManage from './team-manage'
 export default {
   notFound,
   application,
@@ -30,5 +31,6 @@ export default {
   problem,
   log,
   login,
-  operateLog
+  operateLog,
+  teamManage
 }

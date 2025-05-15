@@ -7,8 +7,15 @@ from . import views
 app_name = "team"
 urlpatterns = [
     path('team/member', views.TeamMember.as_view(), name="team"),
-    path('team/member/_batch', views.TeamMember.Batch.as_view()),
+    # path('team/member/_batch', views.TeamMember.Batch.as_view()),
     path('team/member/<str:member_id>', views.TeamMember.Operate.as_view(), name='member'),
+    path('team_manage/member', views.team_manage.TeamMember.as_view(), name="team_member"),
+    path('team_manage/member/<str:member_id>', views.team_manage.TeamMember.Operate.as_view(),
+         name='team_manage_member'),
+    path('team_manage', views.team_manage.Team.as_view(), name="team_manage"),
+    path('team_manage/<str:team_id>', views.team_manage.Team.Operate.as_view(), name='team_manage_operate'),
+    path("team_manage/<str:team_id>/<int:current_page>/<int:page_size>", views.team_manage.Team.Page.as_view(),
+         name="team_member_page_list"),
     path('team/user_teams', views.UserTeams.as_view(), name='user_teams'),
     path('team/shareable-list', views.ShareableList.as_view(), name='shareable_list'),
     path('provider/<str:provider>/<str:method>', views.Provide.Exec.as_view(), name='provide_exec'),
