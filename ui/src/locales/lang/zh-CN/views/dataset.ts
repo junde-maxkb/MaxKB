@@ -115,7 +115,7 @@ export default {
   permission: '权限',
   permissionNone: '无权限',
   permissionManage: '管理',
-  permissionWrite: '编辑',
+  permissionWrite: '读写',
   permissionRead: '只读',
   selectMemberOrTeam: '选择成员或团队',
   selectTypePlaceholder: '请选择类型',

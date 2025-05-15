@@ -91,18 +91,19 @@ def get_user_dataset_permission(user, dataset_id):
     # 检查个人权限
     try:
         if DataSet.objects.get(id=dataset_id).user_id == user.id:
+            print(f"用户 {user.id} 对知识库 {dataset_id} 有个人权限: MANAGE")
             return 'MANAGE'
         dataset_member = DatasetShare.objects.get(shared_with_type='USER', dataset_id=dataset_id, shared_with_id=user.id)
-        print(f"用户 {user.id} 对知识库 {dataset_id} 有个人权限: {dataset_member.permission}")
+        # print(f"用户 {user.id} 对知识库 {dataset_id} 有个人权限: {dataset_member.permission}")
         return dataset_member.permission
         
     except DatasetShare.DoesNotExist:
-        print(f"用户 {user.id} 对知识库 {dataset_id} 没有个人权限")
+        # print(f"用户 {user.id} 对知识库 {dataset_id} 没有个人权限")
         pass
 
     # 检查团队权限
     user_teams = TeamMember.objects.filter(Q(user_id=user.id) | Q(team_id=user.id)).values_list('team_id', flat=True)
-    print(f"用户 {user.id} 所在的团队: {list(user_teams)}")
+    # print(f"用户 {user.id} 所在的团队: {list(user_teams)}")
     team_permissions = DatasetShare.objects.filter(shared_with_type='TEAM', dataset_id=dataset_id, shared_with_id__in=user_teams)
     
     if team_permissions.exists():
@@ -110,16 +111,16 @@ def get_user_dataset_permission(user, dataset_id):
         permissions = team_permissions.values_list('permission', flat=True)
         print(f"用户 {user.id} 通过团队获得的权限: {list(permissions)}")
         if 'MANAGE' in permissions:
-            print(f"用户 {user.id} 对知识库 {dataset_id} 有管理权限")
+            # print(f"用户 {user.id} 对知识库 {dataset_id} 有管理权限")
             return 'MANAGE'
         elif 'WRITE' in permissions:
-            print(f"用户 {user.id} 对知识库 {dataset_id} 有写入权限")
+            # print(f"用户 {user.id} 对知识库 {dataset_id} 有写入权限")
             return 'WRITE'
         elif 'READ' in permissions:
-            print(f"用户 {user.id} 对知识库 {dataset_id} 有读取权限")
+            # print(f"用户 {user.id} 对知识库 {dataset_id} 有读取权限")
             return 'READ'
 
-    print(f"用户 {user.id} 对知识库 {dataset_id} 没有任何权限")
+    # print(f"用户 {user.id} 对知识库 {dataset_id} 没有任何权限")
     return None
 
 def has_permissions(*permission, compare=CompareConstants.OR, dataset_permission=None):
