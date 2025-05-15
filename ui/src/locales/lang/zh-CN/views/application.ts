@@ -1,10 +1,26 @@
 export default {
   title: '应用',
+  myApplications: '我的应用',
+  sharedApplications: '共享应用',
   createApplication: '创建应用',
   importApplication: '导入应用',
   copyApplication: '复制应用',
   workflow: '高级编排',
   simple: '简单配置',
+  tabs: {
+    organizationApplication: '机构应用',
+    sharedToMeApplication: '共享给我的应用'
+  },
+  permissionManage: '管理权限',
+  permissionWrite: '编辑权限',
+  permissionRead: '只读权限',
+  sort: {
+    createTime: '创建时间',
+    updateTime: '更新时间',
+    name: '名称',
+    desc: '降序',
+    asc: '升序'
+  },
   searchBar: {
     placeholder: '按名称搜索'
   },

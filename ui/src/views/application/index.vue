@@ -1,8 +1,30 @@
 <template>
   <div class="application-list-container p-24" style="padding-top: 16px">
+    <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+      <el-tab-pane :label="$t('views.application.myApplications')" name="MY"></el-tab-pane>
+      <el-tab-pane :label="$t('views.application.sharedApplications')" name="SHARED">
+        <el-tabs v-model="sharedType" @tab-change="sharedTabChangeHandle" class="mt-16">
+          <el-tab-pane :label="$t('views.application.tabs.organizationApplication')" name="ORGANIZATION"></el-tab-pane>
+          <el-tab-pane :label="$t('views.application.tabs.sharedToMeApplication')" name="SHARED_TO_ME"></el-tab-pane>
+        </el-tabs>
+      </el-tab-pane>
+    </el-tabs>
     <div class="flex-between mb-16">
-      <h4>{{ $t('views.application.title') }}</h4>
+      <h4></h4>
       <div class="flex-between">
+        <el-select
+          v-model="sortField"
+          class="mr-12"
+          @change="searchHandle"
+          style="max-width: 240px; width: 150px"
+        >
+          <el-option
+            v-for="item in sortOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
         <el-select
           v-model="selectUserId"
           class="mr-12"
@@ -37,7 +59,7 @@
         :loading="loading"
       >
         <el-row :gutter="15">
-          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" class="mb-16">
+          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" class="mb-16" v-if="activeTab === 'MY'">
             <el-card shadow="hover" class="application-card-add" style="--el-card-padding: 8px">
               <div class="card-add-button flex align-center cursor p-8" @click="openCreateDialog">
                 <AppIcon iconName="app-add-application" class="mr-8"></AppIcon>
@@ -111,6 +133,23 @@
                 <el-tag class="blue-tag" v-else style="height: 22px">
                   {{ $t('views.application.simple') }}
                 </el-tag>
+                <el-tag
+                  v-if="activeTab === 'SHARED' && sharedType === 'SHARED_TO_ME'"
+                  :class="{
+                    'purple-tag': item.permission === 'MANAGE',
+                    'blue-tag': item.permission === 'WRITE',
+                    'green-tag': item.permission === 'READ'
+                  }"
+                  style="height: 22px; margin-left: 8px"
+                >
+                  {{ 
+                    item.permission === 'MANAGE' 
+                      ? $t('views.application.permissionManage') 
+                      : item.permission === 'WRITE' 
+                        ? $t('views.application.permissionWrite') 
+                        : $t('views.application.permissionRead') 
+                  }}
+                </el-tag>
               </div>
 
               <template #footer>
@@ -147,12 +186,15 @@
                           </el-dropdown-item>
                           <el-dropdown-item @click.stop="exportApplication(item)">
                             <AppIcon iconName="app-export"></AppIcon>
-
                             {{ $t('common.export') }}
                           </el-dropdown-item>
-                          <el-dropdown-item icon="Delete" @click.stop="deleteApplication(item)">{{
-                            $t('common.delete')
-                          }}</el-dropdown-item>
+                          <el-dropdown-item 
+                            v-if="activeTab === 'MY' || (activeTab === 'SHARED' && sharedType === 'ORGANIZATION')"
+                            icon="Delete" 
+                            @click.stop="deleteApplication(item)"
+                          >
+                            {{ $t('common.delete') }}
+                          </el-dropdown-item>
                         </el-dropdown-menu>
                       </template>
                     </el-dropdown>
@@ -209,6 +251,16 @@ const selectUserId = ref('all')
 const searchValue = ref('')
 
 const apiInputParams = ref([])
+
+const activeTab = ref('MY')
+const sharedType = ref('ORGANIZATION')
+
+const sortField = ref('name')
+const sortOptions = [
+  { label: '按名称排序', value: 'name' },
+  { label: '按创建时间排序', value: 'create_time' },
+  { label: '按修改时间排序', value: 'update_time' }
+]
 
 function copyApplication(row: any) {
   application.asyncGetApplicationDetail(row.id, loading).then((res: any) => {
@@ -352,22 +404,81 @@ function deleteApplication(row: any) {
     .catch(() => {})
 }
 
+function handleTabChange() {
+  selectUserId.value = 'all'
+  searchValue.value = ''
+  applicationList.value = []
+  paginationConfig.current_page = 1
+  paginationConfig.total = 0
+  getList()
+}
+
+function sharedTabChangeHandle() {
+  selectUserId.value = 'all'
+  searchValue.value = ''
+  applicationList.value = []
+  paginationConfig.current_page = 1
+  paginationConfig.total = 0
+  getList()
+}
+
+function sortApplicationList(list: any[]) {
+  const field = sortField.value
+  return [...list].sort((a, b) => {
+    if (field === 'name') {
+      return a.name.localeCompare(b.name)
+    } else if (field === 'create_time') {
+      return new Date(b.create_time).getTime() - new Date(a.create_time).getTime()
+    } else if (field === 'update_time') {
+      return new Date(b.update_time).getTime() - new Date(a.update_time).getTime()
+    }
+    return 0
+  })
+}
+
 function getList() {
   const params = {
     ...(searchValue.value && { name: searchValue.value }),
     ...(selectUserId.value &&
       selectUserId.value !== 'all' && { select_user_id: selectUserId.value })
   }
-  applicationApi.getApplication(paginationConfig, params, loading).then((res) => {
+  
+  let apiPromise
+  if (activeTab.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME') {
+    apiPromise = applicationApi.getApplication(paginationConfig, {
+      ...params,
+      type: 'SHARED',
+      shared_type: 'SHARED_TO_ME'
+    }, loading)
+  } else {
+    apiPromise = applicationApi.getApplication(paginationConfig, {
+      ...params,
+      type: activeTab.value,
+      ...(activeTab.value === 'SHARED' && { shared_type: sharedType.value })
+    }, loading)
+  }
+
+  apiPromise.then((res: any) => {
     res.data.records.forEach((item: any) => {
-      if (user.userInfo && item.user_id === user.userInfo.id) {
-        item.username = user.userInfo.username
+      if (activeTab.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME') {
+        item.username = item.username || item.creator_name
       } else {
-        item.username = userOptions.value.find((v) => v.value === item.user_id)?.label
+        if (user.userInfo && item.user_id === user.userInfo.id) {
+          item.username = user.userInfo.username
+        } else {
+          item.username = userOptions.value.find((v) => v.value === item.user_id)?.label
+        }
       }
     })
-    applicationList.value = [...applicationList.value, ...res.data.records]
     paginationConfig.total = res.data.total
+    let newRecords = sortApplicationList(res.data.records)
+    
+    if (activeTab.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME' && user.userInfo?.id) {
+      newRecords = newRecords.filter(item => item.user_id !== user.userInfo?.id)
+      paginationConfig.total = applicationList.value.length + newRecords.length
+    }
+    
+    applicationList.value = [...applicationList.value, ...newRecords]
   })
 }
 
@@ -440,5 +551,38 @@ onMounted(() => {
   span {
     margin-right: 26px;
   }
+}
+
+.el-tabs {
+  :deep(.el-tabs__header) {
+    margin-bottom: 16px;
+  }
+}
+
+.status-tag {
+  position: absolute;
+  right: 16px;
+  top: 15px;
+  display: flex;
+  gap: 8px;
+}
+
+// 权限标签样式
+:deep(.green-tag) {
+  background-color: var(--el-color-success-light-9);
+  border-color: var(--el-color-success-light-7);
+  color: var(--el-color-success);
+}
+
+:deep(.purple-tag) {
+  background-color: var(--el-color-warning-light-9);
+  border-color: var(--el-color-warning-light-7);
+  color: var(--el-color-warning);
+}
+
+:deep(.blue-tag) {
+  background-color: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary-light-7);
+  color: var(--el-color-primary);
 }
 </style>
