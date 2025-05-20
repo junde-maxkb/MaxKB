@@ -6,7 +6,7 @@
           <h4 class="title-decoration-1 mb-16">
             {{ $t('views.dataset.datasetForm.title.info') }}
           </h4>
-          <BaseForm ref="BaseFormRef" :data="detail" />
+          <BaseForm ref="BaseFormRef" :data="detail" :disabled="userPermission !== 'MANAGE'" />
 
           <el-form
             ref="webFormRef"
@@ -14,6 +14,7 @@
             :model="form"
             label-position="top"
             require-asterisk-position="right"
+            :disabled="userPermission !== 'MANAGE'"
           >
             <el-form-item :label="$t('views.dataset.datasetForm.form.datasetType.label')" required>
               <el-card shadow="never" class="mb-8" style="width: 50%" v-if="detail.type === '0'">
@@ -146,7 +147,9 @@
           </div>
 
           <div class="text-right">
-            <el-button @click="submit" type="primary"> {{ $t('common.save') }}</el-button>
+            <el-button @click="submit" type="primary" :disabled="userPermission !== 'MANAGE'">
+              {{ $t('common.save') }}
+            </el-button>
           </div>
         </div>
       </el-scrollbar>
@@ -177,6 +180,7 @@ const detail = ref<any>({})
 const application_list = ref<Array<ApplicationFormType>>([])
 const application_id_list = ref([])
 const cloneModelId = ref('')
+const userPermission = ref<string>('')
 
 const form = ref<any>({
   source_url: '',
@@ -216,6 +220,29 @@ const rules = reactive({
     }
   ]
 })
+
+// 获取用户对当前知识库的权限
+async function getUserPermission() {
+  console.log('开始获取用户权限')
+  try {
+    const userId = useStore().user?.userInfo?.id || localStorage.getItem('userId')
+    console.log('当前用户ID:', userId)
+    const res = await datasetApi.getDatasetMembers(id)
+    console.log('获取到的所有成员权限信息:', res)
+    const currentUser = res.data.members.find((member: any) => member.user_id === userId)
+    console.log('当前用户权限信息:', currentUser)
+    if (currentUser) {
+      userPermission.value = currentUser.permission
+      console.log('设置的用户权限:', userPermission.value)
+    } else {
+      console.log('未找到当前用户的权限信息')
+      userPermission.value = 'MANAGE'
+    }
+  } catch (error) {
+    console.error('获取用户权限失败:', error)
+    userPermission.value = 'MANAGE'
+  }
+}
 
 async function submit() {
   if (await BaseFormRef.value?.validate()) {
@@ -286,7 +313,10 @@ function getDetail() {
 }
 
 onMounted(() => {
+  console.log('组件已挂载，开始初始化')
+  console.log('当前路由参数:', route.params)
   getDetail()
+  getUserPermission()
 })
 </script>
 <style lang="scss" scoped>

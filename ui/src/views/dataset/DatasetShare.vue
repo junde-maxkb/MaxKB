@@ -5,7 +5,7 @@
         <div class="p-24" v-loading="loading">
           <div class="share-container">
             <!-- 搜索输入 -->
-            <div class="search-bar">
+            <div class="search-bar" v-if="canManageShare">
               <input
                 v-model="searchQuery"
                 @focus="showDropdown = true"
@@ -38,9 +38,11 @@
                     {{ user.type === 'USER' ? '用户' : `团队 · ${user.members || ''}${user.members ? ' 成员' : ''}` }}
                   </div>
                 </div>
-                <div class="permission-select" @click="openDropdown(user)">
+                <div class="permission-select" 
+                     :class="{ 'disabled': !canManageShare }"
+                     @click="canManageShare && openDropdown(user)">
                   <span>{{ permissionLabel(user.permission) }}</span>
-                  <div v-if="user.showDropdown" class="permission-dropdown">
+                  <div v-if="user.showDropdown && canManageShare" class="permission-dropdown">
                     <div
                       v-for="option in getPermissionOptions(user)"
                       :key="option.value"
@@ -52,12 +54,14 @@
                     </div>
                   </div>
                 </div>
-                <div class="remove-btn" @click="removePermission(user)">移除</div>
+                <div v-if="canManageShare" 
+                     class="remove-btn" 
+                     @click="removePermission(user)">移除</div>
               </div>
             </div>
 
             <!-- 底部按钮 -->
-            <div class="footer-btns">
+            <div class="footer-btns" v-if="canManageShare">
               <button class="cancel-btn" @click="onCancel">取消</button>
               <button class="save-btn" @click="onSave">保存权限设置</button>
             </div>
@@ -79,7 +83,6 @@ import { t } from '@/locales'
 const route = useRoute()
 const id = ref('')
 const loading = ref(false)
-const saving = ref(false)
 const memberList = ref<any[]>([])
 const availableMembers = ref<any[]>([])
 const availableTeams = ref<any[]>([])
@@ -90,12 +93,6 @@ const PERMISSION_OPTIONS = [
   { value: 'WRITE', label: '编辑权限' },
   { value: 'MANAGE', label: '管理权限' }
 ]
-
-const shareForm = ref({
-  selectedType: 'USER',
-  selectedId: '',
-  permission: 'READ'
-})
 
 // 计算当前可选项
 const filteredResults = computed(() => {
@@ -161,13 +158,11 @@ async function getAvailableUsersOrTeams() {
     }
     
     const data = (res.data as unknown) as ApiResponse;
-    // 处理用户数据
     availableMembers.value = (data.users || []).map((member) => ({
       id: member.id,
       name: member.name,
       type: 'USER'
     }))
-    // 处理团队数据
     availableTeams.value = (data.teams || []).map((team) => ({
       id: team.id,
       name: team.name,
@@ -177,47 +172,29 @@ async function getAvailableUsersOrTeams() {
     console.error('获取可用用户和团队列表失败:', error)
   }
 }
+import useStore from '@/stores'
+const { dataset } = useStore()
 
 // 获取用户对当前知识库的权限
 async function getUserPermission() {
-  if (!id.value) return
+  console.log('开始获取用户权限')
   try {
+    const userId = useStore().user?.userInfo?.id || localStorage.getItem('userId')
+    console.log('当前用户ID:', userId)
     const res = await datasetApi.getDatasetMembers(id.value)
-    const currentUser = res.data.members.find((member: any) => member.user_id === localStorage.getItem('userId'))
+    console.log('获取到的所有成员权限信息:', res)
+    const currentUser = res.data.members.find((member: any) => member.user_id === userId)
+    console.log('当前用户权限信息:', currentUser)
     if (currentUser) {
       userPermission.value = currentUser.permission
+      console.log('设置的用户权限:', userPermission.value)
+    } else {
+      console.log('未找到当前用户的权限信息')
+      userPermission.value = 'MANAGE'
     }
   } catch (error) {
     console.error('获取用户权限失败:', error)
-  }
-}
-
-// 处理选择变化
-function handleSelectionChange() {
-  shareForm.value.permission = 'READ' // 重置权限为默认值
-}
-
-// 保存权限
-async function savePermission() {
-  if (!id.value || !shareForm.value.selectedId) return
-  
-  try {
-    saving.value = true
-    const permission = shareForm.value.permission === 'NONE' ? 'NONE' : shareForm.value.permission
-    await datasetApi.putMemberPermission(id.value.trim(), shareForm.value.selectedType, {
-      user_id: shareForm.value.selectedId.trim(),
-      permission: permission as string | null,
-      share_with_type: shareForm.value.selectedType
-    })
-    
-    MsgSuccess(t('common.saveSuccess'))
-    shareForm.value.selectedId = ''
-    shareForm.value.permission = 'READ'
-    getMemberList()
-  } catch (error) {
-    console.error('更新权限失败:', error)
-  } finally {
-    saving.value = false
+    userPermission.value = 'MANAGE'
   }
 }
 
@@ -237,26 +214,57 @@ async function removePermission(row: any) {
   }
 }
 
-// 获取权限标签类型
-function getPermissionTagType(permission: string) {
-  const types: Record<string, string> = {
-    'MANAGE': 'success',
-    'WRITE': 'warning',
-    'READ': 'info',
-    'NONE': 'danger'
-  }
-  return types[permission] || 'info'
+function permissionLabel(val: string) {
+  return PERMISSION_OPTIONS.find(opt => opt.value === val)?.label || ''
 }
 
-// 获取权限文本
-function getPermissionText(permission: string) {
-  const texts: Record<string, string> = {
-    'MANAGE': t('views.dataset.permissionManage'),
-    'WRITE': t('views.dataset.permissionWrite'),
-    'READ': t('views.dataset.permissionRead'),
-    'NONE': t('views.dataset.permissionNone')
+function openDropdown(user: any) {
+  memberList.value.forEach(u => (u.showDropdown = false))
+  user.showDropdown = true
+}
+
+function changePermission(user: any, value: string) {
+  if (user.type === 'TEAM') {
+    user.permission = 'READ'
+  } else {
+    user.permission = value
   }
-  return texts[permission] || permission
+  user.showDropdown = false
+}
+
+// 获取权限选项
+function getPermissionOptions(user: any) {
+  if (user.type === 'TEAM') {
+    return PERMISSION_OPTIONS.filter(opt => opt.value === 'READ')
+  }
+  return PERMISSION_OPTIONS
+}
+
+function onBlur() {
+  setTimeout(() => (showDropdown.value = false), 100)
+}
+
+function onCancel() {
+  getMemberList()
+}
+
+async function onSave() {
+  try {
+    loading.value = true
+    for (const member of memberList.value) {
+      const params = {
+        user_id: member.id,
+        permission: member.permission,
+        share_with_type: member.type === 'TEAM' ? 'TEAM' : 'USER'
+      }
+      await datasetApi.putMemberPermission(id.value, params)
+    }
+    MsgSuccess(t('common.saveSuccess'))
+  } catch (error) {
+    console.error('保存权限失败:', error)
+  } finally {
+    loading.value = false
+  }
 }
 
 // 监听路由参数变化
@@ -265,7 +273,7 @@ watch(() => route.params.id, (newId) => {
     id.value = newId as string
     getMemberList()
     getAvailableUsersOrTeams()
-    getUserPermission() // 获取用户权限
+    getUserPermission()
   }
 }, { immediate: true })
 
@@ -294,70 +302,6 @@ function addUser(item: any) {
 
 function removeUser(user: any) {
   memberList.value = memberList.value.filter(u => u.id !== user.id)
-}
-
-function permissionLabel(val: string) {
-  return PERMISSION_OPTIONS.find(opt => opt.value === val)?.label || ''
-}
-
-function openDropdown(user: any) {
-  memberList.value.forEach(u => (u.showDropdown = false))
-  user.showDropdown = true
-}
-
-function changePermission(user: any, value: string) {
-  // 如果是团队类型，强制设置为只读权限
-  if (user.type === 'TEAM') {
-    user.permission = 'READ'
-  } else {
-    user.permission = value
-  }
-  user.showDropdown = false
-}
-
-// 获取权限选项
-function getPermissionOptions(user: any) {
-  // 如果是团队类型，只返回只读权限选项
-  if (user.type === 'TEAM') {
-    return PERMISSION_OPTIONS.filter(opt => opt.value === 'READ')
-  }
-  return PERMISSION_OPTIONS
-}
-
-function onBlur() {
-  setTimeout(() => (showDropdown.value = false), 100)
-}
-
-function onCancel() {
-  // 重置列表
-  getMemberList()
-}
-
-async function onSave() {
-  try {
-    loading.value = true
-    console.log('开始保存权限设置，当前成员列表:', memberList.value)
-    
-    for (const member of memberList.value) {
-      console.log('正在处理成员:', member)
-      const params = {
-        user_id: member.id,
-        permission: member.permission,
-        share_with_type: member.type === 'TEAM' ? 'TEAM' : 'USER'
-      }
-      console.log('发送请求参数:', params)
-      
-      await datasetApi.putMemberPermission(id.value, params)
-      console.log('成员权限设置成功:', member.name)
-    }
-    
-    MsgSuccess(t('common.saveSuccess'))
-    console.log('所有权限设置完成')
-  } catch (error) {
-    console.error('保存权限失败:', error)
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
@@ -472,6 +416,17 @@ async function onSave() {
     user-select: none;
     border: 1px solid #e5e6eb;
     transition: border 0.2s;
+
+    &.disabled {
+      background: #f5f5f5;
+      color: #999;
+      cursor: not-allowed;
+      border: 1px solid #e5e6eb;
+      
+      &:hover {
+        border: 1px solid #e5e6eb;
+      }
+    }
   }
 
   .permission-select:hover {
