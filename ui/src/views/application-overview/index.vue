@@ -59,6 +59,9 @@
                 />
                 <el-text v-else class="ml-8" type="info">
                   {{ accessToken.is_active ? $t('views.applicationOverview.appInfo.openText') : $t('views.applicationOverview.appInfo.closeText') }}
+                  <el-tooltip effect="dark" :content="$t('views.applicationOverview.appInfo.onlyAdminCanModify')" placement="top">
+                    <el-icon class="ml-4"><InfoFilled /></el-icon>
+                  </el-tooltip>
                 </el-text>
               </div>
 

@@ -5,6 +5,7 @@ export default {
     publicAccessLink: '公开访问链接',
     openText: '开',
     closeText: '关',
+    onlyAdminCanModify: '仅管理员可以修改此状态',
     copyLinkText: '复制链接',
     refreshLinkText: '刷新链接',
     demo: '演示',
