@@ -1,6 +1,6 @@
 <template>
-  <LayoutContainer :header="$t('views.dataset.shareSetting')">
-    <div class="dataset-share main-calc-height">
+  <LayoutContainer :header="$t('views.application.shareSetting')">
+    <div class="application-share main-calc-height">
       <el-scrollbar>
         <div class="p-24" v-loading="loading">
           <div class="share-container">
@@ -12,7 +12,7 @@
                 @input="showDropdown = true"
                 @blur="onBlur"
                 type="text"
-                placeholder="搜索用户或团队..."
+                :placeholder="$t('views.application.searchUserOrTeam')"
                 class="search-input"
               />
               <div v-if="showDropdown && filteredResults.length" class="dropdown">
@@ -35,7 +35,7 @@
                 <div class="user-info">
                   <div class="name">{{ user.name }}</div>
                   <div class="type">
-                    {{ user.type === 'USER' ? '用户' : `团队 · ${user.members || ''}${user.members ? ' 成员' : ''}` }}
+                    {{ user.type === 'USER' ? $t('views.application.user') : `${$t('views.application.team')} · ${user.members || ''}${user.members ? ' ' + $t('views.application.members') : ''}` }}
                   </div>
                 </div>
                 <div class="permission-select" 
@@ -56,14 +56,14 @@
                 </div>
                 <div v-if="canManageShare" 
                      class="remove-btn" 
-                     @click="removePermission(user)">移除</div>
+                     @click="removePermission(user)">{{ $t('views.application.remove') }}</div>
               </div>
             </div>
 
             <!-- 底部按钮 -->
             <div class="footer-btns" v-if="canManageShare">
-              <button class="cancel-btn" @click="onCancel">取消</button>
-              <button class="save-btn" @click="onSave">保存权限设置</button>
+              <button class="cancel-btn" @click="onCancel">{{ $t('views.application.cancel') }}</button>
+              <button class="save-btn" @click="onSave">{{ $t('views.application.savePermission') }}</button>
             </div>
           </div>
         </div>
@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import datasetApi from '@/api/dataset'
+import applicationApi from '@/api/application'
 import teamApi from '@/api/team'
 import { MsgSuccess, MsgConfirm } from '@/utils/message'
 import { t } from '@/locales'
@@ -122,7 +122,7 @@ async function getMemberList() {
   if (!id.value) return
   try {
     loading.value = true
-    const res = await datasetApi.getDatasetMembers(id.value)
+    const res = await applicationApi.getApplicationMembers(id.value)
     memberList.value = res.data.members
       .filter((member: any) => member.permission !== 'NONE')
       .map((member: any) => ({
@@ -172,24 +172,19 @@ async function getAvailableUsersOrTeams() {
     console.error('获取可用用户和团队列表失败:', error)
   }
 }
-import useStore from '@/stores'
-const { dataset } = useStore()
 
-// 获取用户对当前知识库的权限
+import useStore from '@/stores'
+const { application } = useStore()
+
+// 获取用户对当前应用的权限
 async function getUserPermission() {
-  console.log('开始获取用户权限')
   try {
     const userId = useStore().user?.userInfo?.id || localStorage.getItem('userId')
-    console.log('当前用户ID:', userId)
-    const res = await datasetApi.getDatasetMembers(id.value)
-    console.log('获取到的所有成员权限信息:', res)
+    const res = await applicationApi.getApplicationMembers(id.value)
     const currentUser = res.data.members.find((member: any) => member.user_id === userId)
-    console.log('当前用户权限信息:', currentUser)
     if (currentUser) {
       userPermission.value = currentUser.permission
-      console.log('设置的用户权限:', userPermission.value)
     } else {
-      console.log('未找到当前用户的权限信息')
       userPermission.value = 'MANAGE'
     }
   } catch (error) {
@@ -201,8 +196,8 @@ async function getUserPermission() {
 // 移除权限
 async function removePermission(row: any) {
   try {
-    await MsgConfirm(t('views.dataset.confirmRemovePermission'), t('common.confirm'))
-    await datasetApi.putMemberPermission(id.value.trim(), {
+    await MsgConfirm(t('views.application.confirmRemovePermission'), t('common.confirm'))
+    await applicationApi.putMemberPermission(id.value.trim(), {
       user_id: row.id.trim(),
       permission: 'NONE',
       share_with_type: row.type
@@ -241,31 +236,8 @@ function getPermissionOptions(user: any) {
 }
 
 function onBlur() {
-  setTimeout(() => {
-    showDropdown.value = false
-    // 同时关闭所有权限下拉框
-    memberList.value.forEach(u => (u.showDropdown = false))
-  }, 100)
+  setTimeout(() => (showDropdown.value = false), 100)
 }
-
-// 添加点击外部关闭下拉框的处理函数
-function handleClickOutside(event: MouseEvent) {
-  const target = event.target as HTMLElement
-  if (!target.closest('.permission-select') && !target.closest('.search-bar')) {
-    showDropdown.value = false
-    memberList.value.forEach(u => (u.showDropdown = false))
-  }
-}
-
-// 在组件挂载时添加点击事件监听
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-// 在组件卸载时移除事件监听
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
 
 function onCancel() {
   getMemberList()
@@ -280,7 +252,7 @@ async function onSave() {
         permission: member.permission,
         share_with_type: member.type === 'TEAM' ? 'TEAM' : 'USER'
       }
-      await datasetApi.putMemberPermission(id.value, params)
+      await applicationApi.putMemberPermission(id.value, params)
     }
     MsgSuccess(t('common.saveSuccess'))
   } catch (error) {
@@ -303,6 +275,24 @@ watch(() => route.params.id, (newId) => {
 const searchQuery = ref('')
 const showDropdown = ref(false)
 const searchResults = ref([])
+
+// 添加点击其他地方关闭下拉框的功能
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.permission-select')) {
+    memberList.value.forEach(user => {
+      user.showDropdown = false
+    })
+  }
+}
 
 function addUser(item: any) {
   // 检查是否已经存在（同时判断id和type）
@@ -329,7 +319,7 @@ function removeUser(user: any) {
 </script>
 
 <style lang="scss" scoped>
-.dataset-share {
+.application-share {
   width: 70%;
   margin: 0 auto;
   
@@ -450,19 +440,6 @@ function removeUser(user: any) {
         border: 1px solid #e5e6eb;
       }
     }
-
-    &::after {
-      content: '';
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 0;
-      height: 0;
-      border-left: 4px solid transparent;
-      border-right: 4px solid transparent;
-      border-top: 4px solid #3a5cff;
-    }
   }
 
   .permission-select:hover {
@@ -559,4 +536,4 @@ function removeUser(user: any) {
     background: #2446b9;
   }
 }
-</style>
+</style> 

@@ -85,6 +85,19 @@ const applicationRouter = {
             parentName: 'ApplicationDetail'
           },
           component: () => import('@/views/log/index.vue')
+        },
+        {
+          path: 'share',
+          name: 'AppShare',
+          meta: {
+            icon: 'Share',
+            iconActive: 'Share',
+            title: '共享设置',
+            active: 'share',
+            parentPath: '/application/:id/:type',
+            parentName: 'ApplicationDetail'
+          },
+          component: () => import('@/views/application/ApplicationShare.vue')
         }
       ]
     }

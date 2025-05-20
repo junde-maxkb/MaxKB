@@ -37,6 +37,15 @@ export default {
     saveErrorMessage: '保存失败，请检查输入或稍后再试',
     loadingErrorMessage: '加载配置失败，请检查输入或稍后再试'
   },
+  shareSetting: '共享设置',
+  confirmRemovePermission: '是否移除该用户的权限？',
+  searchUserOrTeam: '搜索用户或团队...',
+  user: '用户',
+  team: '团队',
+  members: '成员',
+  remove: '移除',
+  savePermission: '保存权限设置',
+  cancel: '取消',
   applicationForm: {
     title: {
       appTest: '调试预览',
