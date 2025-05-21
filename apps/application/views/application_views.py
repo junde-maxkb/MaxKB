@@ -16,6 +16,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
 from rest_framework.request import Request
 from rest_framework.views import APIView
+from django.db.models import Q
 
 from application.serializers.application_serializers import ApplicationSerializer
 from application.serializers.application_statistics_serializers import ApplicationStatisticsSerializer
@@ -700,3 +701,279 @@ class Application(APIView):
         def get(self, request: Request):
             return result.success(ApplicationSerializer.McpServers(
                 data={'mcp_servers': request.query_params.get('mcp_servers')}).get_mcp_servers())
+
+    class ApplicationMembers(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["GET"], detail=False)
+        @swagger_auto_schema(operation_summary=_('获取应用团队成员及其权限'),
+                             operation_id=_('获取应用团队成员及其权限'),
+                             manual_parameters=ApplicationApi.Operate.get_request_params_api(),
+                             responses=result.get_api_response({
+                                 'type': 'object',
+                                 'properties': {
+                                     'application_id': {'type': 'string'},
+                                     'members': {
+                                         'type': 'array',
+                                         'items': {
+                                             'type': 'object',
+                                             'properties': {
+                                                 'user_id': {'type': 'string'},
+                                                 'username': {'type': 'string'},
+                                                 'permission': {'type': 'string'}
+                                             }
+                                         }
+                                     }
+                                 }
+                             }),
+                             tags=[_('Application')])
+        @has_permissions(ViewPermission(
+            [RoleConstants.ADMIN, RoleConstants.USER],
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+                                            dynamic_tag=keywords.get('application_id'))],
+            compare=CompareConstants.AND))
+        def get(self, request: Request, application_id: str):
+            from setting.models.team_management import TeamMember, TeamMemberPermission
+            from users.models import User
+            from application.models.application import ApplicationShare
+
+            # 获取需要忽略的用户ID列表
+            ignore_user_ids = []
+            team_members = TeamMember.objects.filter(team_id=request.user.id)
+            for member in team_members:
+                ignore_user_ids.append(member.user_id)
+            ignore_user_ids.append(request.user.id)
+
+            # 查询应用所有者ID
+            application_share = ApplicationShare.objects.filter(
+                application_id_id=application_id,
+                shared_with_type='USER'
+            ).exclude(
+                shared_with_id__in=ignore_user_ids
+            ).select_related('application_id')
+            
+            application_share_team = ApplicationShare.objects.filter(
+                application_id_id=application_id,
+                shared_with_type='TEAM'
+            ).select_related('application_id')
+            
+            # 获取每个成员对当前应用的权限
+            members_with_permissions = []
+            for share in application_share:
+                user = User.objects.get(id=share.shared_with_id)
+                
+                members_with_permissions.append({
+                    'user_id': str(share.shared_with_id),
+                    'type': 'USER',
+                    'username': user.username,
+                    'permission': share.permission if share.permission else 'NONE'
+                })
+                
+            for share in application_share_team:
+                Team = Team.objects.get(id=share.shared_with_id)
+                
+                members_with_permissions.append({
+                    'user_id': str(share.shared_with_id),
+                    'type': 'TEAM',
+                    'username': Team.name,
+                    'permission': share.permission if share.permission else 'NONE'
+                })
+                
+            return result.success({
+                'application_id': application_id,
+                'members': members_with_permissions
+            })
+
+    class PutMemberPermissions(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["PUT"], detail=False)
+        @swagger_auto_schema(operation_summary=_('更新应用分享权限'),
+                             operation_id=_('更新应用分享权限'),
+                             manual_parameters=ApplicationApi.Operate.get_request_params_api(),
+                             request_body={
+                                 'type': 'object',
+                                 'properties': {
+                                     'user_id': {'type': 'string', 'description': '用户ID'},
+                                     'permission': {'type': 'string', 'description': '权限类型'},
+                                     'share_with_type': {'type': 'string', 'description': '分享类型(USER/TEAM)'}
+                                 },
+                                 'required': ['user_id', 'permission', 'share_with_type']
+                             },
+                             responses=result.get_default_response(),
+                             tags=[_('Application')])
+        @has_permissions(ViewPermission(
+            [RoleConstants.ADMIN, RoleConstants.USER],
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+                                            dynamic_tag=keywords.get('application_id'))],
+            compare=CompareConstants.AND))
+        @log(menu='Application', operate="更新应用分享权限",
+             get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
+        def put(self, request: Request, application_id: str):
+            from application.models.application import ApplicationShare, Application
+            from django.utils import timezone
+            
+            user_id = request.data.get('user_id')
+            permission = request.data.get('permission') if request.data.get('permission') else 'NONE'
+            share_with_type = request.data.get('share_with_type')
+            
+            # 检查应用是否存在
+            application = Application.objects.filter(id=application_id).first()
+            if not application:
+                return result.error(_('应用不存在'))
+            
+            if share_with_type == "USER":
+                # 查找或创建分享记录
+                share_record, created = ApplicationShare.objects.get_or_create(
+                    application_id_id=application.id,
+                    shared_with_type='USER',
+                    shared_with_id=user_id,
+                    defaults={'permission': permission}
+                )
+                # 如果记录已存在但权限不同，更新权限
+                if not created and share_record.permission != permission:
+                    share_record.permission = permission
+                    share_record.save()
+                    
+            else:  # 团队类型
+                # 假设user_id是团队ID
+                team_id = user_id
+                # 查找或创建团队分享记录
+                share_record, created = ApplicationShare.objects.get_or_create(
+                    application_id_id=application.id,
+                    shared_with_type='TEAM',
+                    shared_with_id=team_id,
+                    defaults={'permission': permission}
+                )
+                # 如果记录已存在但权限不同，更新权限
+                if not created and share_record.permission != permission:
+                    share_record.permission = permission
+                    share_record.save()
+            
+            return result.success({'message': '权限更新成功'})
+
+    class ShareToMePage(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @has_permissions(PermissionConstants.APPLICATION_READ, compare=CompareConstants.AND)
+        def get(self, request: Request, current_page, page_size):
+            from setting.models.team_management import TeamMember
+            from users.models import User
+            from application.models.application import ApplicationShare
+            
+            # 从查询参数中获取分页信息
+            current_page = int(request.query_params.get('current_page', 1))
+            page_size = int(request.query_params.get('page_size', 10))
+            
+            print(f"请求用户ID: {request.user.id}")
+            # 1. 获取共享给我的应用ID列表及权限
+            user_teams = TeamMember.objects.filter(Q(user_id=request.user.id) | Q(team_id=request.user.id)).values_list('team_id', flat=True)
+            print(f"用户所在团队: {list(user_teams)}")
+            
+            # 分别获取团队共享和用户共享的应用，并预先加载关联
+            team_shared_applications = ApplicationShare.objects.filter(
+                shared_with_type='TEAM',
+                shared_with_id__in=[str(team_id) for team_id in user_teams]
+            ).exclude(permission='NONE').select_related('application_id')
+            print(f"团队共享应用数量: {team_shared_applications.count()}")
+            
+            user_shared_applications = ApplicationShare.objects.filter(
+                shared_with_type='USER',
+                shared_with_id=str(request.user.id)
+            ).exclude(permission='NONE').select_related('application_id')
+            print(f"用户共享应用数量: {user_shared_applications.count()}")
+            
+            # 合并两个查询集
+            shared_applications = list(team_shared_applications) + list(user_shared_applications)
+            print(f"总共享应用数量: {len(shared_applications)}")
+
+            # 如果没有共享的应用，直接返回空结果
+            if not shared_applications:
+                print("没有共享的应用")
+                return result.success({
+                    'records': [],
+                    'total': 0,
+                    'page': current_page,
+                    'page_size': page_size
+                })
+            
+            # 2. 构建查询参数
+            query_params = {
+                'name': request.query_params.get('name') or None,
+                'desc': request.query_params.get("desc") or None,
+                'user_id': str(request.user.id),
+                'application_ids': [str(share.application_id_id) for share in shared_applications]
+            }
+            print(f"查询参数: {query_params}")
+            
+            # 3. 使用Query获取应用列表
+            d = ApplicationSerializer.SharePageQuery(data=query_params)
+            d.is_valid()
+            result_data = d.page(current_page, page_size)
+            print(f"查询结果总数: {result_data['total']}")
+            
+            # 4. 为每个应用添加权限信息和创建人信息
+            permission_map = {str(share.application_id_id): share.permission for share in shared_applications}
+            
+            # 获取所有应用的创建人信息
+            creator_ids = [item['user_id'] for item in result_data['list']]
+            creators = {str(user.id): user.username for user in User.objects.filter(id__in=creator_ids)}
+            print(f"创建人信息: {creators}")
+            
+            for item in result_data['list']:
+                item['permission'] = permission_map.get(item['id'], 'NONE')
+                item['creator_name'] = creators.get(str(item['user_id']), '')
+            
+            # 5. 修改返回数据结构，将list改为records
+            print("准备返回结果")
+            return result.success({
+                'records': result_data['list'],
+                'total': result_data['total'],
+                'page': result_data['page'],
+                'page_size': result_data['page_size']
+            })
+
+    class ExitShare(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["PUT"], detail=False)
+        @swagger_auto_schema(operation_summary=_('退出共享应用'),
+                             operation_id=_('退出共享应用'),
+                             manual_parameters=ApplicationApi.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Application')])
+        def put(self, request: Request, application_id: str):
+            from setting.models.team_management import TeamMember
+            from application.models.application import ApplicationShare
+
+            # 获取用户所在的团队
+            user_teams = TeamMember.objects.filter(user_id=request.user.id).values_list('team_id', flat=True)
+            
+            # 检查团队共享
+            team_share = ApplicationShare.objects.filter(
+                application_id_id=application_id,
+                shared_with_type='TEAM',
+                shared_with_id__in=[str(team_id) for team_id in user_teams]
+            ).exclude(permission='NONE').exists()
+            
+            # 检查个人共享
+            user_share = ApplicationShare.objects.filter(
+                application_id_id=application_id,
+                shared_with_type='USER',
+                shared_with_id=str(request.user.id)
+            ).exclude(permission='NONE').exists()
+            
+            # 如果只有团队共享，不允许退出
+            if team_share and not user_share:
+                return result.error(_('该应用是通过团队共享的，无法退出'))
+            
+            # 如果有个人共享，将个人权限设置为NONE
+            if user_share:
+                ApplicationShare.objects.filter(
+                    application_id_id=application_id,
+                    shared_with_type='USER',
+                    shared_with_id=str(request.user.id)
+                ).update(permission='NONE')
+            
+            return result.success({'message': '成功退出共享应用'})

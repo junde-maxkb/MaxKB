@@ -445,11 +445,7 @@ function getList() {
   
   let apiPromise
   if (activeTab.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME') {
-    apiPromise = applicationApi.getApplication(paginationConfig, {
-      ...params,
-      type: 'SHARED',
-      shared_type: 'SHARED_TO_ME'
-    }, loading)
+    apiPromise = applicationApi.getShareToMePage(paginationConfig, params, loading)
   } else {
     apiPromise = applicationApi.getApplication(paginationConfig, {
       ...params,

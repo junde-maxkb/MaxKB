@@ -87,6 +87,10 @@ urlpatterns = [
     path('application/<str:application_id>/work_flow_version/<str:work_flow_version_id>',
          views.ApplicationVersionView.Operate.as_view()),
     path('application/<str:application_id>/play_demo_text', views.Application.PlayDemoText.as_view(),
-         name='application/audio')
-
+         name='application/audio'),
+    # 应用共享相关接口
+    path('application/<str:application_id>/members', views.Application.ApplicationMembers.as_view()),
+    path('application/<str:application_id>/members/put_permissions', views.Application.PutMemberPermissions.as_view()),
+    path('application/share/<int:current_page>/<int:page_size>', views.Application.ShareToMePage.as_view(), name="share_to_me"),
+    path('application/<str:application_id>/exit_share', views.Application.ExitShare.as_view(), name="exit_share")
 ]

@@ -174,3 +174,16 @@ class ChatRecord(AppModelMixin):
 
     class Meta:
         db_table = "application_chat_record"
+
+
+class ApplicationShare(models.Model):
+    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
+    application_id = models.ForeignKey(Application, on_delete=models.CASCADE, verbose_name="应用id")
+    shared_with_type = models.CharField(max_length=32, verbose_name="分享对象类型")
+    shared_with_id = models.UUIDField(verbose_name="分享对象ID")
+    permission = models.CharField(max_length=32, verbose_name="权限类型")
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    update_time = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "application_share"

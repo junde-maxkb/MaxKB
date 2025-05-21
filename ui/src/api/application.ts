@@ -539,6 +539,65 @@ const importApplication: (data: any, loading?: Ref<boolean>) => Promise<Result<a
 ) => {
   return post(`${prefix}/import`, data, undefined, loading)
 }
+
+/**
+ * 获取应用成员列表
+ * @param application_id 应用ID
+ * @param loading 加载状态
+ */
+const getApplicationMembers: (
+  application_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (application_id, loading) => {
+  return get(`${prefix}/${application_id}/members`, undefined, loading)
+}
+
+/**
+ * 更新应用成员权限
+ * @param application_id 应用ID
+ * @param data 权限数据
+ * @param loading 加载状态
+ */
+const putMemberPermission: (
+  application_id: string,
+  data: {
+    user_id: string
+    permission: string
+    share_with_type: 'USER' | 'TEAM'
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (application_id, data, loading) => {
+  return put(`${prefix}/${application_id}/members/put_permissions`, data, undefined, loading)
+}
+
+/**
+ * 获取共享给我的应用列表
+ * @param page 分页参数
+ * @param loading 加载状态
+ */
+const getShareToMePage: (
+  page: pageRequest,
+  param: {
+    name?: string;
+    select_user_id?: string;
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (page, param, loading) => {
+  return get(`${prefix}/share/${page.current_page}/${page.page_size}`, param, loading)
+}
+
+/**
+ * 退出共享应用
+ * @param application_id 应用ID
+ * @param loading 加载状态
+ */
+const exitShare: (
+  application_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (application_id, loading) => {
+  return put(`${prefix}/${application_id}/exit_share`, undefined, undefined, loading)
+}
+
 export default {
   getAllAppilcation,
   getApplication,
@@ -584,5 +643,9 @@ export default {
   exportApplication,
   importApplication,
   getApplicationById,
-  getMcpTools
+  getMcpTools,
+  getApplicationMembers,
+  putMemberPermission,
+  getShareToMePage,
+  exitShare
 }
