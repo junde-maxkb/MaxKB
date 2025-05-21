@@ -866,31 +866,25 @@ class Application(APIView):
             current_page = int(request.query_params.get('current_page', 1))
             page_size = int(request.query_params.get('page_size', 10))
             
-            print(f"请求用户ID: {request.user.id}")
             # 1. 获取共享给我的应用ID列表及权限
             user_teams = TeamMember.objects.filter(Q(user_id=request.user.id) | Q(team_id=request.user.id)).values_list('team_id', flat=True)
-            print(f"用户所在团队: {list(user_teams)}")
             
             # 分别获取团队共享和用户共享的应用，并预先加载关联
             team_shared_applications = ApplicationShare.objects.filter(
                 shared_with_type='TEAM',
                 shared_with_id__in=[str(team_id) for team_id in user_teams]
             ).exclude(permission='NONE').select_related('application_id')
-            print(f"团队共享应用数量: {team_shared_applications.count()}")
             
             user_shared_applications = ApplicationShare.objects.filter(
                 shared_with_type='USER',
                 shared_with_id=str(request.user.id)
             ).exclude(permission='NONE').select_related('application_id')
-            print(f"用户共享应用数量: {user_shared_applications.count()}")
             
             # 合并两个查询集
             shared_applications = list(team_shared_applications) + list(user_shared_applications)
-            print(f"总共享应用数量: {len(shared_applications)}")
 
             # 如果没有共享的应用，直接返回空结果
             if not shared_applications:
-                print("没有共享的应用")
                 return result.success({
                     'records': [],
                     'total': 0,
@@ -905,13 +899,11 @@ class Application(APIView):
                 'user_id': str(request.user.id),
                 'application_ids': [str(share.application_id_id) for share in shared_applications]
             }
-            print(f"查询参数: {query_params}")
             
             # 3. 使用Query获取应用列表
             d = ApplicationSerializer.SharePageQuery(data=query_params)
             d.is_valid()
             result_data = d.page(current_page, page_size)
-            print(f"查询结果总数: {result_data['total']}")
             
             # 4. 为每个应用添加权限信息和创建人信息
             permission_map = {str(share.application_id_id): share.permission for share in shared_applications}
@@ -919,14 +911,12 @@ class Application(APIView):
             # 获取所有应用的创建人信息
             creator_ids = [item['user_id'] for item in result_data['list']]
             creators = {str(user.id): user.username for user in User.objects.filter(id__in=creator_ids)}
-            print(f"创建人信息: {creators}")
             
             for item in result_data['list']:
                 item['permission'] = permission_map.get(item['id'], 'NONE')
                 item['creator_name'] = creators.get(str(item['user_id']), '')
             
             # 5. 修改返回数据结构，将list改为records
-            print("准备返回结果")
             return result.success({
                 'records': result_data['list'],
                 'total': result_data['total'],

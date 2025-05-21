@@ -89,8 +89,8 @@ const availableTeams = ref<any[]>([])
 const userPermission = ref<string>('')
 
 const PERMISSION_OPTIONS = [
-  { value: 'READ', label: '只读权限' },
-  { value: 'WRITE', label: '编辑权限' },
+  { value: 'READ', label: '使用权限' },
+  { value: 'WRITE', label: '开发权限' },
   { value: 'MANAGE', label: '管理权限' }
 ]
 

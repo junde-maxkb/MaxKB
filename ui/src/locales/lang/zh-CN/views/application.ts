@@ -11,9 +11,9 @@ export default {
     organizationApplication: '机构应用',
     sharedToMeApplication: '共享给我的应用'
   },
-  permissionManage: '管理权限',
-  permissionWrite: '编辑权限',
-  permissionRead: '只读权限',
+  permissionManage: '管理',
+  permissionWrite: '开发',
+  permissionRead: '使用',
   sort: {
     createTime: '创建时间',
     updateTime: '更新时间',
