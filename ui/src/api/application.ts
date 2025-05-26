@@ -548,7 +548,14 @@ const importApplication: (data: any, loading?: Ref<boolean>) => Promise<Result<a
 const getApplicationMembers: (
   application_id: string,
   loading?: Ref<boolean>
-) => Promise<Result<any>> = (application_id, loading) => {
+) => Promise<Result<{
+  members: Array<{
+    user_id: string;
+    username: string;
+    type: 'USER' | 'TEAM';
+    permission: string;
+  }>;
+}>> = (application_id, loading) => {
   return get(`${prefix}/${application_id}/members`, undefined, loading)
 }
 
@@ -596,6 +603,21 @@ const exitShare: (
   loading?: Ref<boolean>
 ) => Promise<Result<any>> = (application_id, loading) => {
   return put(`${prefix}/${application_id}/exit_share`, undefined, undefined, loading)
+}
+
+/**
+ * 获取当前用户对应用的权限
+ * @param application_id 应用ID
+ * @param loading 加载状态
+ */
+const getCurrentUserPermission: (
+  application_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<{
+  application_id: string;
+  permission: string;
+}>> = (application_id, loading) => {
+  return get(`${prefix}/${application_id}/current_user_permission`, undefined, loading)
 }
 
 export default {
@@ -647,5 +669,6 @@ export default {
   getApplicationMembers,
   putMemberPermission,
   getShareToMePage,
-  exitShare
+  exitShare,
+  getCurrentUserPermission
 }

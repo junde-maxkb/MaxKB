@@ -177,23 +177,16 @@ const { dataset } = useStore()
 
 // 获取用户对当前知识库的权限
 async function getUserPermission() {
-  console.log('开始获取用户权限')
   try {
     const userId = useStore().user?.userInfo?.id || localStorage.getItem('userId')
-    console.log('当前用户ID:', userId)
     const res = await datasetApi.getDatasetMembers(id.value)
-    console.log('获取到的所有成员权限信息:', res)
     const currentUser = res.data.members.find((member: any) => member.user_id === userId)
-    console.log('当前用户权限信息:', currentUser)
     if (currentUser) {
       userPermission.value = currentUser.permission
-      console.log('设置的用户权限:', userPermission.value)
     } else {
-      console.log('未找到当前用户的权限信息')
       userPermission.value = 'MANAGE'
     }
   } catch (error) {
-    console.error('获取用户权限失败:', error)
     userPermission.value = 'MANAGE'
   }
 }

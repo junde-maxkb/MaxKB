@@ -356,6 +356,21 @@ const getSharedToMeDataset: (
   return get(`${prefix}/share/${page.current_page}/${page.page_size}`, param, loading)
 }
 
+/**
+ * 获取当前用户对知识库的权限
+ * @param dataset_id 知识库ID
+ * @param loading 加载状态
+ */
+const getCurrentUserPermission: (
+  dataset_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<{
+  dataset_id: string;
+  permission: string;
+}>> = (dataset_id, loading) => {
+  return get(`${prefix}/${dataset_id}/current_user_permission`, undefined, loading)
+}
+
 export default {
   getDataset,
   getAllDataset,
@@ -380,5 +395,6 @@ export default {
   getDatasetMembers,
   putMemberPermission,
   getSharedToMeDataset,
-  putExitShare
+  putExitShare,
+  getCurrentUserPermission
 }

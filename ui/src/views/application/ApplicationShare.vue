@@ -179,11 +179,9 @@ const { application } = useStore()
 // 获取用户对当前应用的权限
 async function getUserPermission() {
   try {
-    const userId = useStore().user?.userInfo?.id || localStorage.getItem('userId')
-    const res = await applicationApi.getApplicationMembers(id.value)
-    const currentUser = res.data.members.find((member: any) => member.user_id === userId)
-    if (currentUser) {
-      userPermission.value = currentUser.permission
+    const res = await applicationApi.getCurrentUserPermission(id.value)
+    if (res.data) {
+      userPermission.value = res.data.permission
     } else {
       userPermission.value = 'MANAGE'
     }

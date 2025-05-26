@@ -97,8 +97,8 @@
             <CardBox
               :title="item.name"
               :description="item.desc"
-              class="application-card cursor"
-              @click="router.push({ path: `/application/${item.id}/${item.type}/overview` })"
+              :class="{'cursor': item.permission !== 'READ'}"
+              @click="item.permission !== 'READ' && router.push({ path: `/application/${item.id}/${item.type}/overview` })"
             >
               <template #icon>
                 <AppAvatar
@@ -165,11 +165,11 @@
                   </el-tooltip>
                   <el-divider direction="vertical" />
                   <el-tooltip effect="dark" :content="$t('common.setting')" placement="top">
-                    <el-button text @click.stop="settingApplication(item)">
+                    <el-button text @click.stop="settingApplication(item)" v-if="item.permission !== 'READ'">
                       <AppIcon iconName="Setting"></AppIcon>
                     </el-button>
                   </el-tooltip>
-                  <el-divider direction="vertical" />
+                  <el-divider direction="vertical" v-if="item.permission !== 'READ'" />
                   <span @click.stop>
                     <el-dropdown trigger="click">
                       <el-button text @click.stop>
@@ -184,7 +184,10 @@
                             <AppIcon iconName="app-copy"></AppIcon>
                             {{ $t('common.copy') }}
                           </el-dropdown-item>
-                          <el-dropdown-item @click.stop="exportApplication(item)">
+                          <el-dropdown-item 
+                            v-if="item.permission !== 'READ'"
+                            @click.stop="exportApplication(item)"
+                          >
                             <AppIcon iconName="app-export"></AppIcon>
                             {{ $t('common.export') }}
                           </el-dropdown-item>
@@ -194,6 +197,13 @@
                             @click.stop="deleteApplication(item)"
                           >
                             {{ $t('common.delete') }}
+                          </el-dropdown-item>
+                          <el-dropdown-item 
+                            v-if="activeTab === 'SHARED' && sharedType === 'SHARED_TO_ME'"
+                            @click.stop="exitShare(item)"
+                          >
+                            <AppIcon iconName="Close"></AppIcon>
+                            {{ $t('common.exit') }}
                           </el-dropdown-item>
                         </el-dropdown-menu>
                       </template>
@@ -496,6 +506,28 @@ function getUserList() {
       getList()
     }
   })
+}
+
+function exitShare(row: any) {
+  MsgConfirm(
+    // @ts-ignore
+    `${t('views.application.exitShare.confirmTitle')}${row.name} ?`,
+    t('views.application.exitShare.confirmMessage'),
+    {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+      confirmButtonClass: 'danger'
+    }
+  )
+    .then(() => {
+      applicationApi.exitShare(row.id, loading).then(() => {
+        paginationConfig.current_page = 1
+        applicationList.value = []
+        getList()
+        MsgSuccess(t('common.exitSuccess'))
+      })
+    })
+    .catch(() => {})
 }
 
 onMounted(() => {

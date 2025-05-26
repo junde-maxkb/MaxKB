@@ -31,6 +31,10 @@ export default {
     confirmTitle: '是否删除应用：',
     confirmMessage: '删除后该应用将不再提供服务，请谨慎操作。'
   },
+  exitShare: {
+    confirmTitle: '是否退出共享应用：',
+    confirmMessage: '退出后将无法继续使用该应用，请谨慎操作。'
+  },
   tip: {
     ExportError: '导出失败',
     professionalMessage: '社区版最多支持 5 个应用，如需拥有更多应用，请升级为专业版。',

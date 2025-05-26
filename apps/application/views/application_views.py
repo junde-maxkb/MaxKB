@@ -733,7 +733,7 @@ class Application(APIView):
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
-            from setting.models.team_management import TeamMember, TeamMemberPermission
+            from setting.models.team_management import TeamMember, TeamMemberPermission,Team
             from users.models import User
             from application.models.application import ApplicationShare
 
@@ -743,6 +743,7 @@ class Application(APIView):
             for member in team_members:
                 ignore_user_ids.append(member.user_id)
             ignore_user_ids.append(request.user.id)
+            # teams = Team.objects.filter(user_id=request.user.id)
 
             # 查询应用所有者ID
             application_share = ApplicationShare.objects.filter(
@@ -768,7 +769,7 @@ class Application(APIView):
                     'username': user.username,
                     'permission': share.permission if share.permission else 'NONE'
                 })
-                
+
             for share in application_share_team:
                 Team = Team.objects.get(id=share.shared_with_id)
                 
@@ -782,6 +783,76 @@ class Application(APIView):
             return result.success({
                 'application_id': application_id,
                 'members': members_with_permissions
+            })
+        
+    class ApplicationCurrentUserPermission(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["GET"], detail=False)
+        @swagger_auto_schema(operation_summary=_('获取应用团队成员及其权限'),
+                             operation_id=_('获取应用团队成员及其权限'),
+                             manual_parameters=ApplicationApi.Operate.get_request_params_api(),
+                             responses=result.get_api_response({
+                                 'type': 'object',
+                                 'properties': {
+                                     'application_id': {'type': 'string'},
+                                     'members': {
+                                         'type': 'array',
+                                         'items': {
+                                             'type': 'object',
+                                             'properties': {
+                                                 'user_id': {'type': 'string'},
+                                                 'username': {'type': 'string'},
+                                                 'permission': {'type': 'string'}
+                                             }
+                                         }
+                                     }
+                                 }
+                             }),
+                             tags=[_('Application')])
+        @has_permissions(ViewPermission(
+            [RoleConstants.ADMIN, RoleConstants.USER],
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+                                            dynamic_tag=keywords.get('application_id'))],
+            compare=CompareConstants.AND))
+        def get(self, request: Request, application_id: str):
+            from application.models.application import Application, ApplicationShare
+
+            # 检查用户是否是应用所有者
+            is_owner = Application.objects.filter(id=application_id, user_id=request.user.id).exists()
+            if is_owner:
+                return result.success({
+                    'application_id': application_id,
+                    'permission': 'MANAGE'
+                })
+
+            # 获取当前用户对当前应用的权限
+            user_permission = ApplicationShare.objects.filter(
+                application_id_id=application_id,
+                shared_with_type='USER',
+                shared_with_id=request.user.id
+            ).values_list('permission', flat=True).first()
+
+            # 如果没有找到用户权限记录，检查是否有团队权限
+            if not user_permission:
+                # 先获取用户所在的团队
+                from setting.models.team_management import TeamMember
+                user_teams = TeamMember.objects.filter(
+                    user_id=request.user.id
+                ).values_list('team_id', flat=True)
+                
+                # 再查询团队权限
+                team_permission = ApplicationShare.objects.filter(
+                    application_id_id=application_id,
+                    shared_with_type='TEAM',
+                    shared_with_id__in=user_teams
+                ).values_list('permission', flat=True).first()
+                
+                user_permission = team_permission if team_permission else None
+
+            return result.success({
+                'application_id': application_id,
+                'permission': user_permission or 'NONE'
             })
 
     class PutMemberPermissions(APIView):
