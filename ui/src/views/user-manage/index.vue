@@ -220,6 +220,7 @@ function setAdmin(row: any) {
         if (res.code == 200){
           MsgSuccess(t('views.user.setAdmin.setAdminSuccess'))
           getList()
+          loading.value = false
         }else{
           MsgError(t('views.user.setAdmin.setAdminFailed'))
           loading.value = false
