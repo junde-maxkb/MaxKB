@@ -80,6 +80,16 @@ const active = ref(0)
 const successInfo = ref<any>(null)
 async function next() {
   disabled.value = true
+  if (documentsType.value === 'SQL'){
+    
+    if (id) {
+        documentApi.exportDabase(id as string, UploadComponentRef.value.tableForm, loading).then((res) => {
+          MsgSuccess(t('common.submitSuccess'))
+          clearStore()
+          router.push({ path: `/dataset/${id}/document` })
+        })
+    }
+  }
   if (await UploadComponentRef.value.validate()) {
     if (documentsType.value === 'QA') {
       let fd = new FormData()

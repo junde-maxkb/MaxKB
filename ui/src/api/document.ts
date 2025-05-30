@@ -388,6 +388,19 @@ const batchCancelTask: (
   return put(`${prefix}/${dataset_id}/document/cancel_task/_batch`, data, undefined, loading)
 }
 
+/**
+ * 导入数据库
+ * @param 参数
+ * file
+ */
+const exportDabase: (
+  dataset_id: string,
+  data: any,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (dataset_id, data, loading) => {
+  return post(`${prefix}/${dataset_id}/document/data_source`, data, undefined, loading)
+}
+
 export default {
   postSplitDocument,
   getDocument,
@@ -415,5 +428,6 @@ export default {
   exportDocumentZip,
   batchCancelTask,
   putLarkDocumentSync,
-  delMulLarkSyncDocument
+  delMulLarkSyncDocument,
+  exportDabase
 }

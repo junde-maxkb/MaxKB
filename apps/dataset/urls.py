@@ -25,6 +25,7 @@ urlpatterns = [
     path('dataset/document/table_template/export', views.TableTemplate.as_view()),
     path('dataset/<str:dataset_id>/document/web', views.WebDocument.as_view()),
     path('dataset/<str:dataset_id>/document/qa', views.QaDocument.as_view()),
+    path('dataset/<str:dataset_id>/document/data_source', views.DataSourceView.as_view()),
     path('dataset/<str:dataset_id>/document/table', views.TableDocument.as_view()),
     path('dataset/<str:dataset_id>/document/_bach', views.Document.Batch.as_view()),
     path('dataset/<str:dataset_id>/document/batch_hit_handling', views.Document.BatchEditHitHandling.as_view()),

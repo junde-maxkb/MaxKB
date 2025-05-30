@@ -35,7 +35,13 @@ urlpatterns = [
     path('model/<str:model_id>/meta', views.Model.ModelMeta.as_view(), name='model/operate/meta'),
     path('email_setting', views.SystemSetting.Email.as_view(), name='email_setting'),
     path('login_auth_setting', views.SystemSetting.LoginAuth.as_view(), name='login_auth_setting'),
-    path('valid/<str:valid_type>/<int:valid_count>', views.Valid.as_view())
+    path('valid/<str:valid_type>/<int:valid_count>', views.Valid.as_view()),
+    path('data_source', views.DataSourceView.as_view(), name='data_source'),
+    path('data_source/get_schema', views.DbOperateView.Operate.as_view(), name='get_schema'),
+    path('data_source/test_connect', views.DbOperateView.as_view(), name='test_connect'),
+    path('data_source/<str:id>', views.DataSourceView.Operate.as_view(), name='data_sourcel_detail'),
+    path('data_source/get_table/<str:id>', views.DbOperateView.as_view(), name='get_table'),
+    path('data_source/<str:id>/<str:table_name>', views.DbOperateView.Operate.as_view(), name='get_columns'),
 
 ]
 if os.environ.get('SERVER_NAME', 'web') == 'local_model':

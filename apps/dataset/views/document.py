@@ -123,6 +123,14 @@ class TableDocument(APIView):
                 with_valid=True))
 
 
+class DataSourceView(APIView):
+    authentication_classes = [TokenAuth]
+
+    def post(self, request: Request, dataset_id: str):
+        return result.success(
+            DocumentSerializers.Create().save_data_source(dataset_id, request.data))
+
+
 class Document(APIView):
     authentication_classes = [TokenAuth]
 

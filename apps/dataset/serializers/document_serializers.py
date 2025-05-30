@@ -63,6 +63,8 @@ from embedding.task.embedding import embedding_by_document, delete_embedding_by_
     delete_embedding_by_document, update_embedding_dataset_id, delete_embedding_by_paragraph_ids, \
     embedding_by_document_list
 from setting.models import Model
+from setting.models.data_source import DataSourceConfig
+from setting.models_provider.tools import DBConnector
 from smartdoc.conf import PROJECT_DIR
 from django.utils.translation import gettext_lazy as _, gettext, to_locale
 from django.utils.translation import get_language
@@ -898,6 +900,29 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
             file_list = instance.get('file_list')
             document_list = flat_map([self.parse_table_file(file) for file in file_list])
             return DocumentSerializers.Batch(data={'dataset_id': self.data.get('dataset_id')}).batch_save(document_list)
+
+        def save_data_source(self, dataset_id, data: Dict):
+            source_id = data.get('source_id')
+            table_name = data.get('table_name')
+            columns = data.get('columns')
+            if not columns:
+                raise AppApiException(500, _('Please select database fields'))
+            data_source = DataSourceConfig.objects.filter(id=source_id).first()
+            params = {
+                "db_type": data_source.db_type,
+                "user": data_source.username,
+                "password": data_source.password,
+                "host": data_source.host,
+                "port": data_source.port,
+                "dbname": data_source.database_name,
+                "schema": data_source.extra_params.get('schema')
+            }
+
+            columns_list = DBConnector.query_columns(params, table_name, columns)
+            if not columns_list:
+                raise AppApiException(500, _('The data table has no data'))
+            content_list = [{'name': table_name, 'paragraphs': [{"title": "", "content": str(item)} for item in columns_list]}]
+            return DocumentSerializers.Batch(data={'dataset_id': dataset_id}).batch_save(content_list)
 
         @post(post_function=post_embedding)
         @transaction.atomic

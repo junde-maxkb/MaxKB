@@ -36,7 +36,13 @@ export default {
     template: '模版',
     download: '下载'
   },
-
+  db_connect: {
+    select_data_source: '选择数据源',
+    pls_slc_data_source: '请选择数据源',
+    data_table: '数据表',
+    by_table_name: '请通过表名搜索'
+    
+  },
   fileType: {
     txt: {
       label: '文本文件',
@@ -52,6 +58,12 @@ export default {
     },
     QA: {
       label: 'QA 问答对',
+      tip1: '1、点击下载对应模版并完善信息',
+      tip2: '2、上传的表格文件中每个 sheet 会作为一个文档，sheet名称为文档名称',
+      tip3: '3、每次最多上传 50 个文件，每个文件不超过 100MB'
+    },
+    SQL: {
+      label: '数据库导入',
       tip1: '1、点击下载对应模版并完善信息',
       tip2: '2、上传的表格文件中每个 sheet 会作为一个文档，sheet名称为文档名称',
       tip3: '3、每次最多上传 50 个文件，每个文件不超过 100MB'

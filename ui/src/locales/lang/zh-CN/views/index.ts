@@ -15,6 +15,7 @@ import applicationWorkflow from './application-workflow'
 import login from './login'
 import operateLog from './operate-log'
 import teamManage from './team-manage'
+import dataSource from './data-source'
 export default {
   notFound,
   application,
@@ -32,5 +33,6 @@ export default {
   applicationWorkflow,
   login,
   operateLog,
-  teamManage
+  teamManage,
+  dataSource
 }

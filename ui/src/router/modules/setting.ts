@@ -126,6 +126,18 @@ const settingRouter = {
             // permission: new Role('ADMIN')
           },
           component: () => import('@/views/system/teamManage/index.vue')
+        },
+        {
+          path: '/system/data_source',
+          name: 'data_source',
+          meta: {
+            title: 'views.dataSource.title',
+            activeMenu: '/setting',
+            parentPath: '/setting',
+            parentName: 'setting',
+            // permission: new Role('ADMIN')
+          },
+          component: () => import('@/views/system/dataSource/index.vue')
         }
       ]
     },
