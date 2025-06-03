@@ -145,9 +145,11 @@ export default {
     },
 
     dialog: {
-      addDataset: '添加关联知识库',
-      addDatasetPlaceholder: '所选知识库必须使用相同的 Embedding 模型',
-      selected: '已选',
+      addDataset: '添加知识库',
+      addDatasetPlaceholder: '请选择要添加的知识库',
+      myDatasets: '我的知识库',
+      sharedDatasets: '共享给我的知识库',
+      selected: '已选择',
       countDataset: '个知识库',
 
       selectSearchMode: '检索模式',

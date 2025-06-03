@@ -44,6 +44,18 @@ const useDatasetStore = defineStore({
           })
       })
     },
+    async asyncGetSharedToMeDataset(page: { current_page: number; page_size: number }, param: any, loading?: Ref<boolean>) {
+      return new Promise((resolve, reject) => {
+        datasetApi
+          .getSharedToMeDataset(page, param, loading)
+          .then((data) => {
+            resolve(data)
+          })
+          .catch((error) => {
+            reject(error)
+          })
+      })
+    },
     async asyncGetDatasetDetail(id: string, loading?: Ref<boolean>) {
       return new Promise((resolve, reject) => {
         datasetApi
