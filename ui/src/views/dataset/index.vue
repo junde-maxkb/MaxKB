@@ -60,7 +60,7 @@
         :loading="loading"
       >
         <el-row :gutter="15">
-          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" class="mb-16" v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType !== 'SHARED_TO_ME')">
+          <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" class="mb-16" v-if="datasetType === 'MY'">
             <CardAdd :title="$t('views.dataset.createDataset')" @click="openCreateDialog" />
           </el-col>
           <template v-for="(item, index) in datasetList" :key="index">
@@ -68,8 +68,8 @@
               <CardBox
                 :title="item.name"
                 :description="item.desc"
-                :class="{'cursor': item.permission !== 'READ'}"
-                @click="item.permission !== 'READ' && router.push({ path: `/dataset/${item.id}/document` })"
+                :class="{'cursor': item.permission !== 'READ' && !(datasetType === 'SHARED' && sharedType === 'ORGANIZATION')}"
+                @click="!(datasetType === 'SHARED' && sharedType === 'ORGANIZATION') && item.permission !== 'READ' && router.push({ path: `/dataset/${item.id}/document` })"
               >
                 <template #icon>
                   <AppAvatar
@@ -161,57 +161,71 @@
                         <template #dropdown>
                           <el-dropdown-menu>
                             <el-dropdown-item
-                              v-if="(datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION')) && item.type === '1'"
-                              icon="Refresh"
-                              @click.stop="syncDataset(item)"
-                              >{{ $t('views.dataset.setting.sync') }}</el-dropdown-item
-                            >
-                            <el-dropdown-item 
-                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && (item.permission === 'MANAGE' || item.permission === 'WRITE'))"
-                              @click="reEmbeddingDataset(item)">
-                              <AppIcon
-                                iconName="app-document-refresh"
-                                style="font-size: 16px"
-                              ></AppIcon>
-                              {{ $t('views.dataset.setting.vectorization') }}</el-dropdown-item
-                            >
-                            <el-dropdown-item
-                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
-                              icon="Connection"
-                              @click.stop="openGenerateDialog(item)"
-                              >{{ $t('views.document.generateQuestion.title') }}</el-dropdown-item
-                            >
-                            <el-dropdown-item
-                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
-                              icon="Setting"
-                              @click.stop="router.push({ path: `/dataset/${item.id}/setting` })"
-                            >
-                              {{ $t('common.setting') }}</el-dropdown-item
-                            >
-                            <el-dropdown-item 
-                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
-                              @click.stop="export_dataset(item)">
-                              <AppIcon iconName="app-export"></AppIcon
-                              >{{ $t('views.document.setting.export') }} Excel</el-dropdown-item
-                            >
-                            <el-dropdown-item 
-                              v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
-                              @click.stop="export_zip_dataset(item)">
-                              <AppIcon iconName="app-export"></AppIcon
-                              >{{ $t('views.document.setting.export') }} ZIP</el-dropdown-item
-                            >
-                            <el-dropdown-item 
-                              v-if="datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && (item.permission === 'MANAGE' || item.permission === 'WRITE' || item.permission === 'READ')"
+                              v-if="datasetType === 'SHARED' && sharedType === 'ORGANIZATION' && user.userInfo?.role === 'ADMIN'"
                               icon="Close"
-                              @click.stop="exitDataset(item)">{{
-                              $t('common.exit')
+                              @click.stop="removeFromOrganization(item)">{{
+                              $t('views.dataset.setting.removeFromOrganization')
                             }}</el-dropdown-item>
-                            <el-dropdown-item 
-                              v-if="datasetType === 'MY'"
-                              icon="Delete"
-                              @click.stop="deleteDataset(item)">{{
-                              $t('common.delete')
-                            }}</el-dropdown-item>
+                            <template v-if="!(datasetType === 'SHARED' && sharedType === 'ORGANIZATION')">
+                              <el-dropdown-item
+                                v-if="(datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION')) && item.type === '1'"
+                                icon="Refresh"
+                                @click.stop="syncDataset(item)"
+                                >{{ $t('views.dataset.setting.sync') }}</el-dropdown-item
+                              >
+                              <el-dropdown-item 
+                                v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && (item.permission === 'MANAGE' || item.permission === 'WRITE'))"
+                                @click="reEmbeddingDataset(item)">
+                                <AppIcon
+                                  iconName="app-document-refresh"
+                                  style="font-size: 16px"
+                                ></AppIcon>
+                                {{ $t('views.dataset.setting.vectorization') }}</el-dropdown-item
+                              >
+                              <el-dropdown-item
+                                v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
+                                icon="Connection"
+                                @click.stop="openGenerateDialog(item)"
+                                >{{ $t('views.document.generateQuestion.title') }}</el-dropdown-item
+                              >
+                              <el-dropdown-item
+                                v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
+                                icon="Setting"
+                                @click.stop="router.push({ path: `/dataset/${item.id}/setting` })"
+                              >
+                                {{ $t('common.setting') }}</el-dropdown-item
+                              >
+                              <el-dropdown-item 
+                                v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
+                                @click.stop="export_dataset(item)">
+                                <AppIcon iconName="app-export"></AppIcon
+                                >{{ $t('views.document.setting.export') }} Excel</el-dropdown-item
+                              >
+                              <el-dropdown-item 
+                                v-if="datasetType === 'MY' || (datasetType === 'SHARED' && sharedType === 'ORGANIZATION') || (datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && item.permission === 'MANAGE')"
+                                @click.stop="export_zip_dataset(item)">
+                                <AppIcon iconName="app-export"></AppIcon
+                                >{{ $t('views.document.setting.export') }} ZIP</el-dropdown-item
+                              >
+                              <el-dropdown-item 
+                                v-if="datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && (item.permission === 'MANAGE' || item.permission === 'WRITE' || item.permission === 'READ')"
+                                icon="Close"
+                                @click.stop="exitDataset(item)">{{
+                                $t('common.exit')
+                              }}</el-dropdown-item>
+                              <el-dropdown-item 
+                                v-if="datasetType === 'MY'"
+                                icon="Delete"
+                                @click.stop="deleteDataset(item)">{{
+                                $t('common.delete')
+                              }}</el-dropdown-item>
+                              <el-dropdown-item 
+                                v-if="datasetType === 'MY'"
+                                icon="OfficeBuilding"
+                                @click.stop="addToOrganization(item)">{{
+                                $t('views.dataset.setting.addToOrganization')
+                              }}</el-dropdown-item>
+                            </template>
                           </el-dropdown-menu>
                         </template>
                       </el-dropdown>
@@ -386,6 +400,43 @@ function deleteDataset(row: any) {
     .catch(() => {})
 }
 
+function addToOrganization(row: any) {
+  MsgConfirm(
+    t('views.dataset.addToOrganization.confirmTitle'),
+    t('views.dataset.addToOrganization.confirmMessage'),
+    {
+      confirmButtonText: t('common.confirm'),
+      confirmButtonClass: 'primary'
+    }
+  )
+    .then(() => {
+      datasetApi.addToOrganization(row.id, loading).then(() => {
+        MsgSuccess(t('views.dataset.addToOrganization.success'))
+      })
+    })
+    .catch(() => {})
+}
+
+function removeFromOrganization(row: any) {
+  MsgConfirm(
+    t('views.dataset.removeFromOrganization.confirmTitle'),
+    t('views.dataset.removeFromOrganization.confirmMessage'),
+    {
+      confirmButtonText: t('common.confirm'),
+      confirmButtonClass: 'danger'
+    }
+  )
+    .then(() => {
+      datasetApi.removeFromOrganization(row.id, loading).then(() => {
+        MsgSuccess(t('views.dataset.removeFromOrganization.success'))
+        paginationConfig.current_page = 1
+        datasetList.value = []
+        getList()
+      })
+    })
+    .catch(() => {})
+}
+
 function getList() {
   const params = {
     ...(searchValue.value && { name: searchValue.value }),
@@ -396,6 +447,8 @@ function getList() {
   let apiPromise
   if (datasetType.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME') {
     apiPromise = datasetApi.getSharedToMeDataset(paginationConfig, params, loading)
+  } else if (datasetType.value === 'SHARED' && sharedType.value === 'ORGANIZATION') {
+    apiPromise = datasetApi.getOrganizationDataset(paginationConfig, params, loading)
   } else {
     apiPromise = datasetApi.getDataset(paginationConfig, {
       ...params,
@@ -408,7 +461,7 @@ function getList() {
     res.data.records.forEach((item: any) => {
       if (datasetType.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME') {
         item.username = item.username || item.creator_name
-      } else {
+      } else  {
         if (user.userInfo && item.user_id === user.userInfo.id) {
           item.username = user.userInfo.username
         } else {
@@ -420,7 +473,7 @@ function getList() {
     let newRecords = sortDatasetList(res.data.records)
     
     if (datasetType.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME' && user.userInfo?.id) {
-      newRecords = newRecords.filter(item => item.user_id !== user.userInfo.id)
+      newRecords = newRecords.filter(item => item.user_id !== user.userInfo?.id)
       paginationConfig.total = datasetList.value.length + newRecords.length
     }
     

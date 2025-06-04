@@ -348,8 +348,8 @@ class Dataset(APIView):
             # ).distinct()
             ignore_user_ids = []
             # 查询知识库所有者ID
-            ignore_user_ids.append(DataSet.objects.get(id=dataset_id).user_id)
-            ignore_user_ids.append(request.user.id)
+            # ignore_user_ids.append(DataSet.objects.get(id=dataset_id).user_id)
+            # ignore_user_ids.append(request.user.id)
 
             dataset_share = DatasetShare.objects.filter(
                 dataset_id_id=dataset_id,
@@ -569,3 +569,111 @@ class Dataset(APIView):
                 ).update(permission='NONE')
             
             return result.success({'message': '成功退出共享知识库'})
+
+    class OrganizationPage(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_('获取机构知识库分页列表'),
+                             operation_id=_('获取机构知识库分页列表'),
+                             manual_parameters=DataSetSerializers.OrganizationPageQuery.get_request_params_api(),
+                             responses=get_page_api_response(DataSetSerializers.OrganizationPageQuery.get_response_body_api()),
+                             tags=[_('Knowledge Base')]
+                             )
+        @has_permissions(PermissionConstants.DATASET_READ, compare=CompareConstants.AND)
+        def get(self, request: Request, current_page, page_size):
+            from dataset.models.data_set import OrganizationDataset
+            from users.models import User
+            
+            # 获取所有机构知识库ID
+            dataset_ids = list(OrganizationDataset.objects.filter().values_list('dataset_id', flat=True))
+            print(f"机构知识库ID列表: {dataset_ids}")  # 打印机构知识库ID列表
+            
+            # 构建查询参数
+            query_params = {
+                'name': request.query_params.get('name', None),
+                'desc': request.query_params.get("desc", None),
+                'dataset_ids': dataset_ids  # 直接传递dataset_ids列表
+            }
+            
+            # 使用OrganizationPageQuery获取知识库列表
+            d = DataSetSerializers.OrganizationPageQuery(data=query_params)
+            d.is_valid()
+            result_data = d.page(current_page, page_size)
+            
+            # 获取所有知识库的创建人信息
+            creator_ids = [item['user_id'] for item in result_data['list']]
+            creators = {str(user.id): user.username for user in User.objects.filter(id__in=creator_ids)}
+            
+            # 为每个知识库添加创建人信息
+            for item in result_data['list']:
+                item['creator_name'] = creators.get(str(item['user_id']), '')
+            
+            # 修改返回数据结构
+            return result.success({
+                'records': result_data['list'],
+                'total': result_data['total'],
+                'page': result_data['page'],
+                'page_size': result_data['page_size']
+            })
+
+    class AddToOrganization(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["POST"], detail=False)
+        @swagger_auto_schema(operation_summary=_('将知识库添加到机构知识库'),
+                             operation_id=_('将知识库添加到机构知识库'),
+                             manual_parameters=DataSetSerializers.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Knowledge Base')])
+        @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.MANAGE,
+                                                        dynamic_tag=keywords.get('dataset_id')))
+        @log(menu='Knowledge Base', operate="将知识库添加到机构知识库",
+             get_operation_object=lambda r, keywords: get_dataset_operation_object(keywords.get('dataset_id')))
+        def post(self, request: Request, dataset_id: str):
+            from dataset.models.data_set import OrganizationDataset, DataSet
+            
+            # 检查知识库是否存在
+            dataset = DataSet.objects.filter(id=dataset_id).first()
+            if not dataset:
+                return result.error(_('知识库不存在'))
+            
+            # 检查是否已经是机构知识库
+            if OrganizationDataset.objects.filter(dataset_id=dataset_id).exists():
+                return result.error(_('该知识库已经是机构知识库'))
+            
+            # 创建机构知识库记录
+            OrganizationDataset.objects.create(dataset_id=dataset_id)
+            
+            return result.success({'message': '成功将知识库添加到机构知识库'})
+
+    class RemoveFromOrganization(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["POST"], detail=False)
+        @swagger_auto_schema(operation_summary=_('将知识库从机构知识库中移除'),
+                             operation_id=_('将知识库从机构知识库中移除'),
+                             manual_parameters=DataSetSerializers.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Knowledge Base')])
+        @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.MANAGE,
+                                                        dynamic_tag=keywords.get('dataset_id')))
+        @log(menu='Knowledge Base', operate="将知识库从机构知识库中移除",
+             get_operation_object=lambda r, keywords: get_dataset_operation_object(keywords.get('dataset_id')))
+        def post(self, request: Request, dataset_id: str):
+            from dataset.models.data_set import OrganizationDataset, DataSet
+            
+            # 检查知识库是否存在
+            dataset = DataSet.objects.filter(id=dataset_id).first()
+            if not dataset:
+                return result.error(_('知识库不存在'))
+            
+            # 检查是否是机构知识库
+            org_dataset = OrganizationDataset.objects.filter(dataset_id=dataset_id).first()
+            if not org_dataset:
+                return result.error(_('该知识库不是机构知识库'))
+            
+            # 删除机构知识库记录
+            org_dataset.delete()
+            
+            return result.success({'message': '成功将知识库从机构知识库中移除'})

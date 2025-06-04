@@ -13,7 +13,19 @@ export default {
   },
   setting: {
     vectorization: '向量化',
-    sync: '同步'
+    sync: '同步',
+    addToOrganization: '设为机构知识库',
+    removeFromOrganization: '移出机构知识库'
+  },
+  addToOrganization: {
+    confirmTitle: '是否将该知识库设为机构知识库？',
+    confirmMessage: '设为机构知识库后，该知识库将对所有团队成员可见。',
+    success: '设置成功'
+  },
+  removeFromOrganization: {
+    confirmTitle: '是否将该知识库从机构知识库中移除？',
+    confirmMessage: '移除后，该知识库将不再对所有团队成员可见。',
+    success: '移除成功'
   },
   tip: {
     professionalMessage: '社区版最多支持 50 个知识库，如需拥有更多知识库，请升级为专业版。',
@@ -107,8 +119,9 @@ export default {
     completeText: '先删除本地知识库所有文档，重新获取 Web 站点文档',
     tip: '注意：所有同步都会删除已有数据重新获取新数据，请谨慎操作。'
   },
-  myDatasets: '我的知识库',
-  sharedDatasets: '共享知识库',
+  myDataset: '我的知识库',
+  sharedDataset: '共享知识库',
+  organizationDataset: '机构知识库',
   searchDatasets: '知识库检索',
   shareSetting: '共享设置',
   memberName: '成员名称',
@@ -153,5 +166,9 @@ export default {
     embeddingSettings: '向量化设置',
     syncSettings: '同步设置',
     saveSuccess: '设置保存成功'
-  }
+  },
+  addDataset: '添加知识库',
+  addDatasetPlaceholder: '请选择要添加的知识库',
+  selected: '已选择',
+  countDataset: '个知识库'
 }

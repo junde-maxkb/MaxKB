@@ -20,7 +20,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.core import cache, validators
 from django.core import signing
 from django.db import transaction, models
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from django.db.models.expressions import RawSQL
 from django.http import HttpResponse
 from django.template import Template, Context
@@ -1217,10 +1217,56 @@ class ApplicationSerializer(serializers.Serializer):
             if with_valid:
                 self.is_valid(raise_exception=True)
             application = QuerySet(Application).get(id=self.data.get("application_id"))
-            return select_list(get_file_content(
+            
+            # 获取用户所在的团队
+            from setting.models.team_management import TeamMember
+            user_teams = TeamMember.objects.filter(Q(user_id=self.data.get('user_id')) | Q(team_id=self.data.get('user_id'))).values_list('team_id', flat=True)
+            
+            # 获取共享给用户和用户所在团队的知识库ID列表
+            from dataset.models.data_set import DatasetShare
+            shared_datasets = DatasetShare.objects.filter(
+                Q(shared_with_type='USER', shared_with_id=str(self.data.get('user_id'))) |
+                Q(shared_with_type='TEAM', shared_with_id__in=[str(team_id) for team_id in user_teams])
+            ).exclude(permission='NONE').values('dataset_id_id', 'permission')
+            
+            # 创建共享知识库ID到权限的映射
+            shared_dataset_permissions = {str(item['dataset_id_id']): item['permission'] for item in shared_datasets}
+            
+            # 获取原有的知识库列表
+            original_datasets = select_list(get_file_content(
                 os.path.join(PROJECT_DIR, "apps", "application", 'sql', 'list_application_dataset.sql')),
                 [self.data.get('user_id') if self.data.get('user_id') == str(application.user_id) else None,
                  application.user_id, self.data.get('user_id')])
+            
+            # 获取机构知识库ID列表
+            from dataset.models.data_set import OrganizationDataset
+            organization_dataset_ids = {str(dataset_id): 'READ' for dataset_id in OrganizationDataset.objects.values_list('dataset_id', flat=True)}
+            
+            # 获取所有相关知识库的详细信息
+            from dataset.models.data_set import DataSet
+            all_dataset_ids = set([dataset['id'] for dataset in original_datasets] + list(shared_dataset_permissions.keys()) + list(organization_dataset_ids))
+            all_datasets = DataSet.objects.filter(id__in=all_dataset_ids).values('id', 'name', 'desc', 'user_id')
+            
+            # 合并结果并去重
+            result = []
+            for dataset in all_datasets:
+                dataset_id = str(dataset['id'])
+                is_owned = str(dataset['user_id']) == str(self.data.get('user_id'))
+                is_in_original = any(original['id'] == dataset_id for original in original_datasets)
+                is_shared = dataset_id in shared_dataset_permissions
+                is_organization = dataset_id in organization_dataset_ids
+                result.append({
+                    'id': dataset_id,
+                    'name': dataset['name'],
+                    'desc': dataset['desc'],
+                    'is_owned': is_owned,
+                    'user_id': str(dataset['user_id']),
+                    'is_shared': is_shared and not is_owned,
+                    'is_organization': is_organization,
+                    'permission': 'MANAGE' if is_owned or is_organization else shared_dataset_permissions.get(dataset_id, 'MANAGE')
+                })
+            
+            return result
 
         @staticmethod
         def get_work_flow_model(instance):

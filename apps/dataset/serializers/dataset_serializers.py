@@ -1237,3 +1237,108 @@ class DataSetSerializers(serializers.ModelSerializer):
                     'page_size': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('page size'))
                 }
             )
+
+    class OrganizationPageQuery(ApiMixin, serializers.Serializer):
+        """
+        机构知识库分页查询对象
+        """
+        name = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('dataset name')),
+                                     max_length=64,
+                                     min_length=1)
+
+        desc = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('dataset description')),
+                                     max_length=256,
+                                     min_length=1)
+                                     
+        dataset_ids = serializers.ListField(required=True, child=serializers.UUIDField(), allow_empty=True)
+
+        def get_query_set(self):
+            """
+            获取机构知识库查询集
+            """
+            query_set = QuerySet(DataSet)
+            
+            # 使用dataset_ids过滤
+            dataset_ids = self.data.get("dataset_ids")
+            if dataset_ids is not None:  # 检查是否为None
+                query_set = query_set.filter(id__in=dataset_ids)
+            
+            # 添加其他过滤条件
+            if "desc" in self.data and self.data.get('desc') is not None:
+                query_set = query_set.filter(desc__icontains=self.data.get("desc"))
+            if "name" in self.data and self.data.get('name') is not None:
+                query_set = query_set.filter(name__icontains=self.data.get("name"))
+            
+            return query_set.order_by("-create_time", "id")
+
+        def page(self, current_page: int, page_size: int):
+            """
+            分页获取机构知识库列表
+            """
+            query_set = self.get_query_set()
+            total = query_set.count()
+            start = (current_page - 1) * page_size
+            end = start + page_size
+            items = query_set[start:end]
+            
+            return {
+                'list': [{
+                    'id': str(item.id),
+                    'name': item.name,
+                    'desc': item.desc,
+                    'user_id': str(item.user_id),
+                    'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'document_count': QuerySet(Document).filter(dataset_id=item.id).count(),
+                    'char_length': QuerySet(Document).filter(dataset_id=item.id).aggregate(
+                        total_length=models.Sum('char_length')
+                    )['total_length'] or 0
+                } for item in items],
+                'total': total,
+                'page': current_page,
+                'page_size': page_size
+            }
+
+        @staticmethod
+        def get_request_params_api():
+            return [openapi.Parameter(name='name',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('dataset name')),
+                    openapi.Parameter(name='desc',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('dataset description'))
+                    ]
+
+        @staticmethod
+        def get_response_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['list', 'total', 'page', 'page_size'],
+                properties={
+                    'list': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset id')),
+                                'name': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset name')),
+                                'desc': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset description')),
+                                'user_id': openapi.Schema(type=openapi.TYPE_STRING, description=_('user id')),
+                                'create_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('create time')),
+                                'update_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('update time')),
+                                'document_count': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('document count')),
+                                'char_length': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('char length'))
+                            }
+                        )
+                    ),
+                    'total': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('total count')),
+                    'page': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('current page')),
+                    'page_size': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('page size'))
+                }
+            )

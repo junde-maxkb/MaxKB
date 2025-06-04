@@ -233,3 +233,19 @@ class DatasetShare(models.Model):
 
     class Meta:
         db_table = "dataset_share"
+
+
+class OrganizationDataset(models.Model):
+    """
+    机构知识库表
+    """
+    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
+    dataset = models.ForeignKey(DataSet, on_delete=models.CASCADE, verbose_name="知识库ID")
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    update_time = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "organization_dataset"
+        verbose_name = "机构知识库"
+        verbose_name_plural = verbose_name

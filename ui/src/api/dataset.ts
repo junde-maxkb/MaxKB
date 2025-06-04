@@ -371,6 +371,43 @@ const getCurrentUserPermission: (
   return get(`${prefix}/${dataset_id}/current_user_permission`, undefined, loading)
 }
 
+/**
+ * 获取机构知识库分页列表
+ * @param page 分页参数
+ * @param param 查询参数
+ * @param loading 加载状态
+ * @returns Promise<Result<any>>
+ */
+const getOrganizationDataset: (
+  page: pageRequest,
+  param: {
+    name?: string;
+    desc?: string;
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (page, param, loading) => {
+  return get(`${prefix}/organization/${page.current_page}/${page.page_size}`, param, loading)
+}
+
+const addToOrganization: (
+  dataset_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (dataset_id, loading) => {
+  return post(`${prefix}/${dataset_id}/add_to_organization`, undefined, undefined, loading)
+}
+
+/**
+ * 从机构知识库中移除
+ * @param dataset_id 知识库ID
+ * @param loading 加载状态
+ */
+const removeFromOrganization: (
+  dataset_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (dataset_id, loading) => {
+  return post(`${prefix}/${dataset_id}/remove_from_organization`, undefined, undefined, loading)
+}
+
 export default {
   getDataset,
   getAllDataset,
@@ -396,5 +433,8 @@ export default {
   putMemberPermission,
   getSharedToMeDataset,
   putExitShare,
-  getCurrentUserPermission
+  getCurrentUserPermission,
+  getOrganizationDataset,
+  addToOrganization,
+  removeFromOrganization
 }

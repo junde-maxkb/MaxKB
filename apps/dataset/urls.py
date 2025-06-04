@@ -79,4 +79,7 @@ urlpatterns = [
     path('file', views.FileView.as_view()),
     path('dataset/share/<int:current_page>/<int:page_size>', views.Dataset.ShareToMePage.as_view(), name="share_to_me"),
     path('dataset/<str:dataset_id>/exit_share', views.Dataset.ExitShare.as_view(), name="exit_share"),
+    path('dataset/organization/<int:current_page>/<int:page_size>', views.Dataset.OrganizationPage.as_view(), name="organization_page"),
+    path('dataset/<str:dataset_id>/add_to_organization', views.Dataset.AddToOrganization.as_view(), name="add_to_organization"),
+    path('dataset/<str:dataset_id>/remove_from_organization', views.Dataset.RemoveFromOrganization.as_view(), name="remove_from_organization"),
 ]
