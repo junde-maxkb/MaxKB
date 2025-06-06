@@ -81,7 +81,7 @@ class Application(AppModelMixin):
         return ('已知信息：'
                 '\n{data}'
                 '\n回答要求：'
-                '\n- 如果你不知道答案或者没有从获取答案，请回答“没有在知识库中查找到相关信息，建议咨询相关技术支持或参考官方文档进行操作”。'
+                '\n- 如果你不知道答案或者没有从获取答案，请回答"没有在知识库中查找到相关信息，建议咨询相关技术支持或参考官方文档进行操作"。'
                 '\n- 避免提及你是从<data></data>中获得的知识。'
                 '\n- 请保持答案与<data></data>中描述的一致。'
                 '\n- 请使用markdown 语法优化答案的格式。'
@@ -187,3 +187,19 @@ class ApplicationShare(models.Model):
 
     class Meta:
         db_table = "application_share"
+
+
+class OrganizationApplication(models.Model):
+    """
+    机构应用表
+    """
+    id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
+    application = models.ForeignKey(Application, on_delete=models.CASCADE, verbose_name="应用ID")
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    update_time = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "organization_application"
+        verbose_name = "机构应用"
+        verbose_name_plural = verbose_name
