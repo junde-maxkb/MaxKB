@@ -620,6 +620,50 @@ const getCurrentUserPermission: (
   return get(`${prefix}/${application_id}/current_user_permission`, undefined, loading)
 }
 
+/**
+ * 获取机构应用分页列表
+ * @param page 分页参数
+ * @param param 查询参数
+ * @param loading 加载状态
+ * @returns Promise<Result<any>>
+ */
+const getOrganizationPage: (
+  page: pageRequest,
+  param: {
+    name?: string;
+    desc?: string;
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (page, param, loading) => {
+  return get(`${prefix}/organization/${page.current_page}/${page.page_size}`, param, loading)
+}
+
+/**
+ * 将应用添加到机构应用
+ * @param application_id 应用ID
+ * @param loading 加载状态
+ * @returns Promise<Result<any>>
+ */
+const addToOrganization: (
+  application_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (application_id, loading) => {
+  return post(`${prefix}/${application_id}/add_to_organization`, undefined, undefined, loading)
+}
+
+/**
+ * 从机构应用中移除
+ * @param application_id 应用ID
+ * @param loading 加载状态
+ * @returns Promise<Result<any>>
+ */
+const removeFromOrganization: (
+  application_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (application_id, loading) => {
+  return post(`${prefix}/${application_id}/remove_from_organization`, undefined, undefined, loading)
+}
+
 export default {
   getAllAppilcation,
   getApplication,
@@ -670,5 +714,8 @@ export default {
   putMemberPermission,
   getShareToMePage,
   exitShare,
-  getCurrentUserPermission
+  getCurrentUserPermission,
+  getOrganizationPage,
+  addToOrganization,
+  removeFromOrganization
 }

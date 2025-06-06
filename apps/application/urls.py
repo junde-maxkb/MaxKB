@@ -93,5 +93,9 @@ urlpatterns = [
     path('application/<str:application_id>/members/put_permissions', views.Application.PutMemberPermissions.as_view()),
     path('application/share/<int:current_page>/<int:page_size>', views.Application.ShareToMePage.as_view(), name="share_to_me"),
     path('application/<str:application_id>/exit_share', views.Application.ExitShare.as_view(), name="exit_share"),
-    path('application/<str:application_id>/current_user_permission', views.Application.ApplicationCurrentUserPermission.as_view(), name="current_user_permission")
+    path('application/<str:application_id>/current_user_permission', views.Application.ApplicationCurrentUserPermission.as_view(), name="current_user_permission"),
+    # 机构应用相关接口
+    path('application/organization/<int:current_page>/<int:page_size>', views.Application.OrganizationPage.as_view(), name="organization_page"),
+    path('application/<str:application_id>/add_to_organization', views.Application.AddToOrganization.as_view(), name="add_to_organization"),
+    path('application/<str:application_id>/remove_from_organization', views.Application.RemoveFromOrganization.as_view(), name="remove_from_organization")
 ]

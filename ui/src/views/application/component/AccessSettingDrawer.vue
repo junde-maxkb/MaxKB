@@ -284,27 +284,27 @@ const configFields: { [propName: string]: { [propName: string]: any } } = {
     }
   },
   dingtalk: {
-    client_id: { label: 'Client ID', placeholder: '' },
-    client_secret: { label: 'Client Secret', placeholder: '' }
+    client_id: { label: t('views.application.applicationAccess.dingtalkSetting.clientId'), placeholder: '' },
+    client_secret: { label: t('views.application.applicationAccess.dingtalkSetting.clientSecret'), placeholder: '' }
   },
   wecom: {
     app_id: {
       label: t('views.application.applicationAccess.wecomSetting.cropId'),
       placeholder: ''
     },
-    agent_id: { label: 'Agent ID', placeholder: '' },
-    secret: { label: 'Secret', placeholder: '' },
-    token: { label: 'Token', placeholder: '' },
-    encoding_aes_key: { label: 'EncodingAESKey', placeholder: '' }
+    agent_id: { label: t('views.application.applicationAccess.wecomSetting.agentId'), placeholder: '' },
+    secret: { label: t('views.application.applicationAccess.wecomSetting.secret'), placeholder: '' },
+    token: { label: t('views.application.applicationAccess.wecomSetting.token'), placeholder: '' },
+    encoding_aes_key: { label: t('views.application.applicationAccess.wecomSetting.aesKey'), placeholder: '' }
   },
   feishu: {
-    app_id: { label: 'App ID', placeholder: '' },
-    app_secret: { label: 'App Secret', placeholder: '' },
-    verification_token: { label: 'Verification Token', placeholder: '' }
+    app_id: { label: t('views.application.applicationAccess.feishuSetting.appId'), placeholder: '' },
+    app_secret: { label: t('views.application.applicationAccess.feishuSetting.appSecret'), placeholder: '' },
+    verification_token: { label: t('views.application.applicationAccess.feishuSetting.verificationToken'), placeholder: '' }
   },
   slack: {
-    signing_secret: { label: 'Signing Secret', placeholder: '' },
-    bot_user_token: { label: 'Bot User Token', placeholder: '' }
+    signing_secret: { label: t('views.application.applicationAccess.slackSetting.signingSecret'), placeholder: '' },
+    bot_user_token: { label: t('views.application.applicationAccess.slackSetting.botUserToken'), placeholder: '' }
   }
 }
 

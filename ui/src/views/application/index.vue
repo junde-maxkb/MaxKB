@@ -97,8 +97,8 @@
             <CardBox
               :title="item.name"
               :description="item.desc"
-              :class="{'cursor': item.permission !== 'READ'}"
-              @click="item.permission !== 'READ' && router.push({ path: `/application/${item.id}/${item.type}/overview` })"
+              :class="{'cursor': item.permission !== 'READ' && !(activeTab === 'SHARED' && sharedType === 'ORGANIZATION')}"
+              @click="!(activeTab === 'SHARED' && sharedType === 'ORGANIZATION') && item.permission !== 'READ' && router.push({ path: `/application/${item.id}/${item.type}/overview` })"
             >
               <template #icon>
                 <AppAvatar
@@ -121,8 +121,8 @@
               </template>
               <template #subTitle>
                 <el-text class="color-secondary" size="small">
-                  <auto-tooltip :content="item.username">
-                    {{ $t('common.creator') }}: {{ item.username }}
+                  <auto-tooltip :content="item.creator_name">
+                    {{ $t('common.creator') }}: {{ item.creator_name }}
                   </auto-tooltip>
                 </el-text>
               </template>
@@ -159,51 +159,67 @@
                     :content="$t('views.application.setting.demo')"
                     placement="top"
                   >
-                    <el-button text @click.stop @click="getAccessToken(item.id)">
+                    <el-button text @click.stop @click="getAccessToken(item)">
                       <AppIcon iconName="app-view"></AppIcon>
                     </el-button>
                   </el-tooltip>
                   <el-divider direction="vertical" />
                   <el-tooltip effect="dark" :content="$t('common.setting')" placement="top">
-                    <el-button text @click.stop="settingApplication(item)" v-if="item.permission !== 'READ'">
+                    <el-button text @click.stop="settingApplication(item)" v-if="item.permission !== 'READ' && !(activeTab === 'SHARED' && sharedType === 'ORGANIZATION')">
                       <AppIcon iconName="Setting"></AppIcon>
                     </el-button>
                   </el-tooltip>
-                  <el-divider direction="vertical" v-if="item.permission !== 'READ'" />
-                  <span @click.stop>
+                  <el-divider direction="vertical" v-if="item.permission !== 'READ' && !(activeTab === 'SHARED' && sharedType === 'ORGANIZATION')" />
+                  <span @click.stop v-if="!(activeTab === 'SHARED' && sharedType === 'ORGANIZATION' && user.userInfo?.role !== 'ADMIN')">
                     <el-dropdown trigger="click">
                       <el-button text @click.stop>
                         <el-icon><MoreFilled /></el-icon>
                       </el-button>
                       <template #dropdown>
                         <el-dropdown-menu>
+                          <template v-if="!(activeTab === 'SHARED' && sharedType === 'ORGANIZATION')">
+                            <el-dropdown-item
+                              v-if="is_show_copy_button(item)"
+                              @click="copyApplication(item)"
+                            >
+                              <AppIcon iconName="app-copy"></AppIcon>
+                              {{ $t('common.copy') }}
+                            </el-dropdown-item>
+                            <el-dropdown-item 
+                              v-if="item.permission !== 'READ'"
+                              @click.stop="exportApplication(item)"
+                            >
+                              <AppIcon iconName="app-export"></AppIcon>
+                              {{ $t('common.export') }}
+                            </el-dropdown-item>
+                            <el-dropdown-item 
+                              v-if="activeTab === 'MY'"
+                              icon="Delete" 
+                              @click.stop="deleteApplication(item)"
+                            >
+                              {{ $t('common.delete') }}
+                            </el-dropdown-item>
+                            <el-dropdown-item 
+                              v-if="activeTab === 'SHARED' && sharedType === 'SHARED_TO_ME'"
+                              @click.stop="exitShare(item)"
+                            >
+                              <AppIcon iconName="Close"></AppIcon>
+                              {{ $t('common.exit') }}
+                            </el-dropdown-item>
+                            <el-dropdown-item 
+                              v-if="activeTab === 'MY' && user.userInfo?.role === 'ADMIN'"
+                              icon="OfficeBuilding"
+                              @click.stop="addToOrganization(item)"
+                            >
+                              {{ $t('views.application.setting.addToOrganization') }}
+                            </el-dropdown-item>
+                          </template>
                           <el-dropdown-item
-                            v-if="is_show_copy_button(item)"
-                            @click="copyApplication(item)"
+                            v-if="activeTab === 'SHARED' && sharedType === 'ORGANIZATION' && user.userInfo?.role === 'ADMIN'"
+                            icon="Close"
+                            @click.stop="removeFromOrganization(item)"
                           >
-                            <AppIcon iconName="app-copy"></AppIcon>
-                            {{ $t('common.copy') }}
-                          </el-dropdown-item>
-                          <el-dropdown-item 
-                            v-if="item.permission !== 'READ'"
-                            @click.stop="exportApplication(item)"
-                          >
-                            <AppIcon iconName="app-export"></AppIcon>
-                            {{ $t('common.export') }}
-                          </el-dropdown-item>
-                          <el-dropdown-item 
-                            v-if="activeTab === 'MY' || (activeTab === 'SHARED' && sharedType === 'ORGANIZATION')"
-                            icon="Delete" 
-                            @click.stop="deleteApplication(item)"
-                          >
-                            {{ $t('common.delete') }}
-                          </el-dropdown-item>
-                          <el-dropdown-item 
-                            v-if="activeTab === 'SHARED' && sharedType === 'SHARED_TO_ME'"
-                            @click.stop="exitShare(item)"
-                          >
-                            <AppIcon iconName="Close"></AppIcon>
-                            {{ $t('common.exit') }}
+                            {{ $t('views.application.setting.removeFromOrganization') }}
                           </el-dropdown-item>
                         </el-dropdown-menu>
                       </template>
@@ -361,9 +377,12 @@ function mapToUrlParams(map: any[]) {
   return params.toString() // 返回 URL 查询字符串
 }
 
-function getAccessToken(id: string) {
+function getAccessToken(item: any) {
+  if (!item || !item.id) {
+    return
+  }
   applicationList.value
-    .filter((app) => app.id === id)[0]
+    .filter((app) => app.id === item.id)[0]
     ?.work_flow?.nodes?.filter((v: any) => v.id === 'base-node')
     .map((v: any) => {
       apiInputParams.value = v.properties.api_input_field_list
@@ -388,7 +407,7 @@ function getAccessToken(id: string) {
   const apiParams = mapToUrlParams(apiInputParams.value)
     ? '?' + mapToUrlParams(apiInputParams.value)
     : ''
-  application.asyncGetAccessToken(id, loading).then((res: any) => {
+  application.asyncGetAccessToken(item.id, loading).then((res: any) => {
     window.open(application.location + res?.data?.access_token + apiParams)
   })
 }
@@ -456,6 +475,8 @@ function getList() {
   let apiPromise
   if (activeTab.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME') {
     apiPromise = applicationApi.getShareToMePage(paginationConfig, params, loading)
+  } else if (activeTab.value === 'SHARED' && sharedType.value === 'ORGANIZATION') {
+    apiPromise = applicationApi.getOrganizationPage(paginationConfig, params, loading)
   } else {
     apiPromise = applicationApi.getApplication(paginationConfig, {
       ...params,
@@ -525,6 +546,43 @@ function exitShare(row: any) {
         applicationList.value = []
         getList()
         MsgSuccess(t('common.exitSuccess'))
+      })
+    })
+    .catch(() => {})
+}
+
+function addToOrganization(row: any) {
+  MsgConfirm(
+    t('views.application.addToOrganization.confirmTitle'),
+    t('views.application.addToOrganization.confirmMessage'),
+    {
+      confirmButtonText: t('common.confirm'),
+      confirmButtonClass: 'primary'
+    }
+  )
+    .then(() => {
+      applicationApi.addToOrganization(row.id, loading).then(() => {
+        MsgSuccess(t('views.application.addToOrganization.success'))
+      })
+    })
+    .catch(() => {})
+}
+
+function removeFromOrganization(row: any) {
+  MsgConfirm(
+    t('views.application.removeFromOrganization.confirmTitle'),
+    t('views.application.removeFromOrganization.confirmMessage'),
+    {
+      confirmButtonText: t('common.confirm'),
+      confirmButtonClass: 'danger'
+    }
+  )
+    .then(() => {
+      applicationApi.removeFromOrganization(row.id, loading).then(() => {
+        MsgSuccess(t('views.application.removeFromOrganization.success'))
+        paginationConfig.current_page = 1
+        applicationList.value = []
+        getList()
       })
     })
     .catch(() => {})

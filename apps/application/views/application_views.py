@@ -986,7 +986,7 @@ class Application(APIView):
             for item in result_data['list']:
                 item['permission'] = permission_map.get(item['id'], 'NONE')
                 item['creator_name'] = creators.get(str(item['user_id']), '')
-            
+                            
             # 5. 修改返回数据结构，将list改为records
             return result.success({
                 'records': result_data['list'],
@@ -1038,3 +1038,121 @@ class Application(APIView):
                 ).update(permission='NONE')
             
             return result.success({'message': '成功退出共享应用'})
+
+    class OrganizationPage(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_('获取机构应用分页列表'),
+                             operation_id=_('获取机构应用分页列表'),
+                             tags=[_('Application')]
+                             )
+        @has_permissions(PermissionConstants.APPLICATION_READ, compare=CompareConstants.AND)
+        def get(self, request: Request, current_page, page_size):
+            from application.models.application import OrganizationApplication
+            from users.models import User
+            
+            # 获取所有机构应用ID
+            org_applications = OrganizationApplication.objects.all()
+            print(f"Debug - 机构应用总数: {org_applications.count()}")
+            
+            application_ids = list(org_applications.values_list('application_id', flat=True))
+            print(f"Debug - 机构应用ID列表: {application_ids}")
+            
+            # 构建查询参数
+            query_params = {
+                'name': request.query_params.get('name', None),
+                'desc': request.query_params.get("desc", None),
+                'application_ids': application_ids
+            }
+            print(f"Debug - 查询参数: {query_params}")
+            
+            # 使用OrganizationPageQuery获取应用列表
+            d = ApplicationSerializer.OrganizationPageQuery(data=query_params)
+            d.is_valid()
+            result_data = d.page(current_page, page_size)
+            print(f"Debug - 查询结果数量: {len(result_data['list'])}")
+            
+            # 获取所有应用的创建人信息
+            creator_ids = [item['user_id'] for item in result_data['list']]
+            creators = {str(user.id): user.username for user in User.objects.filter(id__in=creator_ids)}
+            
+            for item in result_data['list']:
+                # item['permission'] = permission_map.get(item['id'], 'NONE')
+                item['creator_name'] = creators.get(str(item['user_id']), '')
+                print(f"Debug - 应用ID: {item['id']}, 创建人: {item['creator_name']}")
+            
+            # 修改返回数据结构
+            return result.success({
+                'records': result_data['list'],
+                'total': result_data['total'],
+                'page': result_data['page'],
+                'page_size': result_data['page_size']
+            })
+
+    class AddToOrganization(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["POST"], detail=False)
+        @swagger_auto_schema(operation_summary=_('将应用添加到机构应用'),
+                             operation_id=_('将应用添加到机构应用'),
+                             manual_parameters=ApplicationApi.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Application')])
+        @has_permissions(ViewPermission(
+            [RoleConstants.ADMIN, RoleConstants.USER],
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+                                            dynamic_tag=keywords.get('application_id'))],
+            compare=CompareConstants.AND))
+        @log(menu='Application', operate="将应用添加到机构应用",
+             get_operation_object=lambda r, keywords: get_application_operation_object(keywords.get('application_id')))
+        def post(self, request: Request, application_id: str):
+            from application.models.application import OrganizationApplication, Application
+            
+            # 检查应用是否存在
+            application = Application.objects.filter(id=application_id).first()
+            if not application:
+                return result.error(_('应用不存在'))
+            
+            # 检查是否已经是机构应用
+            if OrganizationApplication.objects.filter(application_id=application_id).exists():
+                return result.error(_('该应用已经是机构应用'))
+            
+            # 创建机构应用记录
+            OrganizationApplication.objects.create(application_id=application_id)
+            
+            return result.success({'message': '成功将应用添加到机构应用'})
+
+    class RemoveFromOrganization(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["POST"], detail=False)
+        @swagger_auto_schema(operation_summary=_('将应用从机构应用中移除'),
+                             operation_id=_('将应用从机构应用中移除'),
+                             manual_parameters=ApplicationApi.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Application')])
+        @has_permissions(ViewPermission(
+            [RoleConstants.ADMIN, RoleConstants.USER],
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+                                            dynamic_tag=keywords.get('application_id'))],
+            compare=CompareConstants.AND))
+        @log(menu='Application', operate="将应用从机构应用中移除",
+             get_operation_object=lambda r, keywords: get_application_operation_object(keywords.get('application_id')))
+        def post(self, request: Request, application_id: str):
+            from application.models.application import OrganizationApplication, Application
+            
+            # 检查应用是否存在
+            application = Application.objects.filter(id=application_id).first()
+            if not application:
+                return result.error(_('应用不存在'))
+            
+            # 检查是否是机构应用
+            org_application = OrganizationApplication.objects.filter(application_id=application_id).first()
+            if not org_application:
+                return result.error(_('该应用不是机构应用'))
+            
+            # 删除机构应用记录
+            org_application.delete()
+            
+            return result.success({'message': '成功将应用从机构应用中移除'})

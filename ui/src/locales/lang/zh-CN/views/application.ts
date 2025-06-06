@@ -15,9 +15,9 @@ export default {
   permissionWrite: '开发',
   permissionRead: '使用',
   sort: {
-    createTime: '创建时间',
-    updateTime: '更新时间',
-    name: '名称',
+    name: '按名称排序',
+    createTime: '按创建时间排序',
+    updateTime: '按修改时间排序',
     desc: '降序',
     asc: '升序'
   },
@@ -25,7 +25,9 @@ export default {
     placeholder: '按名称搜索'
   },
   setting: {
-    demo: '演示'
+    demo: '演示',
+    addToOrganization: '添加到机构',
+    removeFromOrganization: '从机构移除'
   },
   delete: {
     confirmTitle: '是否删除应用：',
@@ -34,6 +36,16 @@ export default {
   exitShare: {
     confirmTitle: '是否退出共享应用：',
     confirmMessage: '退出后将无法继续使用该应用，请谨慎操作。'
+  },
+  addToOrganization: {
+    confirmTitle: '确认添加到机构',
+    confirmMessage: '确定要将该应用添加到机构吗？',
+    success: '已成功添加到机构'
+  },
+  removeFromOrganization: {
+    confirmTitle: '确认从机构移除',
+    confirmMessage: '确定要从机构中移除该应用吗？',
+    success: '已成功从机构移除'
   },
   tip: {
     ExportError: '导出失败',
