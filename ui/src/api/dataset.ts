@@ -389,6 +389,24 @@ const getOrganizationDataset: (
   return get(`${prefix}/organization/${page.current_page}/${page.page_size}`, param, loading)
 }
 
+/**
+ * 获取回收站知识库分页列表
+ * @param page 分页参数
+ * @param param 查询参数
+ * @param loading 加载状态
+ * @returns Promise<Result<any>>
+ */
+const getRecycleBinDataset: (
+  page: pageRequest,
+  param: {
+    name?: string;
+    desc?: string;
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (page, param, loading) => {
+  return get(`${prefix}/recycle_bin/${page.current_page}/${page.page_size}`, param, loading)
+}
+
 const addToOrganization: (
   dataset_id: string,
   loading?: Ref<boolean>
@@ -408,33 +426,62 @@ const removeFromOrganization: (
   return post(`${prefix}/${dataset_id}/remove_from_organization`, undefined, undefined, loading)
 }
 
+/**
+ * 恢复已删除的知识库
+ * @param dataset_id
+ * @param loading
+ * @returns
+ */
+const restoreDataset: (
+  dataset_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (dataset_id, loading) => {
+  return put(`${prefix}/${dataset_id}/restore`, {}, undefined, loading)
+}
+
+/**
+ * 永久删除知识库
+ * @param dataset_id
+ * @param loading
+ * @returns
+ */
+const permanentlyDeleteDataset: (
+  dataset_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (dataset_id, loading) => {
+  return del(`${prefix}/${dataset_id}/permanently`, undefined, {}, loading)
+}
+
 export default {
   getDataset,
   getAllDataset,
   delDataset,
   postDataset,
+  postWebDataset,
+  postLarkDataset,
+  postQADataset,
   getDatasetDetail,
   putDataset,
+  putLarkDataset,
   listUsableApplication,
   getDatasetHitTest,
-  postWebDataset,
   putSyncWebDataset,
   putReEmbeddingDataset,
-  postQADataset,
   exportDataset,
-  getDatasetModel,
   exportZipDataset,
-  postLarkDataset,
+  getDatasetModel,
   getLarkDocumentList,
   importLarkDocument,
-  putLarkDataset,
   generateRelated,
   getDatasetMembers,
   putMemberPermission,
-  getSharedToMeDataset,
   putExitShare,
+  getSharedToMeDataset,
   getCurrentUserPermission,
   getOrganizationDataset,
+  getRecycleBinDataset,
   addToOrganization,
-  removeFromOrganization
+  removeFromOrganization,
+  restoreDataset,
+  permanentlyDeleteDataset
 }

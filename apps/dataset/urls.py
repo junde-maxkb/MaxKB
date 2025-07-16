@@ -7,7 +7,6 @@ urlpatterns = [
     path('dataset', views.Dataset.as_view(), name="dataset"),
     path('dataset/web', views.Dataset.CreateWebDataset.as_view()),
     path('dataset/qa', views.Dataset.CreateQADataset.as_view()),
-    path('dataset/<str:dataset_id>', views.Dataset.Operate.as_view(), name="dataset_key"),
     path('dataset/<str:dataset_id>/export', views.Dataset.Export.as_view(), name="export"),
     path('dataset/<str:dataset_id>/export_zip', views.Dataset.ExportZip.as_view(), name="export_zip"),
     path('dataset/<str:dataset_id>/re_embedding', views.Dataset.Embedding.as_view(), name="dataset_key"),
@@ -82,4 +81,9 @@ urlpatterns = [
     path('dataset/organization/<int:current_page>/<int:page_size>', views.Dataset.OrganizationPage.as_view(), name="organization_page"),
     path('dataset/<str:dataset_id>/add_to_organization', views.Dataset.AddToOrganization.as_view(), name="add_to_organization"),
     path('dataset/<str:dataset_id>/remove_from_organization', views.Dataset.RemoveFromOrganization.as_view(), name="remove_from_organization"),
+    path('dataset/recycle_bin/<int:current_page>/<int:page_size>', views.Dataset.RecycleBinPage.as_view(), name="recycle_bin_page"),
+    path('dataset/<str:dataset_id>/restore', views.Dataset.Restore.as_view(), name="restore_dataset"),
+    path('dataset/<str:dataset_id>/permanently', views.Dataset.PermanentlyDelete.as_view(), name="permanently_delete_dataset"),
+    # 通用知识库操作路由（必须在所有具体路径之后）
+    path('dataset/<str:dataset_id>', views.Dataset.Operate.as_view(), name="dataset_key"),
 ]

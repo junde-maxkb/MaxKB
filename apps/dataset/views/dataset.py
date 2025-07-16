@@ -243,6 +243,10 @@ class Dataset(APIView):
             operate = DataSetSerializers.Operate(data={'id': dataset_id})
             return result.success(operate.delete())
 
+
+
+
+
         @action(methods="GET", detail=False)
         @swagger_auto_schema(operation_summary=_('Query knowledge base details based on knowledge base id'),
                              operation_id=_('Query knowledge base details based on knowledge base id'),
@@ -677,3 +681,79 @@ class Dataset(APIView):
             org_dataset.delete()
             
             return result.success({'message': '成功将知识库从机构知识库中移除'})
+
+    class RecycleBinPage(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_('获取回收站知识库分页列表'),
+                             operation_id=_('获取回收站知识库分页列表'),
+                             manual_parameters=DataSetSerializers.RecycleBinQuery.get_request_params_api(),
+                             responses=get_page_api_response(DataSetSerializers.RecycleBinQuery.get_response_body_api()),
+                             tags=[_('Knowledge Base')]
+                             )
+        @has_permissions(PermissionConstants.DATASET_READ, compare=CompareConstants.AND)
+        def get(self, request: Request, current_page, page_size):
+            from users.models import User
+            
+            # 构建查询参数（去掉user_id，显示所有已删除的知识库）
+            query_params = {
+                'name': request.query_params.get('name', None),
+                'desc': request.query_params.get("desc", None),
+                'user_id': ''  # 空值，不再按用户过滤
+            }
+            
+            # 使用RecycleBinQuery获取知识库列表
+            d = DataSetSerializers.RecycleBinQuery(data=query_params)
+            d.is_valid()
+            result_data = d.page(current_page, page_size)
+            
+            # 获取所有知识库的创建人信息
+            creator_ids = [item['user_id'] for item in result_data['list']]
+            creators = {str(user.id): user.username for user in User.objects.filter(id__in=creator_ids)}
+            
+            # 为每个知识库添加创建人信息
+            for item in result_data['list']:
+                item['creator_name'] = creators.get(str(item['user_id']), '')
+            
+            # 修改返回数据结构
+            return result.success({
+                'records': result_data['list'],
+                'total': result_data['total'],
+                'page': result_data['page'],
+                'page_size': result_data['page_size']
+            })
+
+    class Restore(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["PUT"], detail=False)
+        @swagger_auto_schema(operation_summary=_('恢复已删除的知识库'),
+                             operation_id=_('恢复已删除的知识库'),
+                             manual_parameters=DataSetSerializers.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Knowledge Base')])
+        @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.MANAGE,
+                                                        dynamic_tag=keywords.get('dataset_id')))
+        @log(menu='Knowledge Base', operate="恢复已删除的知识库",
+             get_operation_object=lambda r, keywords: get_dataset_operation_object(keywords.get('dataset_id')))
+        def put(self, request: Request, dataset_id: str):
+            operate = DataSetSerializers.Operate(data={'id': dataset_id})
+            return result.success(operate.restore())
+
+    class PermanentlyDelete(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["DELETE"], detail=False)
+        @swagger_auto_schema(operation_summary=_('永久删除知识库'),
+                             operation_id=_('永久删除知识库'),
+                             manual_parameters=DataSetSerializers.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Knowledge Base')])
+        @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.MANAGE,
+                                                        dynamic_tag=keywords.get('dataset_id')))
+        @log(menu='Knowledge Base', operate="永久删除知识库",
+             get_operation_object=lambda r, keywords: get_dataset_operation_object(keywords.get('dataset_id')))
+        def delete(self, request: Request, dataset_id: str):
+            operate = DataSetSerializers.Operate(data={'id': dataset_id})
+            return result.success(operate.permanently_delete())

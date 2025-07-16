@@ -170,8 +170,9 @@ class DataSetSerializers(serializers.ModelSerializer):
 
             query_set_dict['dataset_custom_sql'] = QuerySet(model=get_dynamics_model(
                 {'dataset.user_id': models.CharField(),
+                 'dataset.is_deleted': models.BooleanField(),
                  })).filter(
-                **{'dataset.user_id': user_id}
+                **{'dataset.user_id': user_id, 'dataset.is_deleted': False}
             )
 
             query_set_dict['team_member_permission_custom_sql'] = QuerySet(model=get_dynamics_model(
@@ -787,12 +788,39 @@ class DataSetSerializers(serializers.ModelSerializer):
         def delete(self):
             self.is_valid()
             dataset = QuerySet(DataSet).get(id=self.data.get("id"))
+            # 软删除：标记为已删除并设置删除时间
+            from django.utils import timezone
+            dataset.is_deleted = True
+            dataset.delete_time = timezone.now()
+            dataset.save()
+            return True
+
+        @transaction.atomic
+        def restore(self):
+            """恢复已删除的知识库"""
+            self.is_valid()
+            dataset = QuerySet(DataSet).get(id=self.data.get("id"))
+            if not dataset.is_deleted:
+                raise AppApiException(500, _('知识库未被删除，无法恢复'))
+            dataset.is_deleted = False
+            dataset.delete_time = None
+            dataset.save()
+            return True
+
+        @transaction.atomic
+        def permanently_delete(self):
+            """永久删除知识库"""
+            self.is_valid()
+            dataset = QuerySet(DataSet).get(id=self.data.get("id"))
+            # 删除相关数据
             QuerySet(Document).filter(dataset=dataset).delete()
             QuerySet(ProblemParagraphMapping).filter(dataset=dataset).delete()
             QuerySet(Paragraph).filter(dataset=dataset).delete()
             QuerySet(Problem).filter(dataset=dataset).delete()
-            dataset.delete()
+            # 删除向量数据
             delete_embedding_by_dataset(self.data.get('id'))
+            # 永久删除数据集
+            dataset.delete()
             return True
 
         @transaction.atomic
@@ -889,6 +917,9 @@ class DataSetSerializers(serializers.ModelSerializer):
             dataset = QuerySet(DataSet).filter(id=self.data.get("id")).first()
             if not dataset:
                 raise AppApiException(300, _('知识库不存在'))
+            # 检查知识库是否已被删除
+            if dataset.is_deleted:
+                raise AppApiException(300, _('知识库已被删除'))
             
             # 获取文档列表
             documents = QuerySet(Document).filter(dataset_id=dataset.id)
@@ -1160,6 +1191,9 @@ class DataSetSerializers(serializers.ModelSerializer):
             # 使用dataset_ids过滤
             query_set = query_set.filter(id__in=self.data.get("dataset_ids"))
             
+            # 添加软删除过滤
+            query_set = query_set.filter(is_deleted=False)
+            
             # 添加其他过滤条件
             if "desc" in self.data and self.data.get('desc') is not None:
                 query_set = query_set.filter(desc__icontains=self.data.get("desc"))
@@ -1265,6 +1299,9 @@ class DataSetSerializers(serializers.ModelSerializer):
             if dataset_ids is not None:  # 检查是否为None
                 query_set = query_set.filter(id__in=dataset_ids)
             
+            # 添加软删除过滤
+            query_set = query_set.filter(is_deleted=False)
+            
             # 添加其他过滤条件
             if "desc" in self.data and self.data.get('desc') is not None:
                 query_set = query_set.filter(desc__icontains=self.data.get("desc"))
@@ -1332,6 +1369,134 @@ class DataSetSerializers(serializers.ModelSerializer):
                                 'user_id': openapi.Schema(type=openapi.TYPE_STRING, description=_('user id')),
                                 'create_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('create time')),
                                 'update_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('update time')),
+                                'document_count': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('document count')),
+                                'char_length': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('char length'))
+                            }
+                        )
+                    ),
+                    'total': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('total count')),
+                    'page': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('current page')),
+                    'page_size': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('page size'))
+                }
+            )
+
+    class RecycleBinQuery(ApiMixin, serializers.Serializer):
+        """
+        回收站查询对象
+        """
+        name = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('dataset name')),
+                                     max_length=64,
+                                     min_length=1)
+
+        desc = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('dataset description')),
+                                     max_length=256,
+                                     min_length=1)
+
+        user_id = serializers.CharField(required=False, allow_blank=True)
+
+        def get_query_set(self):
+            """
+            获取回收站查询集（显示所有已软删除的知识库，不再按 user_id 过滤）
+            """
+            return QuerySet(DataSet).filter(
+                is_deleted=True
+            )
+
+        def page(self, current_page: int, page_size: int):
+            """
+            分页获取回收站知识库列表
+            """
+            query_set = self.get_query_set()
+            # 添加其他过滤条件
+            if "desc" in self.data and self.data.get('desc') is not None:
+                query_set = query_set.filter(desc__icontains=self.data.get("desc"))
+            if "name" in self.data and self.data.get('name') is not None:
+                query_set = query_set.filter(name__icontains=self.data.get("name"))
+            # 按删除时间倒序排列
+            query_set = query_set.order_by("-delete_time", "id")
+            total = query_set.count()
+            start = (current_page - 1) * page_size
+            end = start + page_size
+            items = query_set[start:end]
+            return {
+                'list': [{
+                    'id': str(item.id),
+                    'name': item.name,
+                    'desc': item.desc,
+                    'user_id': str(item.user_id),
+                    'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'delete_time': item.delete_time.strftime('%Y-%m-%d %H:%M:%S') if item.delete_time else '',
+                    'document_count': QuerySet(Document).filter(dataset_id=item.id).count(),
+                    'char_length': QuerySet(Document).filter(dataset_id=item.id).aggregate(
+                        total_length=models.Sum('char_length')
+                    )['total_length'] or 0
+                } for item in items],
+                'total': total,
+                'page': current_page,
+                'page_size': page_size
+            }
+
+        def list(self):
+            """
+            获取回收站知识库列表（不分页）
+            """
+            query_set = self.get_query_set()
+            # 添加其他过滤条件
+            if "desc" in self.data and self.data.get('desc') is not None:
+                query_set = query_set.filter(desc__icontains=self.data.get("desc"))
+            if "name" in self.data and self.data.get('name') is not None:
+                query_set = query_set.filter(name__icontains(self.data.get("name")))
+            # 按删除时间倒序排列
+            query_set = query_set.order_by("-delete_time", "id")
+            return [{
+                'id': str(item.id),
+                'name': item.name,
+                'desc': item.desc,
+                'user_id': str(item.user_id),
+                'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'delete_time': item.delete_time.strftime('%Y-%m-%d %H:%M:%S') if item.delete_time else '',
+                'document_count': QuerySet(Document).filter(dataset_id=item.id).count(),
+                'char_length': QuerySet(Document).filter(dataset_id=item.id).aggregate(
+                    total_length=models.Sum('char_length')
+                )['total_length'] or 0
+            } for item in query_set]
+
+        @staticmethod
+        def get_request_params_api():
+            return [openapi.Parameter(name='name',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('dataset name')),
+                    openapi.Parameter(name='desc',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('dataset description'))
+                    ]
+
+        @staticmethod
+        def get_response_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['list', 'total', 'page', 'page_size'],
+                properties={
+                    'list': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset id')),
+                                'name': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset name')),
+                                'desc': openapi.Schema(type=openapi.TYPE_STRING, description=_('dataset description')),
+                                'user_id': openapi.Schema(type=openapi.TYPE_STRING, description=_('user id')),
+                                'create_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('create time')),
+                                'update_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('update time')),
+                                'delete_time': openapi.Schema(type=openapi.TYPE_STRING, description=_('delete time')),
                                 'document_count': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('document count')),
                                 'char_length': openapi.Schema(type=openapi.TYPE_INTEGER, description=_('char length'))
                             }

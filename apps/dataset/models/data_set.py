@@ -112,6 +112,9 @@ class DataSet(AppModelMixin):
     embedding_mode = models.ForeignKey(Model, on_delete=models.DO_NOTHING, verbose_name="向量模型",
                                        default=default_model)
     meta = models.JSONField(verbose_name="元数据", default=dict)
+    # 软删除字段
+    is_deleted = models.BooleanField(default=False, verbose_name="是否已删除")
+    delete_time = models.DateTimeField(null=True, blank=True, verbose_name="删除时间")
 
     class Meta:
         db_table = "dataset"

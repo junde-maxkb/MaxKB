@@ -26,6 +26,24 @@ export default {
     confirmMessage1: 'This knowledge is related with',
     confirmMessage2: 'APP. Deleting it will be irreversible, please proceed with caution.'
   },
+  tabs: {
+    myDataset: 'My Knowledge',
+    sharedDataset: 'Shared Knowledge',
+    organizationDataset: 'Organization Knowledge',
+    sharedToMeDataset: 'Shared To Me',
+    searchDataset: 'Knowledge Search',
+    recycleBin: 'Recycle Bin'
+  },
+  searchDataset: {
+    selectDatasets: 'Select Knowledge',
+    selectDatasetsPlaceholder: 'Please add knowledge to search first',
+    searchResult: 'Search Results',
+    searchResultTip: 'Search content across multiple knowledge bases',
+    emptyMessage1: 'Please enter content to start multi-knowledge search',
+    emptyMessage2: 'No relevant content found',
+    inputPlaceholder: 'Please enter the content you want to search',
+    noDatasetSelected: 'Please select at least one knowledge base first'
+  },
   datasetForm: {
     title: {
       info: 'Knowledge Settings'
@@ -90,5 +108,28 @@ export default {
     complete: 'Full Sync',
     completeText: 'Delete all documents in the local knowledge and re-fetch web site documents',
     tip: 'Note: All syncs will delete existing data and re-fetch new data. Please proceed with caution.'
+  },
+  addDataset: 'Add Knowledge',
+  addDatasetPlaceholder: 'Please select knowledge to add',
+  selected: 'Selected',
+  countDataset: 'knowledge bases',
+  recycleBin: {
+    title: 'Recycle Bin',
+    deleted: 'Deleted',
+    restore: 'Restore',
+    permanentlyDelete: 'Permanently Delete',
+    emptyMessage: 'No deleted knowledge bases',
+    developingMessage: 'Recycle Bin Feature Under Development',
+    developingTip: 'This feature is currently under development, please stay tuned'
+  },
+  restore: {
+    confirmTitle: 'Restore Knowledge',
+    confirmMessage: 'Are you sure you want to restore this knowledge base?',
+    success: 'Restore successful'
+  },
+  permanentlyDelete: {
+    confirmTitle: 'Permanently Delete Knowledge',
+    confirmMessage: 'Are you sure you want to permanently delete this knowledge base? This action cannot be undone.',
+    success: 'Permanently delete successful'
   }
 }

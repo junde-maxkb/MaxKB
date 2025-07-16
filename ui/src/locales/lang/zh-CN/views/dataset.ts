@@ -47,7 +47,18 @@ export default {
     sharedDataset: '共享知识库',
     organizationDataset: '机构知识库',
     sharedToMeDataset: '共享给我的知识库',
-    searchDataset: '知识库检索'
+    searchDataset: '知识库检索',
+    recycleBin: '回收站'
+  },
+  searchDataset: {
+    selectDatasets: '选择知识库',
+    selectDatasetsPlaceholder: '请先添加要检索的知识库',
+    searchResult: '检索结果',
+    searchResultTip: '在多个知识库中进行内容检索',
+    emptyMessage1: '请输入内容开始多知识库检索',
+    emptyMessage2: '没有找到相关内容',
+    inputPlaceholder: '请输入您要检索的内容',
+    noDatasetSelected: '请先选择至少一个知识库'
   },
   search: {
     placeholder: '输入关键词搜索知识库',
@@ -170,5 +181,24 @@ export default {
   addDataset: '添加知识库',
   addDatasetPlaceholder: '请选择要添加的知识库',
   selected: '已选择',
-  countDataset: '个知识库'
+  countDataset: '个知识库',
+  recycleBin: {
+    title: '回收站',
+    deleted: '已删除',
+    restore: '恢复',
+    permanentlyDelete: '永久删除',
+    emptyMessage: '暂无已删除的知识库',
+    developingMessage: '回收站功能开发中',
+    developingTip: '该功能正在开发中，敬请期待'
+  },
+  restore: {
+    confirmTitle: '恢复知识库',
+    confirmMessage: '确定要恢复该知识库吗？',
+    success: '恢复成功'
+  },
+  permanentlyDelete: {
+    confirmTitle: '永久删除知识库',
+    confirmMessage: '确定要永久删除该知识库吗？删除后将无法恢复。',
+    success: '永久删除成功'
+  }
 }
