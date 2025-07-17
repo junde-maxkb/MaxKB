@@ -317,9 +317,17 @@ const rules = reactive({
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   'extra_params.schema': [{ 
-    required: true, 
+    required: false, 
     message: '请选择schema', 
-    trigger: ['blur', 'change']  
+    trigger: ['blur', 'change'],
+    validator: (rule: any, value: any, callback: any) => {
+      // 只有非MySQL数据库且有schema选项时才验证
+      if (form.db_type !== 'mysql' && schemas.value.length > 0 && !value) {
+        callback(new Error('请选择schema'))
+      } else {
+        callback()
+      }
+    }
   }],
   ssh_config: {
     host: [{ required: true, message: '请输入SSH主机', trigger: 'blur' }],
@@ -388,6 +396,17 @@ watch(dialogVisible, (bool) => {
       users: []
     }
     loading.value = false
+  }
+})
+
+// 监听数据库类型变化，设置默认端口
+watch(() => form.db_type, (newType) => {
+  if (newType === 'mysql') {
+    form.port = '3306'
+  } else if (newType === 'postgresql') {
+    form.port = '5432'
+  } else if (newType === 'oracle') {
+    form.port = '1521'
   }
 })
 

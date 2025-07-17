@@ -64,6 +64,13 @@
     <el-form-item label="密码" prop="password">
       <el-input v-model="form.password" show-password />
     </el-form-item>
+    
+    <el-form-item v-if="form.db_type == 'oracle'" prop="extra_params.oracle_connect_type" label="连接方式">
+      <el-radio-group v-model="form.extra_params.oracle_connect_type">
+        <el-radio label="sid">SID</el-radio>
+        <el-radio label="service_name">服务名</el-radio>
+      </el-radio-group>
+    </el-form-item>
    
     <el-form-item
     v-if="form.db_type != 'mysql'"
@@ -262,7 +269,7 @@ const formRef = ref<FormInstance>()
 const schemas = ref([])
 const dbTypes = [
   { label: 'MySQL', value: 'mysql' },
-  { label: 'PostgreSQL', value: 'postgrestestConnectloadinql' },
+  { label: 'PostgreSQL', value: 'postgresql' },
   { label: 'Oracle', value: 'oracle' }
 ]
 const charset = ref(['GBK', 'BIG5', 'ISO-8859-1', 'UTF-8', 'UTF-16', 'CP850', 'EUC_JP', 'EUC_KR'])
@@ -292,7 +299,10 @@ const form = reactive({
     queryTimeout: ''
   },
   extra_params:{
-    schema: ''
+    schema: '',
+    oracle_connect_type: 'sid',
+    charset: '',
+    target_charset: ''
   }
 })
 
@@ -305,9 +315,17 @@ const rules = reactive({
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   'extra_params.schema': [{ 
-    required: true, 
+    required: false, 
     message: '请选择schema', 
-    trigger: ['blur', 'change']  // 重要：不要包含'click'触发
+    trigger: ['blur', 'change'],
+    validator: (rule: any, value: any, callback: any) => {
+      // 只有非MySQL数据库且有schema选项时才验证
+      if (form.db_type !== 'mysql' && schemas.value.length > 0 && !value) {
+        callback(new Error('请选择schema'))
+      } else {
+        callback()
+      }
+    }
   }],
   ssh_config: {
     host: [{ required: true, message: '请输入SSH主机', trigger: 'blur' }],
@@ -395,6 +413,16 @@ const addMemberFormRef = ref<FormInstance>()
 const loading = ref<boolean>(false)
 const testLoading = ref<boolean>(false)
 
+// 监听数据库类型变化，设置默认端口
+watch(() => form.db_type, (newType) => {
+  if (newType === 'mysql') {
+    form.port = '3306'
+  } else if (newType === 'postgresql') {
+    form.port = '5432'
+  } else if (newType === 'oracle') {
+    form.port = '1521'
+  }
+})
 
 const open = (sourceId:any) => {
   currentSourceId.value = sourceId
