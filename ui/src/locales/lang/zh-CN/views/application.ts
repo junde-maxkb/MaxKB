@@ -11,6 +11,18 @@ export default {
     organizationApplication: '机构应用',
     sharedToMeApplication: '共享给我的应用'
   },
+  chatLogs: '对话日志',
+  chatLogsTab: {
+    title: '对话日志',
+    searchPlaceholder: '搜索对话内容...',
+    selectApplication: '选择应用',
+    allApplications: '全部应用',
+    noData: '暂无数据',
+    searchError: '搜索失败，请重试',
+    tokens: '{count} tokens',
+    liked: '点赞',
+    disliked: '点踩'
+  },
   permissionManage: '管理',
   permissionWrite: '开发',
   permissionRead: '使用',

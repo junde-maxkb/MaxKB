@@ -44,6 +44,9 @@ export default {
   result: '结果',
   exit: '退出共享',
   exitSuccess: '退出成功',
+  to: '至',
+  startDate: '开始日期',
+  endDate: '结束日期',
   fileUpload: {
     document: '文档',
     image: '图片',

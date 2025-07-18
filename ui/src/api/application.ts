@@ -587,6 +587,7 @@ const getShareToMePage: (
   param: {
     name?: string;
     select_user_id?: string;
+    order_by?: string;
   },
   loading?: Ref<boolean>
 ) => Promise<Result<any>> = (page, param, loading) => {
@@ -632,6 +633,7 @@ const getOrganizationPage: (
   param: {
     name?: string;
     desc?: string;
+    order_by?: string;
   },
   loading?: Ref<boolean>
 ) => Promise<Result<any>> = (page, param, loading) => {

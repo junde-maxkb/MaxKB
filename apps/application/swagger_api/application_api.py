@@ -379,7 +379,17 @@ class ApplicationApi(ApiMixin):
                                       in_=openapi.IN_QUERY,
                                       type=openapi.TYPE_STRING,
                                       required=False,
-                                      description=_('Application Description'))
+                                      description=_('Application Description')),
+                    openapi.Parameter(name='order_by',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('Order by field: name|create_time|update_time|chat_record_count|tokens_num')),
+                    openapi.Parameter(name='select_user_id',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_('Filter by user ID'))
                     ]
 
     class Export(ApiMixin):

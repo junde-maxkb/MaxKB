@@ -143,6 +143,17 @@ export default {
       defaultPrompt2: '標籤中'
     }
   },
+  chatLogsTab: {
+    title: '對話日誌',
+    searchPlaceholder: '搜尋對話內容...',
+    selectApplication: '選擇應用',
+    allApplications: '全部應用',
+    noData: '暫無資料',
+    searchError: '搜尋失敗，請重試',
+    tokens: '{count} tokens',
+    liked: '點讚',
+    disliked: '點踩'
+  },
   applicationAccess: {
     title: '應用接入',
     wecom: '企業微信應用',

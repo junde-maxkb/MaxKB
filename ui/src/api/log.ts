@@ -243,6 +243,25 @@ const putChatClientLog: (
   )
 }
 
+/**
+ * 全局搜索对话记录
+ * @param params 搜索参数
+ * @param loading 加载状态
+ */
+const searchChatRecords: (
+  params: {
+    query?: string
+    application_id?: string
+    start_date?: string
+    end_date?: string
+    current_page?: number
+    page_size?: number
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (params, loading) => {
+  return get('/application/chat_records/search', params, loading)
+}
+
 export default {
   getChatLog,
   delChatLog,
@@ -255,5 +274,6 @@ export default {
   getChatLogClient,
   delChatClientLog,
   postChatRecordLog,
-  putChatClientLog
+  putChatClientLog,
+  searchChatRecords
 }

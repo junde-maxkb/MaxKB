@@ -153,6 +153,17 @@ Response requirements:
       defaultPrompt2: 'tag'
     }
   },
+  chatLogsTab: {
+    title: 'Chat Logs',
+    searchPlaceholder: 'Search chat content...',
+    selectApplication: 'Select Application',
+    allApplications: 'All Applications',
+    noData: 'No data',
+    searchError: 'Search failed, please try again',
+    tokens: '{count} tokens',
+    liked: 'Liked',
+    disliked: 'Disliked'
+  },
   applicationAccess: {
     title: 'APP Access',
     wecom: 'WeCom',

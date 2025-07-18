@@ -20,8 +20,9 @@ from django.contrib.postgres.fields import ArrayField
 from django.core import cache, validators
 from django.core import signing
 from django.db import transaction, models
-from django.db.models import QuerySet, Q
+from django.db.models import QuerySet, Q, Count, Sum
 from django.db.models.expressions import RawSQL
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.template import Template, Context
 from langchain_mcp_adapters.client import MultiServerMCPClient
@@ -272,6 +273,7 @@ class ApplicationSerializer(serializers.Serializer):
         application_ids = serializers.ListField(required=True, 
                                               child=serializers.UUIDField(),
                                               error_messages=ErrMessage.list(_('Application IDs')))
+        order_by = serializers.CharField(required=False, error_messages=ErrMessage.char(_("Order By")))
 
         def get_query_set(self):
             """
@@ -291,6 +293,9 @@ class ApplicationSerializer(serializers.Serializer):
             query_set = query_set.filter(id__in=application_ids)
             print(f"Debug - OrganizationPageQuery - SQL: {query_set.query}")
             
+            # 添加调试信息
+            print(f"Debug - Query SQL: {query_set.query}")
+            
             # 添加其他过滤条件
             if "desc" in self.data and self.data.get('desc') is not None:
                 query_set = query_set.filter(desc__icontains=self.data.get("desc"))
@@ -298,7 +303,50 @@ class ApplicationSerializer(serializers.Serializer):
             if "name" in self.data and self.data.get('name') is not None:
                 query_set = query_set.filter(name__icontains=self.data.get("name"))
             
-            return query_set.order_by("-create_time", "id")
+            # 处理排序参数
+            order_by = self.data.get('order_by', 'create_time')
+            if order_by == 'name':
+                query_set = query_set.order_by("name")
+            elif order_by == 'update_time':
+                query_set = query_set.order_by("-update_time")
+            elif order_by == 'chat_record_count':
+                query_set = query_set.order_by("-chat_record_count")
+            elif order_by == 'tokens_num':
+                query_set = query_set.order_by("-tokens_num")
+            else:  # 默认按创建时间排序
+                query_set = query_set.order_by("-create_time")
+            
+            # 添加统计字段 - 使用与应用详情页相同的逻辑（最近7天）
+            from datetime import datetime, timedelta
+            
+            # 计算最近7天的时间范围（与应用详情页保持一致）
+            end_time = datetime.now()
+            start_time = end_time - timedelta(days=7)
+            
+            # SQL: FROM application_chat_record LEFT JOIN application_chat ON application_chat.id = application_chat_record.chat_id
+            # 添加时间范围过滤，与应用详情页保持一致
+            query_set = query_set.annotate(
+                chat_record_count=Coalesce(
+                    Count('chat__chatrecord__id', 
+                          filter=Q(chat__chatrecord__create_time__gte=start_time,
+                                  chat__chatrecord__create_time__lte=end_time)), 0
+                ),
+                tokens_num=Coalesce(
+                    Sum('chat__chatrecord__message_tokens', 
+                        filter=Q(chat__chatrecord__create_time__gte=start_time,
+                                chat__chatrecord__create_time__lte=end_time)) + 
+                    Sum('chat__chatrecord__answer_tokens',
+                        filter=Q(chat__chatrecord__create_time__gte=start_time,
+                                chat__chatrecord__create_time__lte=end_time)), 0
+                )
+            )
+            
+            # 添加调试信息
+            print(f"Debug - Query with time filter ({start_time} to {end_time}): {query_set.query}")
+            
+            # 注意：现在使用与应用详情页相同的7天时间范围统计
+            
+            return query_set
 
         def page(self, current_page: int, page_size: int):
             """
@@ -319,7 +367,9 @@ class ApplicationSerializer(serializers.Serializer):
                     'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                     'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
                     'type': item.type,
-                    'permission': 'MANAGE'  # 机构应用默认有管理权限
+                    'permission': 'MANAGE',  # 机构应用默认有管理权限
+                    'chat_record_count': getattr(item, 'chat_record_count', 0),
+                    'tokens_num': getattr(item, 'tokens_num', 0)
                 } for item in items],
                 'total': total,
                 'page': current_page,
@@ -384,6 +434,7 @@ class ApplicationSerializer(serializers.Serializer):
 
         user_id = serializers.CharField(required=True)
         application_ids = serializers.ListField(required=True, child=serializers.UUIDField(), allow_empty=True)
+        order_by = serializers.CharField(required=False, error_messages=ErrMessage.char(_("Order By")))
 
         def get_query_set(self):
             """
@@ -394,13 +445,59 @@ class ApplicationSerializer(serializers.Serializer):
             # 使用dataset_ids过滤
             query_set = query_set.filter(id__in=self.data.get("application_ids"))
             
+            # 添加调试信息
+            print(f"Debug - Query SQL: {query_set.query}")
+            
             # 添加其他过滤条件
             if "desc" in self.data and self.data.get('desc') is not None:
                 query_set = query_set.filter(desc__icontains=self.data.get("desc"))
             if "name" in self.data and self.data.get('name') is not None:
                 query_set = query_set.filter(name__icontains=self.data.get("name"))
             
-            return query_set.order_by("-create_time", "id")
+            # 处理排序参数
+            order_by = self.data.get('order_by', 'create_time')
+            if order_by == 'name':
+                query_set = query_set.order_by("name")
+            elif order_by == 'update_time':
+                query_set = query_set.order_by("-update_time")
+            elif order_by == 'chat_record_count':
+                query_set = query_set.order_by("-chat_record_count")
+            elif order_by == 'tokens_num':
+                query_set = query_set.order_by("-tokens_num")
+            else:  # 默认按创建时间排序
+                query_set = query_set.order_by("-create_time")
+            
+            # 添加统计字段 - 使用与应用详情页相同的逻辑（最近7天）
+            from datetime import datetime, timedelta
+            
+            # 计算最近7天的时间范围（与应用详情页保持一致）
+            end_time = datetime.now()
+            start_time = end_time - timedelta(days=7)
+            
+            # SQL: FROM application_chat_record LEFT JOIN application_chat ON application_chat.id = application_chat_record.chat_id
+            # 添加时间范围过滤，与应用详情页保持一致
+            query_set = query_set.annotate(
+                chat_record_count=Coalesce(
+                    Count('chat__chatrecord__id', 
+                          filter=Q(chat__chatrecord__create_time__gte=start_time,
+                                  chat__chatrecord__create_time__lte=end_time)), 0
+                ),
+                tokens_num=Coalesce(
+                    Sum('chat__chatrecord__message_tokens', 
+                        filter=Q(chat__chatrecord__create_time__gte=start_time,
+                                chat__chatrecord__create_time__lte=end_time)) + 
+                    Sum('chat__chatrecord__answer_tokens',
+                        filter=Q(chat__chatrecord__create_time__gte=start_time,
+                                chat__chatrecord__create_time__lte=end_time)), 0
+                )
+            )
+            
+            # 添加调试信息
+            print(f"Debug - Query with time filter ({start_time} to {end_time}): {query_set.query}")
+            
+            # 注意：现在使用与应用详情页相同的7天时间范围统计
+            
+            return query_set
 
         def page(self, current_page: int, page_size: int):
             """
@@ -420,12 +517,10 @@ class ApplicationSerializer(serializers.Serializer):
                     'user_id': str(item.user_id),
                     'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
                     'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
-                    'document_count': QuerySet(Document).filter(dataset_id=item.id).count(),
-                    'char_length': QuerySet(Document).filter(dataset_id=item.id).aggregate(
-                        total_length=models.Sum('char_length')
-                    )['total_length'] or 0,
                     'type': item.type,
-                    'type_display': dict(ApplicationTypeChoices.choices).get(item.type, '')
+                    'type_display': dict(ApplicationTypeChoices.choices).get(item.type, ''),
+                    'chat_record_count': getattr(item, 'chat_record_count', 0),
+                    'tokens_num': getattr(item, 'tokens_num', 0)
                 } for item in items],
                 'total': total,
                 'page': current_page,
@@ -853,14 +948,16 @@ class ApplicationSerializer(serializers.Serializer):
 
         user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
         select_user_id = serializers.UUIDField(required=False, error_messages=ErrMessage.uuid(_("Select User ID")))
+        order_by = serializers.CharField(required=False, error_messages=ErrMessage.char(_("Order By")))
 
         def get_query_set(self):
             user_id = self.data.get("user_id")
             query_set_dict = {}
             query_set = QuerySet(model=get_dynamics_model(
                 {'temp_application.name': models.CharField(), 'temp_application.desc': models.CharField(),
-                 'temp_application.create_time': models.DateTimeField(),
-                 'temp_application.user_id': models.CharField(), }))
+                 'temp_application.create_time': models.DateTimeField(), 'temp_application.update_time': models.DateTimeField(),
+                 'temp_application.user_id': models.CharField(), 'chat_record_count': models.IntegerField(),
+                 'tokens_num': models.IntegerField()}))
             if "desc" in self.data and self.data.get('desc') is not None:
                 query_set = query_set.filter(**{'temp_application.desc__icontains': self.data.get("desc")})
             if "name" in self.data and self.data.get('name') is not None:
@@ -868,7 +965,20 @@ class ApplicationSerializer(serializers.Serializer):
             if 'select_user_id' in self.data and self.data.get('select_user_id') is not None and self.data.get(
                     'select_user_id') != 'all':
                 query_set = query_set.filter(**{'temp_application.user_id__exact': self.data.get('select_user_id')})
-            query_set = query_set.order_by("-temp_application.create_time")
+            
+            # 处理排序参数
+            order_by = self.data.get('order_by', 'create_time')
+            if order_by == 'name':
+                query_set = query_set.order_by("temp_application.name")
+            elif order_by == 'update_time':
+                query_set = query_set.order_by("-temp_application.update_time")
+            elif order_by == 'chat_record_count':
+                query_set = query_set.order_by("-chat_record_count")
+            elif order_by == 'tokens_num':
+                query_set = query_set.order_by("-tokens_num")
+            else:  # 默认按创建时间排序
+                query_set = query_set.order_by("-temp_application.create_time")
+            
             query_set_dict['default_sql'] = query_set
 
             query_set_dict['application_custom_sql'] = QuerySet(model=get_dynamics_model(

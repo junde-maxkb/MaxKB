@@ -64,7 +64,7 @@
     <el-form-item label="密码" prop="password">
       <el-input v-model="form.password" show-password />
     </el-form-item>
-    
+   
     <el-form-item v-if="form.db_type == 'oracle'" prop="extra_params.oracle_connect_type" label="连接方式">
       <el-radio-group v-model="form.extra_params.oracle_connect_type">
         <el-radio label="sid">SID</el-radio>

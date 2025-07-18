@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .views.chat_global_search_views import GlobalChatSearchView
 
 app_name = "application"
 urlpatterns = [
@@ -97,5 +98,7 @@ urlpatterns = [
     # 机构应用相关接口
     path('application/organization/<int:current_page>/<int:page_size>', views.Application.OrganizationPage.as_view(), name="organization_page"),
     path('application/<str:application_id>/add_to_organization', views.Application.AddToOrganization.as_view(), name="add_to_organization"),
-    path('application/<str:application_id>/remove_from_organization', views.Application.RemoveFromOrganization.as_view(), name="remove_from_organization")
+    path('application/<str:application_id>/remove_from_organization', views.Application.RemoveFromOrganization.as_view(), name="remove_from_organization"),
+    # 全局对话日志搜索
+    path('application/chat_records/search', GlobalChatSearchView.as_view(), name='global_chat_search')
 ]

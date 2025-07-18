@@ -42,6 +42,11 @@ export default {
   required: 'Required',
   noData: 'No data',
   result: 'Result',
+  exit: 'Exit Share',
+  exitSuccess: 'Exit Successful',
+  to: 'to',
+  startDate: 'Start Date',
+  endDate: 'End Date',
   fileUpload: {
     document: 'Documents',
     image: 'Image',
