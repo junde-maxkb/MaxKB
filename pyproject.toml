@@ -66,6 +66,7 @@ pysilk = "^0.0.1"
 django-db-connection-pool = "^1.2.5"
 opencv-python-headless = "^4.11.0.86"
 pymysql = "^1.1.1"
+oracledb = "^2.5.0"
 accelerate = "^1.6.0"
 [build-system]
 requires = ["poetry-core"]

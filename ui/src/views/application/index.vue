@@ -176,7 +176,7 @@
                       </el-button>
                     </el-tooltip>
                     <el-divider direction="vertical" v-if="item.permission !== 'READ' && !(activeTab === 'SHARED' && sharedType === 'ORGANIZATION')" />
-                    <span @click.stop v-if="!(activeTab === 'SHARED' && sharedType === 'ORGANIZATION' && user.userInfo?.role !== 'ADMIN')">
+                    <span @click.stop v-if="canShowAdminActions">
                       <el-dropdown trigger="click">
                         <el-button text @click.stop>
                           <el-icon><MoreFilled /></el-icon>
@@ -199,6 +199,13 @@
                                 {{ $t('common.export') }}
                               </el-dropdown-item>
                               <el-dropdown-item 
+                                v-if="activeTab === 'MY' && isAdmin"
+                                @click.stop="addToOrganization(item)"
+                              >
+                                <AppIcon iconName="app-add"></AppIcon>
+                                {{ $t('views.application.setting.addToOrganization') }}
+                              </el-dropdown-item>
+                              <el-dropdown-item 
                                 v-if="activeTab === 'MY'"
                                 icon="Delete" 
                                 @click.stop="deleteApplication(item)"
@@ -208,18 +215,11 @@
                             </template>
                             <template v-if="activeTab === 'SHARED' && sharedType === 'ORGANIZATION'">
                               <el-dropdown-item
-                                v-if="user.userInfo?.role === 'ADMIN'"
-                                @click.stop="addToOrganization(item)"
-                              >
-                                <AppIcon iconName="app-add"></AppIcon>
-                                {{ $t('views.application.addToOrganization.title') }}
-                              </el-dropdown-item>
-                              <el-dropdown-item
-                                v-if="user.userInfo?.role === 'ADMIN'"
+                                v-if="isAdmin"
                                 @click.stop="removeFromOrganization(item)"
                               >
                                 <AppIcon iconName="app-remove"></AppIcon>
-                                {{ $t('views.application.removeFromOrganization.title') }}
+                                {{ $t('views.application.setting.removeFromOrganization') }}
                               </el-dropdown-item>
                             </template>
                             <template v-if="activeTab === 'SHARED' && sharedType === 'SHARED_TO_ME'">
@@ -247,7 +247,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, computed } from 'vue'
 import applicationApi from '@/api/application'
 import CreateApplicationDialog from './component/CreateApplicationDialog.vue'
 import CopyApplicationDialog from './component/CopyApplicationDialog.vue'
@@ -301,6 +301,12 @@ const sortOptions = [
   { label: '按提问次数排序', value: 'chat_record_count' },
   { label: '按Token总数排序', value: 'tokens_num' }
 ]
+
+// 添加计算属性来避免重复的响应式依赖
+const isAdmin = computed(() => user.userInfo?.role === 'ADMIN')
+const canShowAdminActions = computed(() => 
+  !(activeTab.value === 'SHARED' && sharedType.value === 'ORGANIZATION' && !isAdmin.value)
+)
 
 function copyApplication(row: any) {
   application.asyncGetApplicationDetail(row.id, loading).then((res: any) => {
@@ -509,12 +515,15 @@ function getList() {
       // 保持username字段的兼容性
       item.username = item.creator_name
     })
-    paginationConfig.total = res.data.total
     let newRecords = sortApplicationList(res.data.records)
     
     if (activeTab.value === 'SHARED' && sharedType.value === 'SHARED_TO_ME' && user.userInfo?.id) {
       newRecords = newRecords.filter(item => item.user_id !== user.userInfo?.id)
-      paginationConfig.total = applicationList.value.length + newRecords.length
+      // 计算正确的total值，避免递归依赖
+      const currentLength = applicationList.value.length
+      paginationConfig.total = currentLength + newRecords.length
+    } else {
+      paginationConfig.total = res.data.total
     }
     
     applicationList.value = [...applicationList.value, ...newRecords]

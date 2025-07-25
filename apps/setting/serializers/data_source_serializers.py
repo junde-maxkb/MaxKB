@@ -82,7 +82,7 @@ class DBConfigerializer(serializers.Serializer):
 
 
 class DBConnectionSerializer(serializers.Serializer):
-    db_type = serializers.ChoiceField(choices=['mysql', 'postgresql'])
+    db_type = serializers.ChoiceField(choices=['mysql', 'postgresql', 'oracle'])
     host = serializers.CharField()
     port = serializers.IntegerField(min_value=1, max_value=65535)
     username = serializers.CharField()

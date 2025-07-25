@@ -915,8 +915,21 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                 "host": data_source.host,
                 "port": data_source.port,
                 "dbname": data_source.database_name,
-                "schema": data_source.extra_params.get('schema')
             }
+            
+            # 处理Oracle特有的参数
+            if data_source.db_type == 'oracle':
+                extra_params = data_source.extra_params or {}
+                oracle_connect_type = extra_params.get('oracle_connect_type', 'sid')
+                
+                if oracle_connect_type == 'sid':
+                    params['sid'] = data_source.database_name
+                else:
+                    params['service_name'] = data_source.database_name
+            
+            # 添加schema参数（如果存在）
+            if data_source.extra_params and data_source.extra_params.get('schema'):
+                params['schema'] = data_source.extra_params.get('schema')
 
             columns_list = DBConnector.query_columns(params, table_name, columns)
             if not columns_list:

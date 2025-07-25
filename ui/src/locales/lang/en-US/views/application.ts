@@ -17,6 +17,11 @@ export default {
     confirmMessage:
       'Deleting this APP will no longer provide its services. Please proceed with caution.'
   },
+  exitShare: {
+    title: 'Exit Share',
+    confirmTitle: 'Are you sure you want to exit this shared APP: ',
+    confirmMessage: 'After exiting, you will no longer be able to use this APP. Please proceed with caution.'
+  },
   tip: {
     ExportError: 'Export Failed',
     professionalMessage:

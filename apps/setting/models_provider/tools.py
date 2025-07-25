@@ -17,6 +17,13 @@ from setting.models_provider import get_model
 from django.utils.translation import gettext_lazy as _
 from sqlalchemy import text
 
+# 检查Oracle驱动是否可用
+try:
+    import oracledb
+    ORACLE_AVAILABLE = True
+except ImportError:
+    ORACLE_AVAILABLE = False
+
 
 def get_model_by_id(_id, user_id):
     model = QuerySet(Model).filter(id=_id).first()
@@ -53,15 +60,38 @@ class DBConnector:
             return create_engine(uri, connect_args=connect_args)
         elif db_params['db_type'] == 'mysql':
             uri = f"mysql+pymysql://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{db_params['dbname']}"
-            return create_engine(uri, pool_pre_ping=True, connect_args={'connect_timeout': 5})
+            # PyMySQL 使用正确的连接参数
+            connect_args = {
+                'connect_timeout': 5,
+                'read_timeout': 30,
+                'write_timeout': 30
+            }
+            return create_engine(uri, pool_pre_ping=True, connect_args=connect_args)
         elif db_params['db_type'] == 'oracle':
+            if not ORACLE_AVAILABLE:
+                raise ValueError("Oracle数据库支持需要安装oracledb驱动: pip install oracledb")
+                
             sid_or_service = db_params.get('sid') or db_params.get('service_name')
             if not sid_or_service:
                 raise ValueError("Oracle连接需要提供SID或Service Name")
 
-            # 使用cx_Oracle驱动
-            uri = f"oracle+cx_oracle://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/?service_name={sid_or_service}"
-            return create_engine(uri, pool_pre_ping=True, connect_args={'connect_timeout': 5})
+            # 使用oracledb驱动
+            if db_params.get('sid'):
+                # SID连接方式
+                uri = f"oracle+oracledb://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{sid_or_service}"
+            else:
+                # Service Name连接方式
+                uri = f"oracle+oracledb://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/?service_name={sid_or_service}"
+            
+            # oracledb 连接配置 - 不使用 connect_args 中的超时参数
+            # 超时参数通过 SQLAlchemy 引擎级别设置
+            return create_engine(
+                uri, 
+                pool_pre_ping=True,
+                pool_timeout=30,  # 连接池超时
+                pool_recycle=3600,  # 连接回收时间
+                echo=False
+            )
 
         else:
             raise ValueError(f"不支持的数据库类型: {db_params['db_type']}")
@@ -72,7 +102,11 @@ class DBConnector:
             engine = cls._get_engine(db_params)
             with engine.connect() as conn:
                 return True
-        except SQLAlchemyError as e:
+        except Exception as e:
+            # 记录详细错误信息用于调试
+            print(f"数据库连接测试失败: {str(e)}")
+            if "unexpected keyword argument" in str(e):
+                print("提示: 检查数据库驱动版本和连接参数配置")
             return False
 
     @classmethod
@@ -84,8 +118,55 @@ class DBConnector:
 
             if db_type == 'oracle':
                 with engine.connect() as conn:
-                    result = conn.execute(text("SELECT table_name FROM user_tables"))
+                    # 根据是否指定schema来决定查询策略
+                    schema = db_params.get('schema')
+                    
+                    if schema:
+                        # 如果指定了schema，查询该schema下的表
+                        print(f"Oracle: 查询指定schema '{schema}' 下的表")
+                        result = conn.execute(text("""
+                            SELECT table_name FROM all_tables 
+                            WHERE owner = :schema_name
+                            AND table_name NOT LIKE 'LOGMNR_%'
+                            AND table_name NOT LIKE 'SYS_%'
+                            AND table_name NOT LIKE 'APEX_%' 
+                            AND table_name NOT LIKE 'FLOWS_%'
+                            AND table_name NOT LIKE 'MVIEW$%'
+                            AND table_name NOT LIKE 'SQLPLUS_%'
+                            AND table_name NOT LIKE 'MDRS_%'
+                            AND table_name NOT LIKE 'MDXT_%'
+                            AND table_name NOT LIKE 'WRI$%'
+                            AND table_name NOT LIKE 'PLAN_TABLE%'
+                            AND table_name NOT LIKE '%$'
+                            AND table_name NOT LIKE 'BIN$%'
+                            AND table_name NOT LIKE 'DR$%'
+                            AND table_name NOT IN ('DUAL')
+                            ORDER BY table_name
+                        """), {'schema_name': schema.upper()})
+                    else:
+                        # 如果没有指定schema，查询当前用户的表
+                        print("Oracle: 查询当前用户的表")
+                        result = conn.execute(text("""
+                            SELECT table_name FROM user_tables 
+                            WHERE table_name NOT LIKE 'LOGMNR_%'
+                            AND table_name NOT LIKE 'SYS_%'
+                            AND table_name NOT LIKE 'APEX_%' 
+                            AND table_name NOT LIKE 'FLOWS_%'
+                            AND table_name NOT LIKE 'MVIEW$%'
+                            AND table_name NOT LIKE 'SQLPLUS_%'
+                            AND table_name NOT LIKE 'MDRS_%'
+                            AND table_name NOT LIKE 'MDXT_%'
+                            AND table_name NOT LIKE 'WRI$%'
+                            AND table_name NOT LIKE 'PLAN_TABLE%'
+                            AND table_name NOT LIKE '%$'
+                            AND table_name NOT LIKE 'BIN$%'
+                            AND table_name NOT LIKE 'DR$%'
+                            AND table_name NOT IN ('DUAL')
+                            ORDER BY table_name
+                        """))
+                    
                     tables = [row[0] for row in result]
+                    print(f"Oracle: 找到 {len(tables)} 个表")
                     return True, tables
 
             elif db_type == 'postgresql':
@@ -95,8 +176,13 @@ class DBConnector:
             elif db_type == 'mysql':
                 return True, inspector.get_table_names()
 
-        except SQLAlchemyError as e:
-            return False, str(e)
+        except Exception as e:
+            # 记录详细错误信息用于调试
+            error_msg = str(e)
+            print(f"获取表列表失败: {error_msg}")
+            if "unexpected keyword argument" in error_msg:
+                error_msg = f"数据库驱动参数错误: {error_msg}。请检查驱动版本和配置。"
+            return False, error_msg
 
     @classmethod
     def get_columns(cls, db_params, table_name):
@@ -226,8 +312,13 @@ class DBConnector:
             else:
                 return True, []
 
-        except SQLAlchemyError as e:
-            return False, str(e)
+        except Exception as e:
+            # 记录详细错误信息用于调试
+            error_msg = str(e)
+            print(f"获取Schema失败: {error_msg}")
+            if "unexpected keyword argument" in error_msg:
+                error_msg = f"数据库驱动参数错误: {error_msg}。请检查驱动版本和配置。"
+            return False, error_msg
 
     @classmethod
     def query_columns(cls, db_params, table_name, columns):
@@ -238,7 +329,14 @@ class DBConnector:
         :param columns: 要查询的字段列表
         :return: JSON格式数据
         """
+        engine = None
         try:
+            # 添加详细调试信息
+            print(f"Oracle Debug: query_columns调用")
+            print(f"  db_params: {db_params}")
+            print(f"  table_name: {table_name}")
+            print(f"  columns: {columns}")
+            
             engine = cls._get_engine(db_params)
             metadata = MetaData()
             db_type = db_params['db_type']
@@ -246,26 +344,81 @@ class DBConnector:
             if db_type == 'oracle':
                 table_name = table_name.upper()
                 columns = [col.upper() for col in columns]
+                
+                # 双重检查：确保不访问Oracle系统表
+                system_table_patterns = [
+                    'LOGMNR_', 'SYS_', 'APEX_', 'FLOWS_', 'MVIEW$', 'SQLPLUS_',
+                    'MDRS_', 'MDXT_', 'WRI$', 'PLAN_TABLE', 'BIN$', 'DR$'
+                ]
+                if (table_name.endswith('$') or 
+                    table_name == 'DUAL' or
+                    any(table_name.startswith(pattern) for pattern in system_table_patterns)):
+                    raise ValueError(f"表 {table_name} 是系统表，不允许访问。请选择业务表。")
 
             with engine.connect() as conn:
-                table = Table(table_name, metadata, autoload_with=engine)
+                # 检查表是否存在且可访问
+                # Oracle专用：直接使用SQL查询，避免autoload问题
+                if db_type == 'oracle':
+                    schema = db_params.get('schema')
+                    if schema:
+                        print(f"Oracle: 直接SQL查询表 {table_name} (schema: {schema})")
+                        # 构建完全限定的表名
+                        qualified_table = f"{schema.upper()}.{table_name}"
+                    else:
+                        print(f"Oracle: 直接SQL查询表 {table_name} (当前用户schema)")
+                        qualified_table = table_name
+                    
+                    # 验证字段是否存在
+                    print(f"Oracle: 验证字段 {columns}")
+                    for col in columns:
+                        col_upper = col.upper()
+                        check_sql = text("""
+                            SELECT COUNT(*) FROM all_tab_columns 
+                            WHERE table_name = :table_name 
+                            AND column_name = :column_name
+                            AND owner = :owner
+                        """)
+                        result = conn.execute(check_sql, {
+                            'table_name': table_name,
+                            'column_name': col_upper,
+                            'owner': schema.upper() if schema else db_params['user'].upper()
+                        })
+                        if result.fetchone()[0] == 0:
+                            raise ValueError(f"字段 {col} 不存在于表 {qualified_table}")
+                    
+                    # 构建查询SQL
+                    column_list = ', '.join([f'"{col.upper()}"' for col in columns])
+                    query_sql = text(f'SELECT {column_list} FROM {qualified_table}')
+                    print(f"Oracle: 执行SQL: {query_sql}")
+                    
+                    result = conn.execute(query_sql)
+                    data = [dict(zip(columns, row)) for row in result]
+                    print(f"Oracle: 查询成功，返回 {len(data)} 行数据")
+                    return data
+                    
+                else:
+                    # 非Oracle数据库使用原来的autoload方式
+                    try:
+                        table = Table(table_name, metadata, autoload_with=engine)
+                    except Exception as table_error:
+                        if "NoSuchTableError" in str(table_error) or "不存在" in str(table_error):
+                            raise ValueError(f"表 {table_name} 不存在或没有访问权限。请检查表名和用户权限。")
+                        else:
+                            raise ValueError(f"无法访问表 {table_name}: {str(table_error)}")
 
-                valid_columns = []
-                for col in columns:
-                    col_name = col.upper() if db_type == 'oracle' else col
-                    if col_name not in table.columns:
-                        raise ValueError(f"字段 {col} 不存在于表 {table_name}")
-                    valid_columns.append(table.columns[col_name])
+                    valid_columns = []
+                    for col in columns:
+                        if col not in table.columns:
+                            raise ValueError(f"字段 {col} 不存在于表 {table_name}")
+                        valid_columns.append(table.columns[col])
 
-                stmt = select(*valid_columns)
+                    stmt = select(*valid_columns)
+                    result = conn.execute(stmt)
+                    data = [dict(zip(columns, row)) for row in result]
+                    return data
 
-                result = conn.execute(stmt)
-
-                data = [dict(zip(columns, row)) for row in result]
-
-                return data
-
-        except SQLAlchemyError as e:
+        except Exception as e:
+            print(f"查询字段数据失败: {str(e)}")
             raise RuntimeError(f"数据库操作失败: {str(e)}")
         finally:
             # 确保关闭连接

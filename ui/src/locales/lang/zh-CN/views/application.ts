@@ -46,6 +46,7 @@ export default {
     confirmMessage: '删除后该应用将不再提供服务，请谨慎操作。'
   },
   exitShare: {
+    title: '退出共享',
     confirmTitle: '是否退出共享应用：',
     confirmMessage: '退出后将无法继续使用该应用，请谨慎操作。'
   },

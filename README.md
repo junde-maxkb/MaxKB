@@ -51,7 +51,7 @@ Access MaxKB web interface at `http://your_server_ip:8080` with default admin cr
 - Frontend：[Vue.js](https://vuejs.org/)
 - Backend：[Python / Django](https://www.djangoproject.com/)
 - LLM Framework：[LangChain](https://www.langchain.com/)
-- Database：[PostgreSQL + pgvector](https://www.postgresql.org/)
+- Database：[PostgreSQL + pgvector](https://www.postgresql.org/), [MySQL](https://www.mysql.com/), [Oracle](https://www.oracle.com/database/)
 
 ## Feature Comparison
 
