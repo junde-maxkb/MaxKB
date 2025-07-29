@@ -270,20 +270,20 @@
             <el-row :gutter="12" v-else>
               <el-col
                 :xs="24"
-                :sm="12"
-                :md="8"
-                :lg="6"
+                :sm="24"
+                :md="12"
+                :lg="8"
                 :xl="6"
                 class="mb-12"
                 v-for="(datasetId, index) in selectedDatasets"
                 :key="index"
               >
-                <el-card class="relate-dataset-card border-r-4" shadow="never">
+                <el-card class="selected-dataset-card border-r-4" shadow="hover">
                   <div class="flex-between">
-                    <div class="flex align-center dataset-info">
+                    <div class="flex align-center" style="width: 80%">
                       <AppAvatar
                         v-if="getDatasetById(datasetId)?.type === '1'"
-                        class="mr-8 avatar-purple"
+                        class="mr-12 avatar-purple"
                         shape="square"
                         :size="32"
                       >
@@ -291,23 +291,26 @@
                       </AppAvatar>
                       <AppAvatar
                         v-else-if="getDatasetById(datasetId)?.type === '2'"
-                        class="mr-8 avatar-purple"
+                        class="mr-12 avatar-purple"
                         shape="square"
                         :size="32"
                         style="background: none"
                       >
                         <img src="@/assets/logo_lark.svg" style="width: 100%" alt="" />
                       </AppAvatar>
-                      <AppAvatar v-else class="mr-8 avatar-blue" shape="square" :size="32">
+                      <AppAvatar v-else class="mr-12 avatar-blue" shape="square" :size="32">
                         <img src="@/assets/icon_document.svg" style="width: 58%" alt="" />
                       </AppAvatar>
-
-                      <span
-                        class="ellipsis dataset-name"
-                        :title="getDatasetById(datasetId)?.name"
-                      >
-                        {{ getDatasetById(datasetId)?.name }}
-                      </span>
+                      <div class="dataset-info">
+                        <div class="dataset-name ellipsis" :title="getDatasetById(datasetId)?.name">
+                          {{ getDatasetById(datasetId)?.name }}
+                        </div>
+                        <div class="dataset-meta">
+                          <el-text type="info" size="small">
+                            {{ getDatasetById(datasetId)?.document_count || 0 }} {{ $t('views.dataset.document_count') }}
+                          </el-text>
+                        </div>
+                      </div>
                     </div>
                     <el-button text @click="removeDataset(datasetId)" class="remove-btn">
                       <el-icon>
@@ -321,13 +324,62 @@
           </div>
         </div>
 
+        <!-- 搜索输入区域 -->
+        <div class="search-input-section mb-16">
+          <div class="search-input-container">
+            <div class="operate-textarea flex">
+              <el-input
+                ref="quickInputRef"
+                v-model="inputValue"
+                type="textarea"
+                :placeholder="$t('views.dataset.searchDataset.inputPlaceholder')"
+                :autosize="{ minRows: 2, maxRows: 6 }"
+                @keydown.enter="sendSearchHandle($event)"
+                class="search-textarea"
+              />
+              <div class="operate">
+                <el-button
+                  text
+                  class="sent-button"
+                  :disabled="isDisabledSearch || searchLoading"
+                  @click="sendSearchHandle"
+                >
+                  <img v-show="isDisabledSearch || searchLoading" src="@/assets/icon_send.svg" alt="" />
+                  <img
+                    v-show="!isDisabledSearch && !searchLoading"
+                    src="@/assets/icon_send_colorful.svg"
+                    alt=""
+                  />
+                </el-button>
+              </div>
+            </div>
+            <div class="search-actions mt-12">
+              <el-button icon="Setting" size="small" @click="settingChange('open')">
+                {{ $t('common.paramSetting') }}
+              </el-button>
+              <el-text type="info" size="small" class="ml-8">
+                已选择 {{ selectedDatasets.length }} {{ $t('views.dataset.searchDataset.datasetsUnit') }}
+              </el-text>
+            </div>
+          </div>
+        </div>
+
         <!-- 搜索结果区域 -->
         <LayoutContainer>
           <template #header>
-            <h4>
-              {{ $t('views.dataset.searchDataset.searchResult') }}
-              <el-text type="info" class="ml-4">{{ $t('views.dataset.searchDataset.searchResultTip') }}</el-text>
-            </h4>
+            <div class="flex-between">
+              <div>
+                <h4>
+                  {{ $t('views.dataset.searchDataset.searchResult') }}
+                  <el-text type="info" class="ml-8">{{ $t('views.dataset.searchDataset.searchResultTip') }}</el-text>
+                </h4>
+              </div>
+              <div v-if="searchResults.length > 0">
+                <el-text type="success" class="result-count">
+                  {{ $t('views.dataset.searchDataset.resultsCount', { count: searchResults.length }) }}
+                </el-text>
+              </div>
+            </div>
           </template>
           <div class="search-result__main p-16" v-loading="searchLoading">
             <div class="question-title" :style="{ visibility: questionTitle ? 'visible' : 'hidden' }">
@@ -355,51 +407,53 @@
                   style="padding-top: 160px"
                   :image-size="125"
                 />
-                <el-row v-else>
-                  <el-col
-                    :xs="24"
-                    :sm="12"
-                    :md="12"
-                    :lg="8"
-                    :xl="6"
+                <div v-else class="search-result-list">
+                  <div
                     v-for="(item, index) in searchResults"
                     :key="index"
-                    class="p-8"
+                    class="search-result-item"
+                    :class="item.is_active ? '' : 'disabled'"
+                    @click="editParagraph(item)"
                   >
-                    <CardBox
-                      shadow="hover"
-                      :title="item.title || '-'"
-                      :description="item.content"
-                      class="document-card layout-bg layout-bg cursor"
-                      :class="item.is_active ? '' : 'disabled'"
-                      :showIcon="false"
-                      @click="editParagraph(item)"
-                    >
-                      <template #icon>
-                        <AppAvatar class="mr-12 avatar-light" :size="22">
-                          {{ index + 1 + '' }}</AppAvatar
-                        >
-                      </template>
-                      <div class="active-button primary">{{ item.similarity?.toFixed(3) }}</div>
-                      <template #footer>
-                        <div class="footer-content flex-between">
-                          <el-text>
-                            <el-icon>
-                              <Document />
-                            </el-icon>
-                            {{ item?.document_name }}
-                          </el-text>
-                          <el-text class="dataset-source">
-                            <el-icon>
-                              <Collection />
-                            </el-icon>
-                            {{ getDatasetName(item.dataset_id) }}
-                          </el-text>
+                    <div class="result-item-header">
+                      <div class="result-index-wrapper">
+                        <AppAvatar class="result-index" :size="32">
+                          {{ index + 1 }}
+                        </AppAvatar>
+                      </div>
+                      <div class="result-content-wrapper">
+                        <div class="result-title-row">
+                          <h4 class="result-title">{{ item.title || '-' }}</h4>
+                          <div class="result-meta">
+                            <el-tag type="success" size="small" effect="light" class="similarity-tag">
+                              {{ (item.similarity * 100).toFixed(1) }}%
+                            </el-tag>
+                          </div>
                         </div>
-                      </template>
-                    </CardBox>
-                  </el-col>
-                </el-row>
+                        <div class="result-content">
+                          {{ item.content }}
+                        </div>
+                        <div class="result-footer">
+                          <div class="result-source-info">
+                            <el-text class="document-info" size="small">
+                              <el-icon>
+                                <Document />
+                              </el-icon>
+                              {{ item?.document_name }}
+                            </el-text>
+                            <el-divider direction="vertical" />
+                            <el-text class="dataset-source" size="small">
+                              <el-icon>
+                                <Collection />
+                              </el-icon>
+                              {{ getDatasetName(item.dataset_id) }}
+                            </el-text>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </el-scrollbar>
           </div>
@@ -407,14 +461,11 @@
           <ParagraphDialog ref="ParagraphDialogRef" :title="paragraphDialogTitle" @refresh="refreshParagraph" />
         </LayoutContainer>
 
-        <!-- 操作区域 -->
-        <div class="search-operate p-24 pt-0">
-          <el-popover :visible="popoverVisible" placement="right-end" :width="500" trigger="click">
-            <template #reference>
-              <el-button icon="Setting" class="mb-8" @click="settingChange('open')">{{
-                $t('common.paramSetting')
-              }}</el-button>
-            </template>
+        <!-- 参数设置弹窗 -->
+        <el-popover :visible="popoverVisible" placement="right-end" :width="500" trigger="click">
+          <template #reference>
+            <div style="display: none;"></div>
+          </template>
             <div class="mb-16">
               <div class="title mb-8">
                 {{ $t('views.application.applicationForm.dialog.selectSearchMode') }}
@@ -509,32 +560,6 @@
               }}</el-button>
             </div>
           </el-popover>
-          <div class="operate-textarea flex">
-            <el-input
-              ref="quickInputRef"
-              v-model="inputValue"
-              type="textarea"
-              :placeholder="$t('views.dataset.searchDataset.inputPlaceholder')"
-              :autosize="{ minRows: 1, maxRows: 8 }"
-              @keydown.enter="sendSearchHandle($event)"
-            />
-            <div class="operate">
-              <el-button
-                text
-                class="sent-button"
-                :disabled="isDisabledSearch || searchLoading"
-                @click="sendSearchHandle"
-              >
-                <img v-show="isDisabledSearch || searchLoading" src="@/assets/icon_send.svg" alt="" />
-                <img
-                  v-show="!isDisabledSearch && !searchLoading"
-                  src="@/assets/icon_send_colorful.svg"
-                  alt=""
-                />
-              </el-button>
-            </div>
-          </div>
-        </div>
 
         <!-- 添加知识库对话框 -->
         <AddDatasetDialog
@@ -1310,36 +1335,41 @@ onMounted(() => {
       }
     }
     
-    .relate-dataset-card {
-      border: 1px solid var(--app-layout-bg-color);
-      background-color: var(--app-layout-bg-color);
+    .dataset-tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
       
-      :deep(.el-card__body) {
-        padding: 12px;
-      }
-      
-      .dataset-info {
-        flex: 1;
-        min-width: 0;
+      .dataset-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 8px;
+        height: 24px;
+        border-radius: 4px;
+        background-color: var(--el-color-info-light-9);
+        border: 1px solid var(--el-color-info-light-7);
+        color: var(--el-color-info);
         
-        .dataset-name {
-          flex: 1;
-          min-width: 0;
-          display: inline-block;
-          max-width: 100%;
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
+        .dataset-tag-content {
+          display: flex;
+          align-items: center;
+          
+          .dataset-tag-avatar {
+            margin-right: 4px;
+          }
+          
+          .dataset-tag-name {
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
         }
-      }
-      
-      .remove-btn {
-        flex-shrink: 0;
-        padding: 4px;
-        margin-left: 8px;
       }
     }
   }
+
+  
 
   .search-result__main {
     .question-title {
@@ -1390,6 +1420,124 @@ onMounted(() => {
       .dataset-source {
         color: var(--el-color-primary);
         font-size: 12px;
+      }
+    }
+
+    .search-result-list {
+      .search-result-item {
+        background: #fff;
+        border: 1px solid var(--el-border-color-light);
+        border-radius: 8px;
+        margin-bottom: 16px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          border-color: var(--el-color-primary);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        &.disabled {
+          background: var(--app-layout-bg-color);
+          border-color: var(--el-border-color-lighter);
+          cursor: not-allowed;
+          
+          .result-title {
+            color: var(--app-border-color-dark);
+          }
+          
+          .result-content {
+            color: var(--app-border-color-dark);
+          }
+        }
+        
+        .result-item-header {
+          display: flex;
+          align-items: flex-start;
+          gap: 16px;
+          
+          .result-index-wrapper {
+            flex-shrink: 0;
+            
+            .result-index {
+              background-color: var(--el-color-primary-light-9);
+              color: var(--el-color-primary);
+              font-weight: 600;
+            }
+          }
+          
+          .result-content-wrapper {
+            flex: 1;
+            min-width: 0;
+            
+            .result-title-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 8px;
+              
+              .result-title {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
+                color: var(--app-text-color);
+                flex: 1;
+                margin-right: 16px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              }
+              
+              .result-meta {
+                flex-shrink: 0;
+                
+                .similarity-tag {
+                  font-weight: 500;
+                }
+              }
+            }
+            
+            .result-content {
+              color: var(--app-text-color-secondary);
+              line-height: 1.6;
+              margin-bottom: 12px;
+              display: -webkit-box;
+              -webkit-line-clamp: 3;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            
+            .result-footer {
+              .result-source-info {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                
+                .document-info {
+                  color: var(--app-text-color-secondary);
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                }
+                
+                .dataset-source {
+                  color: var(--el-color-primary);
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                }
+                
+                .el-divider--vertical {
+                  margin: 0 8px;
+                  height: 12px;
+                  border-color: var(--el-border-color-light);
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -1466,4 +1614,120 @@ onMounted(() => {
     }
   }
 }
+
+  .selected-dataset-card {
+    border: 1px solid var(--el-border-color-light);
+    transition: all 0.3s ease;
+    
+    &:hover {
+      border-color: var(--el-color-primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dataset-info {
+      flex: 1;
+      
+      .dataset-name {
+        font-weight: 500;
+        color: var(--app-text-color);
+        margin-bottom: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      
+      .dataset-meta {
+        .el-text {
+          font-size: 12px;
+        }
+      }
+    }
+    
+    .remove-btn {
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background-color: var(--el-color-danger-light-9);
+        color: var(--el-color-danger);
+      }
+    }
+  }
+  
+  .search-input-section {
+    .search-input-container {
+      background: #fff;
+      border: 1px solid var(--el-border-color-light);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+      transition: all 0.3s ease;
+      
+      &:has(.el-textarea__inner:focus) {
+        border-color: var(--el-color-primary);
+        box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+      }
+      
+      .operate-textarea {
+        .search-textarea {
+          :deep(.el-textarea__inner) {
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            background: transparent;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: none;
+            
+            &::placeholder {
+              color: var(--el-text-color-placeholder);
+            }
+          }
+        }
+        
+        .operate {
+          padding: 0 0 0 12px;
+          display: flex;
+          align-items: flex-end;
+          
+          .sent-button {
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            
+            &:hover:not(:disabled) {
+              background-color: var(--el-color-primary-light-9);
+            }
+            
+            img {
+              width: 20px;
+              height: 20px;
+              transition: transform 0.2s ease;
+            }
+            
+            &:hover:not(:disabled) img {
+              transform: scale(1.1);
+            }
+          }
+        }
+      }
+      
+      .search-actions {
+        border-top: 1px solid var(--el-border-color-lighter);
+        padding-top: 12px;
+        margin-top: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        
+        .el-button {
+          border-radius: 6px;
+        }
+      }
+    }
+  }
+  
+  .result-count {
+    font-weight: 500;
+    color: var(--el-color-success);
+  }
 </style>

@@ -51,14 +51,20 @@ export default {
     recycleBin: '回收站'
   },
   searchDataset: {
+    title: '知识库智能检索',
+    description: '按照步骤进行多知识库检索：先选择知识库，再输入检索内容，最后查看检索结果',
     selectDatasets: '选择知识库',
     selectDatasetsPlaceholder: '请先添加要检索的知识库',
+    inputContent: '输入检索内容',
     searchResult: '检索结果',
     searchResultTip: '在多个知识库中进行内容检索',
     emptyMessage1: '请输入内容开始多知识库检索',
     emptyMessage2: '没有找到相关内容',
-    inputPlaceholder: '请输入您要检索的内容',
-    noDatasetSelected: '请先选择至少一个知识库'
+    inputPlaceholder: '请输入您要检索的内容，支持关键词、问题等多种形式',
+    noDatasetSelected: '请先选择至少一个知识库',
+    clearAll: '清空所有',
+    resultsCount: '共找到 {count} 条结果',
+    datasetsUnit: '个知识库'
   },
   search: {
     placeholder: '输入关键词搜索知识库',
