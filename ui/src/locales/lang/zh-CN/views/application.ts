@@ -9,7 +9,8 @@ export default {
   simple: '简单配置',
   tabs: {
     organizationApplication: '机构应用',
-    sharedToMeApplication: '共享给我的应用'
+    sharedToMeApplication: '共享给我的应用',
+    recycleBin: '回收站'
   },
   chatLogs: '对话日志',
   chatLogsTab: {
@@ -268,5 +269,24 @@ export default {
     text: '针对用户提问调试段落匹配情况，保障回答效果。',
     emptyMessage1: '命中段落显示在这里',
     emptyMessage2: '没有命中的分段'
-  }
+  },
+  recycleBin: {
+    title: '回收站',
+    deleted: '已删除',
+    restore: '恢复',
+    permanentlyDelete: '永久删除',
+    emptyMessage: '回收站为空'
+  },
+  restore: {
+    confirmTitle: '恢复应用',
+    confirmMessage: '确定要恢复此应用吗？',
+    success: '应用恢复成功'
+  },
+  permanentlyDelete: {
+    confirmTitle: '永久删除应用',
+    confirmMessage: '确定要永久删除此应用吗？此操作不可撤销！',
+    success: '应用永久删除成功'
+  },
+  chatCount: '对话数',
+  tokenCount: 'Token数'
 }

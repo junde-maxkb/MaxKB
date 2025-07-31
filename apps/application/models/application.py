@@ -75,6 +75,9 @@ class Application(AppModelMixin):
     clean_time = models.IntegerField(verbose_name="清理时间", default=180)
     file_upload_enable = models.BooleanField(verbose_name="文件上传是否启用", default=False)
     file_upload_setting = models.JSONField(verbose_name="文件上传相关设置", default=dict)
+    # 软删除字段
+    is_deleted = models.BooleanField(default=False, verbose_name="是否已删除")
+    delete_time = models.DateTimeField(null=True, blank=True, verbose_name="删除时间")
 
     @staticmethod
     def get_default_model_prompt():

@@ -18,14 +18,20 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 from django.db.models import Q
 
-from application.serializers.application_serializers import ApplicationSerializer
+from application.serializers.application_serializers import (
+    ApplicationSerializer, RecycleBinQuery, Operate, Query, SharePageQuery, OrganizationPageQuery,
+    Create, Edit, ApplicationModel, IconOperate, Import, Embed, ApplicationKeySerializer,
+    AccessTokenSerializer, Authentication, HitTest, McpServers
+)
+
 from application.serializers.application_statistics_serializers import ApplicationStatisticsSerializer
 from application.swagger_api.application_api import ApplicationApi
 from application.swagger_api.application_statistics_api import ApplicationStatisticsApi
 from application.views.common import get_application_operation_object
 from common.auth import TokenAuth, has_permissions
-from common.constants.permission_constants import CompareConstants, PermissionConstants, Permission, Group, Operate, \
+from common.constants.permission_constants import CompareConstants, PermissionConstants, Permission, Group, \
     ViewPermission, RoleConstants
+from common.constants.permission_constants import Operate as PermissionOperate
 from common.exception.app_exception import AppAuthenticationFailed
 from common.log.log import log
 from common.response import result
@@ -50,7 +56,7 @@ class ApplicationStatistics(APIView):
                              )
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
@@ -74,7 +80,7 @@ class ApplicationStatistics(APIView):
                                  ApplicationStatisticsApi.CustomerCountTrend.get_response_body_api()))
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
@@ -99,7 +105,7 @@ class ApplicationStatistics(APIView):
                              )
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
@@ -124,7 +130,7 @@ class ApplicationStatistics(APIView):
                              )
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
@@ -152,7 +158,7 @@ class Application(APIView):
                              request_body=ApplicationApi.Operate.get_request_body_api())
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND), PermissionConstants.APPLICATION_EDIT,
             compare=CompareConstants.AND)
@@ -160,7 +166,7 @@ class Application(APIView):
              get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
         def put(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.IconOperate(
+                IconOperate(
                     data={'application_id': application_id, 'user_id': request.user.id,
                           'image': request.FILES.get('file')}).edit(request.data))
 
@@ -176,7 +182,7 @@ class Application(APIView):
         @has_permissions(RoleConstants.ADMIN, RoleConstants.USER)
         @log(menu='Application', operate="Import Application")
         def post(self, request: Request):
-            return result.success(ApplicationSerializer.Import(
+            return result.success(Import(
                 data={'user_id': request.user.id, 'file': request.FILES.get('file')}).import_())
 
     class Export(APIView):
@@ -187,12 +193,12 @@ class Application(APIView):
                              manual_parameters=ApplicationApi.Export.get_request_params_api(),
                              tags=[_("Application")]
                              )
-        @has_permissions(lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+        @has_permissions(lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                                         dynamic_tag=keywords.get('application_id')))
         @log(menu='Application', operate="Export Application",
              get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
         def get(self, request: Request, application_id: str):
-            return ApplicationSerializer.Operate(
+            return Operate(
                 data={'application_id': application_id, 'user_id': request.user.id}).export()
 
     class Embed(APIView):
@@ -202,7 +208,7 @@ class Application(APIView):
                              tags=[_("Application")],
                              manual_parameters=ApplicationApi.ApiKey.get_request_params_api())
         def get(self, request: Request):
-            return ApplicationSerializer.Embed(
+            return Embed(
                 data={'protocol': request.query_params.get('protocol'), 'token': request.query_params.get('token'),
                       'host': request.query_params.get('host'), }).get_embed(params=request.query_params)
 
@@ -216,12 +222,12 @@ class Application(APIView):
                              manual_parameters=ApplicationApi.Model.get_request_params_api())
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.Operate(
+                Operate(
                     data={'application_id': application_id,
                           'user_id': request.user.id}).list_model(request.query_params.get('model_type')))
 
@@ -234,12 +240,12 @@ class Application(APIView):
                              tags=[_("Application")])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str, model_id: str):
             return result.success(
-                ApplicationSerializer.Operate(
+                Operate(
                     data={'application_id': application_id,
                           'user_id': request.user.id}).get_model_params_form(model_id))
 
@@ -252,12 +258,12 @@ class Application(APIView):
                              tags=[_("Application")])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.Operate(
+                Operate(
                     data={'application_id': application_id,
                           'user_id': request.user.id}).list_function_lib())
 
@@ -271,12 +277,12 @@ class Application(APIView):
                                  )
             @has_permissions(ViewPermission(
                 [RoleConstants.ADMIN, RoleConstants.USER],
-                [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+                [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                                 dynamic_tag=keywords.get('application_id'))],
                 compare=CompareConstants.AND))
             def get(self, request: Request, application_id: str, function_lib_id: str):
                 return result.success(
-                    ApplicationSerializer.Operate(
+                    Operate(
                         data={'application_id': application_id,
                               'user_id': request.user.id}).get_function_lib(function_lib_id))
 
@@ -289,12 +295,12 @@ class Application(APIView):
                              tags=[_("Application/Chat")])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.Operate(
+                Operate(
                     data={'application_id': application_id,
                           'user_id': request.user.id}).application_list())
 
@@ -308,12 +314,12 @@ class Application(APIView):
                                  )
             @has_permissions(ViewPermission(
                 [RoleConstants.ADMIN, RoleConstants.USER],
-                [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+                [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                                 dynamic_tag=keywords.get('application_id'))],
                 compare=CompareConstants.AND))
             def get(self, request: Request, application_id: str, app_id: str):
                 return result.success(
-                    ApplicationSerializer.Operate(
+                    Operate(
                         data={'application_id': application_id,
                               'user_id': request.user.id}).get_application(app_id))
 
@@ -326,7 +332,7 @@ class Application(APIView):
                              tags=[_("Application/Chat")])
         def get(self, request: Request):
             if 'application_id' in request.auth.keywords:
-                return result.success(ApplicationSerializer.Operate(
+                return result.success(Operate(
                     data={'application_id': request.auth.keywords.get('application_id'),
                           'user_id': request.user.id}).profile())
             raise AppAuthenticationFailed(401, "身份异常")
@@ -341,14 +347,14 @@ class Application(APIView):
                              manual_parameters=ApplicationApi.ApiKey.get_request_params_api())
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         @log(menu='Application', operate="Add ApiKey",
              get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
         def post(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.ApplicationKeySerializer(
+                ApplicationKeySerializer(
                     data={'application_id': application_id, 'user_id': request.user.id}).generate())
 
         @action(methods=['GET'], detail=False)
@@ -359,11 +365,11 @@ class Application(APIView):
                              )
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
-            return result.success(ApplicationSerializer.ApplicationKeySerializer(
+            return result.success(ApplicationKeySerializer(
                 data={'application_id': application_id, 'user_id': request.user.id}).list())
 
         class Operate(APIView):
@@ -377,7 +383,7 @@ class Application(APIView):
                                  request_body=ApplicationApi.ApiKey.Operate.get_request_body_api())
             @has_permissions(ViewPermission(
                 [RoleConstants.ADMIN, RoleConstants.USER],
-                [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+                [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                                 dynamic_tag=keywords.get('application_id'))],
                 compare=CompareConstants.AND), PermissionConstants.APPLICATION_EDIT,
                 compare=CompareConstants.AND)
@@ -385,7 +391,7 @@ class Application(APIView):
                  get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
             def put(self, request: Request, application_id: str, api_key_id: str):
                 return result.success(
-                    ApplicationSerializer.ApplicationKeySerializer.Operate(
+                    ApplicationKeySerializer.Operate(
                         data={'application_id': application_id, 'user_id': request.user.id,
                               'api_key_id': api_key_id}).edit(request.data))
 
@@ -396,7 +402,7 @@ class Application(APIView):
                                  manual_parameters=ApplicationApi.ApiKey.Operate.get_request_params_api())
             @has_permissions(ViewPermission(
                 [RoleConstants.ADMIN, RoleConstants.USER],
-                [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+                [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                                 dynamic_tag=keywords.get('application_id'))],
                 compare=CompareConstants.AND), PermissionConstants.APPLICATION_DELETE,
                 compare=CompareConstants.AND)
@@ -404,7 +410,7 @@ class Application(APIView):
                  get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
             def delete(self, request: Request, application_id: str, api_key_id: str):
                 return result.success(
-                    ApplicationSerializer.ApplicationKeySerializer.Operate(
+                    ApplicationKeySerializer.Operate(
                         data={'application_id': application_id, 'user_id': request.user.id,
                               'api_key_id': api_key_id}).delete())
 
@@ -419,14 +425,14 @@ class Application(APIView):
                              request_body=ApplicationApi.AccessToken.get_request_body_api())
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         @log(menu='Application', operate="Modify Application AccessToken",
              get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
         def put(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.AccessTokenSerializer(data={'application_id': application_id}).edit(
+                AccessTokenSerializer(data={'application_id': application_id}).edit(
                     request.data))
 
         @action(methods=['GET'], detail=False)
@@ -437,12 +443,12 @@ class Application(APIView):
                              )
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.AccessTokenSerializer(data={'application_id': application_id}).one())
+                AccessTokenSerializer(data={'application_id': application_id}).one())
 
     class Authentication(APIView):
         @action(methods=['OPTIONS'], detail=False)
@@ -460,7 +466,7 @@ class Application(APIView):
                              security=[])
         def post(self, request: Request):
             return result.success(
-                ApplicationSerializer.Authentication(data={'access_token': request.data.get("access_token"),
+                Authentication(data={'access_token': request.data.get("access_token"),
                                                            'authentication_value': request.data.get(
                                                                'authentication_value')}).auth(
                     request),
@@ -478,7 +484,7 @@ class Application(APIView):
     @log(menu='Application', operate="Create an application",
          get_operation_object=lambda r, k: {'name': r.data.get('name')})
     def post(self, request: Request):
-        return result.success(ApplicationSerializer.Create(data={'user_id': request.user.id}).insert(request.data))
+        return result.success(Create(data={'user_id': request.user.id}).insert(request.data))
 
     @action(methods=['GET'], detail=False)
     @swagger_auto_schema(operation_summary=_("Get the application list"),
@@ -489,7 +495,7 @@ class Application(APIView):
     @has_permissions(PermissionConstants.APPLICATION_READ, compare=CompareConstants.AND)
     def get(self, request: Request):
         return result.success(
-            ApplicationSerializer.Query(
+            Query(
                 data={**query_params_to_single_dict(request.query_params), 'user_id': request.user.id}).list())
 
     class HitTest(APIView):
@@ -503,12 +509,12 @@ class Application(APIView):
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER, RoleConstants.APPLICATION_ACCESS_TOKEN,
              RoleConstants.APPLICATION_KEY],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.HitTest(data={'id': application_id, 'user_id': request.user.id,
+                HitTest(data={'id': application_id, 'user_id': request.user.id,
                                                     "query_text": request.query_params.get("query_text"),
                                                     "top_number": request.query_params.get("top_number"),
                                                     'similarity': request.query_params.get('similarity'),
@@ -528,14 +534,14 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         @log(menu='Application', operate="Publishing an application",
              get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
         def put(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.Operate(
+                Operate(
                     data={'application_id': application_id, 'user_id': request.user.id}).publish(request.data))
 
     class Operate(APIView):
@@ -549,15 +555,15 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND),
-            lambda r, k: Permission(group=Group.APPLICATION, operate=Operate.DELETE,
+            lambda r, k: Permission(group=Group.APPLICATION, operate=PermissionOperate.DELETE,
                                     dynamic_tag=k.get('application_id')), compare=CompareConstants.AND)
         @log(menu='Application', operate="Deleting application",
              get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
         def delete(self, request: Request, application_id: str):
-            return result.success(ApplicationSerializer.Operate(
+            return result.success(Operate(
                 data={'application_id': application_id, 'user_id': request.user.id}).delete(
                 with_valid=True))
 
@@ -570,14 +576,14 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         @log(menu='Application', operate="Modify the application",
              get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
         def put(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.Operate(
+                Operate(
                     data={'application_id': application_id, 'user_id': request.user.id}).edit(
                     request.data))
 
@@ -590,11 +596,11 @@ class Application(APIView):
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER, RoleConstants.APPLICATION_ACCESS_TOKEN,
              RoleConstants.APPLICATION_KEY],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.USE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.USE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
-            return result.success(ApplicationSerializer.Operate(
+            return result.success(Operate(
                 data={'application_id': application_id, 'user_id': request.user.id}).one())
 
     class ListApplicationDataSet(APIView):
@@ -609,12 +615,12 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission([RoleConstants.ADMIN, RoleConstants.USER],
                                         [lambda r, keywords: Permission(group=Group.APPLICATION,
-                                                                        operate=Operate.USE,
+                                                                        operate=PermissionOperate.USE,
                                                                         dynamic_tag=keywords.get(
                                                                             'application_id'))],
                                         compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
-            return result.success(ApplicationSerializer.Operate(
+            return result.success(Operate(
                 data={'application_id': application_id, 'user_id': request.user.id}).list_dataset())
 
     class Page(APIView):
@@ -630,7 +636,7 @@ class Application(APIView):
         @has_permissions(PermissionConstants.APPLICATION_READ, compare=CompareConstants.AND)
         def get(self, request: Request, current_page: int, page_size: int):
             return result.success(
-                ApplicationSerializer.Query(
+                Query(
                     data={**query_params_to_single_dict(request.query_params), 'user_id': request.user.id}).page(
                     current_page, page_size))
 
@@ -641,13 +647,13 @@ class Application(APIView):
         @has_permissions(
             ViewPermission([RoleConstants.ADMIN, RoleConstants.USER, RoleConstants.APPLICATION_ACCESS_TOKEN],
                            [lambda r, keywords: Permission(group=Group.APPLICATION,
-                                                           operate=Operate.USE,
+                                                           operate=PermissionOperate.USE,
                                                            dynamic_tag=keywords.get(
                                                                'application_id'))],
                            compare=CompareConstants.AND))
         def post(self, request: Request, application_id: str):
             return result.success(
-                ApplicationSerializer.Operate(data={'application_id': application_id, 'user_id': request.user.id})
+                Operate(data={'application_id': application_id, 'user_id': request.user.id})
                 .speech_to_text(request.FILES.getlist('file')[0]))
 
     class TextToSpeech(APIView):
@@ -663,12 +669,12 @@ class Application(APIView):
         @has_permissions(
             ViewPermission([RoleConstants.ADMIN, RoleConstants.USER, RoleConstants.APPLICATION_ACCESS_TOKEN],
                            [lambda r, keywords: Permission(group=Group.APPLICATION,
-                                                           operate=Operate.USE,
+                                                           operate=PermissionOperate.USE,
                                                            dynamic_tag=keywords.get(
                                                                'application_id'))],
                            compare=CompareConstants.AND))
         def post(self, request: Request, application_id: str):
-            byte_data = ApplicationSerializer.Operate(
+            byte_data = Operate(
                 data={'application_id': application_id, 'user_id': request.user.id}).text_to_speech(
                 request.data.get('text'))
             return HttpResponse(byte_data, status=200, headers={'Content-Type': 'audio/mp3',
@@ -681,14 +687,14 @@ class Application(APIView):
         @has_permissions(
             ViewPermission([RoleConstants.ADMIN, RoleConstants.USER, RoleConstants.APPLICATION_ACCESS_TOKEN],
                            [lambda r, keywords: Permission(group=Group.APPLICATION,
-                                                           operate=Operate.USE,
+                                                           operate=PermissionOperate.USE,
                                                            dynamic_tag=keywords.get(
                                                                'application_id'))],
                            compare=CompareConstants.AND))
         @log(menu='Application', operate="trial listening",
              get_operation_object=lambda r, k: get_application_operation_object(k.get('application_id')))
         def post(self, request: Request, application_id: str):
-            byte_data = ApplicationSerializer.Operate(
+            byte_data = Operate(
                 data={'application_id': application_id, 'user_id': request.user.id}).play_demo_text(request.data)
             return HttpResponse(byte_data, status=200, headers={'Content-Type': 'audio/mp3',
                                                                 'Content-Disposition': 'attachment; filename="abc.mp3"'})
@@ -699,7 +705,7 @@ class Application(APIView):
         @action(methods=['GET'], detail=False)
         @has_permissions(PermissionConstants.APPLICATION_READ, compare=CompareConstants.AND)
         def get(self, request: Request):
-            return result.success(ApplicationSerializer.McpServers(
+            return result.success(McpServers(
                 data={'mcp_servers': request.query_params.get('mcp_servers')}).get_mcp_servers())
 
     class ApplicationMembers(APIView):
@@ -729,7 +735,7 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
@@ -812,7 +818,7 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         def get(self, request: Request, application_id: str):
@@ -875,7 +881,7 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         @log(menu='Application', operate="更新应用分享权限",
@@ -972,7 +978,7 @@ class Application(APIView):
             }
             
             # 3. 使用Query获取应用列表
-            d = ApplicationSerializer.SharePageQuery(data=query_params)
+            d = SharePageQuery(data=query_params)
             d.is_valid()
             result_data = d.page(current_page, page_size)
             
@@ -1068,7 +1074,7 @@ class Application(APIView):
             print(f"Debug - 查询参数: {query_params}")
             
             # 使用OrganizationPageQuery获取应用列表
-            d = ApplicationSerializer.OrganizationPageQuery(data=query_params)
+            d = OrganizationPageQuery(data=query_params)
             d.is_valid()
             result_data = d.page(current_page, page_size)
             print(f"Debug - 查询结果数量: {len(result_data['list'])}")
@@ -1101,7 +1107,7 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         @log(menu='Application', operate="将应用添加到机构应用",
@@ -1134,7 +1140,7 @@ class Application(APIView):
                              tags=[_('Application')])
         @has_permissions(ViewPermission(
             [RoleConstants.ADMIN, RoleConstants.USER],
-            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=Operate.MANAGE,
+            [lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
                                             dynamic_tag=keywords.get('application_id'))],
             compare=CompareConstants.AND))
         @log(menu='Application', operate="将应用从机构应用中移除",
@@ -1156,3 +1162,79 @@ class Application(APIView):
             org_application.delete()
             
             return result.success({'message': '成功将应用从机构应用中移除'})
+
+    class RecycleBinPage(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_('获取回收站应用分页列表'),
+                             operation_id=_('获取回收站应用分页列表'),
+                             manual_parameters=RecycleBinQuery.get_request_params_api(),
+                             responses=result.get_page_api_response(RecycleBinQuery.get_response_body_api()),
+                             tags=[_('Application')]
+                             )
+        @has_permissions(PermissionConstants.APPLICATION_READ, compare=CompareConstants.AND)
+        def get(self, request: Request, current_page, page_size):
+            from users.models import User
+            
+            # 构建查询参数（去掉user_id，显示所有已删除的应用）
+            query_params = {
+                'name': request.query_params.get('name', None),
+                'desc': request.query_params.get("desc", None),
+                'user_id': ''  # 空值，不再按用户过滤
+            }
+            
+            # 使用RecycleBinQuery获取应用列表
+            d = RecycleBinQuery(data=query_params)
+            d.is_valid()
+            result_data = d.page(current_page, page_size)
+            
+            # 获取所有应用的创建人信息
+            creator_ids = [item['user_id'] for item in result_data['list']]
+            creators = {str(user.id): user.username for user in User.objects.filter(id__in=creator_ids)}
+            
+            # 为每个应用添加创建人信息
+            for item in result_data['list']:
+                item['creator_name'] = creators.get(str(item['user_id']), '')
+            
+            # 修改返回数据结构
+            return result.success({
+                'records': result_data['list'],
+                'total': result_data['total'],
+                'page': result_data['page'],
+                'page_size': result_data['page_size']
+            })
+
+    class Restore(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["PUT"], detail=False)
+        @swagger_auto_schema(operation_summary=_('恢复已删除的应用'),
+                             operation_id=_('恢复已删除的应用'),
+                             manual_parameters=ApplicationApi.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Application')])
+        @has_permissions(lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
+                                                        dynamic_tag=keywords.get('application_id')))
+        @log(menu='Application', operate="恢复已删除的应用",
+             get_operation_object=lambda r, keywords: get_application_operation_object(keywords.get('application_id')))
+        def put(self, request: Request, application_id: str):
+            operate = Operate(data={'application_id': application_id, 'user_id': request.user.id})
+            return result.success(operate.restore())
+
+    class PermanentlyDelete(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=["DELETE"], detail=False)
+        @swagger_auto_schema(operation_summary=_('永久删除应用'),
+                             operation_id=_('永久删除应用'),
+                             manual_parameters=ApplicationApi.Operate.get_request_params_api(),
+                             responses=result.get_default_response(),
+                             tags=[_('Application')])
+        @has_permissions(lambda r, keywords: Permission(group=Group.APPLICATION, operate=PermissionOperate.MANAGE,
+                                                        dynamic_tag=keywords.get('application_id')))
+        @log(menu='Application', operate="永久删除应用",
+             get_operation_object=lambda r, keywords: get_application_operation_object(keywords.get('application_id')))
+        def delete(self, request: Request, application_id: str):
+            operate = Operate(data={'application_id': application_id, 'user_id': request.user.id})
+            return result.success(operate.permanently_delete())

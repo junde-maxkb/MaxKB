@@ -22,6 +22,80 @@ const useApplicationStore = defineStore({
           })
       })
     },
+    async asyncGetAllAccessibleApplications(loading?: Ref<boolean>) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          const userStore = useUserStore()
+          const isAdmin = userStore.userInfo?.role === 'ADMIN'
+          
+          if (isAdmin) {
+            // 管理员获取系统中所有应用
+            const allApplicationsRes = await applicationApi.getApplication({ current_page: 1, page_size: 10000 }, {}, loading)
+            const allApplications: any[] = []
+            
+            if (allApplicationsRes?.data?.records) {
+              allApplicationsRes.data.records.forEach((item: any) => {
+                allApplications.push({
+                  ...item,
+                  source_type: 'admin_all',
+                  permission: 'MANAGE' // 管理员对所有应用都有管理权限
+                })
+              })
+            }
+            
+            // 去重（以ID为准）
+            const uniqueApplications = allApplications.filter((item, index, self) => 
+              index === self.findIndex(d => d.id === item.id)
+            )
+            
+            resolve({ data: uniqueApplications })
+          } else {
+            // 普通用户获取有权限的应用
+            const promises = [
+              // 我的应用
+              applicationApi.getAllAppilcation(),
+              // 共享给我的应用
+              applicationApi.getShareToMePage({ current_page: 1, page_size: 1000 }, {}, loading)
+            ]
+            
+            const results = await Promise.all(promises)
+            const allApplications: any[] = []
+            
+            // 处理我的应用
+            if (results[0]?.data) {
+              results[0].data.forEach((item: any) => {
+                allApplications.push({
+                  ...item,
+                  source_type: 'my'
+                })
+              })
+            }
+            
+            // 处理共享给我的应用（只保留有写入或管理权限的）
+            if (results[1]?.data?.records) {
+              results[1].data.records.forEach((item: any) => {
+                // 只有非只读权限的共享应用才能进入内页
+                if (item.permission !== 'read') {
+                  allApplications.push({
+                    ...item,
+                    source_type: 'shared'
+                  })
+                }
+              })
+            }
+            
+            // 去重（以ID为准）
+            const uniqueApplications = allApplications.filter((item, index, self) => 
+              index === self.findIndex(d => d.id === item.id)
+            )
+            
+            resolve({ data: uniqueApplications })
+          }
+        } catch (error) {
+          reject(error)
+        }
+      })
+    },
 
     async asyncGetApplicationDetail(id: string, loading?: Ref<boolean>) {
       return new Promise((resolve, reject) => {

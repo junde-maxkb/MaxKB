@@ -10,7 +10,7 @@
       <TopMenu></TopMenu>
     </div>
     <div class="flex-center avatar">
-      <el-button
+      <!-- <el-button
         v-if="!user.isEnterprise()"
         link
         type="primary"
@@ -20,7 +20,7 @@
         <AppIcon iconName="app-pricing" class="mr-8" style="font-size: 20px"></AppIcon>
 
         {{ $t('common.professional') }}
-      </el-button>
+      </el-button> -->
       <el-tooltip
         effect="dark"
         :content="$t('layout.github')"

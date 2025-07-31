@@ -100,5 +100,9 @@ urlpatterns = [
     path('application/<str:application_id>/add_to_organization', views.Application.AddToOrganization.as_view(), name="add_to_organization"),
     path('application/<str:application_id>/remove_from_organization', views.Application.RemoveFromOrganization.as_view(), name="remove_from_organization"),
     # 全局对话日志搜索
-    path('application/chat_records/search', GlobalChatSearchView.as_view(), name='global_chat_search')
+    path('application/chat_records/search', GlobalChatSearchView.as_view(), name='global_chat_search'),
+    # 应用回收站相关接口
+    path('application/recycle_bin/<int:current_page>/<int:page_size>', views.Application.RecycleBinPage.as_view(), name="recycle_bin_page"),
+    path('application/<str:application_id>/restore', views.Application.Restore.as_view(), name="restore_application"),
+    path('application/<str:application_id>/permanently', views.Application.PermanentlyDelete.as_view(), name="permanently_delete_application"),
 ]

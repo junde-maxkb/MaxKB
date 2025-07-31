@@ -11,7 +11,7 @@ FROM (
     UNION
     SELECT *
     FROM application
-    WHERE application."id" IN ( 
+    WHERE application.is_deleted = false AND application."id" IN ( 
         SELECT team_member_permission.target 
         FROM team_member team_member 
         LEFT JOIN team_member_permission team_member_permission ON team_member_permission.member_id = team_member."id" 

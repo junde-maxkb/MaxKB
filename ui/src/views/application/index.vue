@@ -11,10 +11,16 @@
       <el-tab-pane :label="$t('views.application.chatLogsTab.title')" name="CHAT_LOGS">
         <ChatLogSearch />
       </el-tab-pane>
+      <!-- 回收站标签页 - 只有管理员能看到 -->
+      <el-tab-pane 
+        v-if="user.userInfo?.role === 'ADMIN'" 
+        :label="$t('views.application.tabs.recycleBin')" 
+        name="RECYCLE_BIN"
+      ></el-tab-pane>
     </el-tabs>
 
-    <!-- 应用列表页面 - 只在非对话日志标签页显示 -->
-    <div v-if="activeTab !== 'CHAT_LOGS'">
+    <!-- 应用列表页面 - 只在非对话日志和回收站标签页显示 -->
+    <div v-if="activeTab !== 'CHAT_LOGS' && activeTab !== 'RECYCLE_BIN'">
       <div class="flex-between mb-16">
         <h4></h4>
         <div class="flex-between">
@@ -242,12 +248,120 @@
         </InfiniteScroll>
       </div>
     </div>
+
+    <!-- 回收站功能 -->
+    <template v-else-if="activeTab === 'RECYCLE_BIN'">
+      <div class="recycle-bin-container">
+        <div class="flex-between mb-16">
+          <h4>{{ $t('views.application.recycleBin.title') }}</h4>
+          <div class="flex-between">
+            <el-input
+              v-model="recycleBinSearchValue"
+              @change="searchRecycleBinHandle"
+              :placeholder="$t('views.application.searchBar.placeholder')"
+              prefix-icon="Search"
+              class="w-240"
+              style="max-width: 240px"
+              clearable
+            />
+          </div>
+        </div>
+        <div v-loading.fullscreen.lock="loading">
+          <el-row :gutter="15">
+            <template v-for="(item, index) in recycleBinList" :key="index">
+              <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="6" class="mb-16">
+                <CardBox
+                  :title="item.name"
+                  :description="item.desc"
+                  class="recycle-application-card"
+                >
+                  <template #icon>
+                    <AppAvatar
+                      v-if="isAppIcon(item.icon)"
+                      :name="item.name"
+                      pinyinColor
+                      :size="32"
+                      shape="square"
+                      class="mr-8"
+                    >
+                      <AppIcon
+                        :iconName="`app-${item.icon}`"
+                        style="font-size: 18px"
+                      ></AppIcon>
+                    </AppAvatar>
+                    <AppAvatar
+                      v-else
+                      :name="item.name"
+                      pinyinColor
+                      :size="32"
+                      shape="square"
+                      class="mr-8"
+                    />
+                  </template>
+                  <template #subTitle>
+                    <el-text class="color-secondary" size="small">
+                      <auto-tooltip :content="item.creator_name || item.user?.username">
+                        {{ $t('common.creator') }}: {{ item.creator_name || item.user?.username }}
+                      </auto-tooltip>
+                    </el-text>
+                  </template>
+                  <div class="delete-button">
+                    <el-tag class="red-tag" style="height: 22px">
+                      {{ $t('views.application.recycleBin.deleted') }}
+                    </el-tag>
+                  </div>
+
+                  <template #footer>
+                    <div class="footer-content flex-between">
+                      <div>
+                        <span class="bold">{{ item?.chat_record_count || 0 }}</span>
+                        {{ $t('views.application.chatCount') }}<el-divider direction="vertical" />
+                        <span class="bold">{{ item?.tokens_num || 0 }}</span>
+                        {{ $t('views.application.tokenCount') }}<el-divider direction="vertical" />
+                        <span class="text-xs text-gray-500">{{ formatDeleteTime(item.delete_time) }}</span>
+                      </div>
+                      <div @click.stop>
+                        <el-dropdown trigger="click">
+                          <el-button text @click.stop>
+                            <el-icon><MoreFilled /></el-icon>
+                          </el-button>
+                          <template #dropdown>
+                            <el-dropdown-menu>
+                              <el-dropdown-item 
+                                icon="RefreshRight"
+                                @click.stop="restoreApplication(item)">{{
+                                $t('views.application.recycleBin.restore')
+                              }}</el-dropdown-item>
+                              <el-dropdown-item 
+                                icon="Delete"
+                                @click.stop="permanentlyDeleteApplication(item)">{{
+                                $t('views.application.recycleBin.permanentlyDelete')
+                              }}</el-dropdown-item>
+                            </el-dropdown-menu>
+                          </template>
+                        </el-dropdown>
+                      </div>
+                    </div>
+                  </template>
+                </CardBox>
+              </el-col>
+            </template>
+          </el-row>
+          <el-empty 
+            v-if="recycleBinList.length === 0"
+            :description="$t('views.application.recycleBin.emptyMessage')"
+            :image-size="125"
+          />
+        </div>
+      </div>
+    </template>
+
     <CreateApplicationDialog ref="CreateApplicationDialogRef" />
     <CopyApplicationDialog ref="CopyApplicationDialogRef" />
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, reactive, computed } from 'vue'
+import { ref, onMounted, reactive, computed, watch } from 'vue'
 import applicationApi from '@/api/application'
 import CreateApplicationDialog from './component/CreateApplicationDialog.vue'
 import CopyApplicationDialog from './component/CopyApplicationDialog.vue'
@@ -304,6 +418,15 @@ const sortOptions = [
 
 // 添加计算属性来避免重复的响应式依赖
 const isAdmin = computed(() => user.userInfo?.role === 'ADMIN')
+
+// 回收站相关变量
+const recycleBinSearchValue = ref('')
+const recycleBinList = ref<any[]>([])
+const recycleBinPaginationConfig = reactive({
+  current_page: 1,
+  page_size: 30,
+  total: 0
+})
 const canShowAdminActions = computed(() => 
   !(activeTab.value === 'SHARED' && sharedType.value === 'ORGANIZATION' && !isAdmin.value)
 )
@@ -456,10 +579,19 @@ function deleteApplication(row: any) {
 function handleTabChange() {
   selectUserId.value = 'all'
   searchValue.value = ''
-  applicationList.value = []
-  paginationConfig.current_page = 1
-  paginationConfig.total = 0
-  getList()
+  
+  if (activeTab.value === 'RECYCLE_BIN') {
+    // 如果是回收站标签页，加载回收站数据
+    recycleBinPaginationConfig.total = 0
+    recycleBinPaginationConfig.current_page = 1
+    recycleBinList.value = []
+    getRecycleBinList()
+  } else {
+    applicationList.value = []
+    paginationConfig.current_page = 1
+    paginationConfig.total = 0
+    getList()
+  }
 }
 
 function sharedTabChangeHandle() {
@@ -609,6 +741,84 @@ function removeFromOrganization(row: any) {
     .catch(() => {})
 }
 
+// 回收站相关函数
+function getRecycleBinList() {
+  const params = {
+    ...(recycleBinSearchValue.value && { name: recycleBinSearchValue.value })
+  }
+  
+  applicationApi.getRecycleBinApplication(recycleBinPaginationConfig, params, loading).then((res: any) => {
+    if (res.code === 200) {
+      recycleBinList.value = res.data.records || []
+      recycleBinPaginationConfig.total = res.data.total || 0
+    }
+  })
+}
+
+function searchRecycleBinHandle() {
+  recycleBinPaginationConfig.current_page = 1
+  getRecycleBinList()
+}
+
+function formatDeleteTime(deleteTime: string) {
+  if (!deleteTime) return ''
+  const deleteDate = new Date(deleteTime)
+  const now = new Date()
+  const diffTime = Math.abs(now.getTime() - deleteDate.getTime())
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  
+  if (diffDays === 1) {
+    return '1天前'
+  } else if (diffDays < 7) {
+    return `${diffDays}天前`
+  } else {
+    const year = deleteDate.getFullYear()
+    const month = String(deleteDate.getMonth() + 1).padStart(2, '0')
+    const day = String(deleteDate.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+}
+
+function restoreApplication(row: any) {
+  MsgConfirm(
+    t('views.application.restore.confirmTitle'),
+    t('views.application.restore.confirmMessage'),
+    {
+      confirmButtonText: t('common.confirm'),
+      confirmButtonClass: 'primary'
+    }
+  )
+    .then(() => {
+      applicationApi.restoreApplication(row.id, loading).then((res: any) => {
+        if (res.code === 200) {
+          MsgSuccess(t('views.application.restore.success'))
+          getRecycleBinList()
+        }
+      })
+    })
+    .catch(() => {})
+}
+
+function permanentlyDeleteApplication(row: any) {
+  MsgConfirm(
+    t('views.application.permanentlyDelete.confirmTitle'),
+    t('views.application.permanentlyDelete.confirmMessage'),
+    {
+      confirmButtonText: t('common.confirm'),
+      confirmButtonClass: 'danger'
+    }
+  )
+    .then(() => {
+      applicationApi.permanentlyDeleteApplication(row.id, loading).then((res: any) => {
+        if (res.code === 200) {
+          MsgSuccess(t('views.application.permanentlyDelete.success'))
+          getRecycleBinList()
+        }
+      })
+    })
+    .catch(() => {})
+}
+
 onMounted(() => {
   getUserList()
 })
@@ -691,5 +901,24 @@ onMounted(() => {
   background-color: var(--el-color-primary-light-9);
   border-color: var(--el-color-primary-light-7);
   color: var(--el-color-primary);
+}
+
+// 回收站功能样式
+.recycle-bin-container {
+  .recycle-application-card {
+    opacity: 0.8;
+    filter: grayscale(0.3);
+    
+    &:hover {
+      opacity: 1;
+      filter: grayscale(0);
+    }
+  }
+}
+
+:deep(.red-tag) {
+  background-color: var(--el-color-danger-light-9);
+  border-color: var(--el-color-danger-light-7);
+  color: var(--el-color-danger);
 }
 </style>

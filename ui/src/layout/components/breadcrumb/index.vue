@@ -203,7 +203,7 @@ function changeMenu(id: string) {
 function getDataset() {
   loading.value = true
   dataset
-    .asyncGetAllDataset()
+    .asyncGetAllAccessibleDatasets(loading)
     .then((res: any) => {
       list.value = res.data
       common.saveBreadcrumb(list.value)
@@ -216,7 +216,7 @@ function getDataset() {
 function getApplication() {
   loading.value = true
   application
-    .asyncGetAllApplication()
+    .asyncGetAllAccessibleApplications(loading)
     .then((res: any) => {
       list.value = res.data
       common.saveBreadcrumb(list.value)

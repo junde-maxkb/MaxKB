@@ -198,7 +198,7 @@ async function removePermission(row: any) {
     await applicationApi.putMemberPermission(id.value.trim(), {
       user_id: row.id.trim(),
       permission: 'NONE',
-      share_with_type: row.type
+      share_with_type: row.type as 'USER' | 'TEAM'
     })
     MsgSuccess(t('common.deleteSuccess'))
     getMemberList()
@@ -248,7 +248,7 @@ async function onSave() {
       const params = {
         user_id: member.id,
         permission: member.permission,
-        share_with_type: member.type === 'TEAM' ? 'TEAM' : 'USER'
+        share_with_type: (member.type === 'TEAM' ? 'TEAM' : 'USER') as 'USER' | 'TEAM'
       }
       await applicationApi.putMemberPermission(id.value, params)
     }
@@ -311,9 +311,8 @@ function addUser(item: any) {
   searchQuery.value = ''
 }
 
-function removeUser(user: any) {
-  memberList.value = memberList.value.filter(u => u.id !== user.id)
-}
+// 注释：removeUser 方法已删除，因为它未被使用且可能造成混淆
+// 所有移除操作都通过 removePermission 方法处理，确保立即同步到服务器
 </script>
 
 <style lang="scss" scoped>

@@ -68,6 +68,50 @@ const delApplication: (
 }
 
 /**
+ * 获取回收站应用分页列表
+ * @param page 分页参数
+ * @param param 查询参数
+ * @param loading 加载状态
+ * @returns Promise<Result<any>>
+ */
+const getRecycleBinApplication: (
+  page: pageRequest,
+  param: {
+    name?: string;
+    desc?: string;
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (page, param, loading) => {
+  return get(`${prefix}/recycle_bin/${page.current_page}/${page.page_size}`, param, loading)
+}
+
+/**
+ * 恢复已删除的应用
+ * @param application_id
+ * @param loading
+ * @returns
+ */
+const restoreApplication: (
+  application_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (application_id, loading) => {
+  return put(`${prefix}/${application_id}/restore`, {}, undefined, loading)
+}
+
+/**
+ * 永久删除应用
+ * @param application_id
+ * @param loading
+ * @returns
+ */
+const permanentlyDeleteApplication: (
+  application_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (application_id, loading) => {
+  return del(`${prefix}/${application_id}/permanently`, undefined, {}, loading)
+}
+
+/**
  * 应用详情
  * @param 参数 application_id
  */
@@ -719,5 +763,8 @@ export default {
   getCurrentUserPermission,
   getOrganizationPage,
   addToOrganization,
-  removeFromOrganization
+  removeFromOrganization,
+  getRecycleBinApplication,
+  restoreApplication,
+  permanentlyDeleteApplication
 }

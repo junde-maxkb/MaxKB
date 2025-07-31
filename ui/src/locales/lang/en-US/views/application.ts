@@ -241,5 +241,27 @@ Response requirements:
     text: 'Test the hitting effect of the Knowledge based on the given query text.',
     emptyMessage1: 'Retrieval Testing results will show here',
     emptyMessage2: 'No matching sections found'
-  }
+  },
+  tabs: {
+    recycleBin: 'Recycle Bin'
+  },
+  recycleBin: {
+    title: 'Recycle Bin',
+    deleted: 'Deleted',
+    restore: 'Restore',
+    permanentlyDelete: 'Permanently Delete',
+    emptyMessage: 'Recycle bin is empty'
+  },
+  restore: {
+    confirmTitle: 'Restore Application',
+    confirmMessage: 'Are you sure you want to restore this application?',
+    success: 'Application restored successfully'
+  },
+  permanentlyDelete: {
+    confirmTitle: 'Permanently Delete Application',
+    confirmMessage: 'Are you sure you want to permanently delete this application? This action cannot be undone!',
+    success: 'Application permanently deleted successfully'
+  },
+  chatCount: 'Chats',
+  tokenCount: 'Tokens'
 }

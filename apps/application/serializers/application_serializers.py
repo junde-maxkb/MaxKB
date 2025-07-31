@@ -29,6 +29,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from mcp.client.sse import sse_client
 from rest_framework import serializers, status
 from rest_framework.utils.formatting import lazy_format
+from drf_yasg import openapi
 
 from application.flow.workflow_manage import Flow
 from application.models import Application, ApplicationDatasetMapping, ApplicationTypeChoices, WorkFlowVersion
@@ -41,6 +42,7 @@ from common.db.search import get_dynamics_model, native_search, native_page_sear
 from common.db.sql_execute import select_list
 from common.exception.app_exception import AppApiException, NotFound404, AppUnauthorizedFailed, ChatException
 from common.field.common import UploadedImageField, UploadedFileField
+from common.mixins.api_mixin import ApiMixin
 from common.models.db_model_manage import DBModelManage
 from common.response import result
 from common.util.common import valid_license, password_encrypt, restricted_loads
@@ -255,8 +257,8 @@ class ApplicationSerializer(serializers.Serializer):
         super().is_valid(raise_exception=True)
         ModelDatasetAssociation(data={'user_id': user_id, 'model_id': self.data.get('model_id'),
                                       'dataset_id_list': self.data.get('dataset_id_list')}).is_valid()
-    from common.mixins.api_mixin import ApiMixin
-    class OrganizationPageQuery(ApiMixin, serializers.Serializer):
+
+class OrganizationPageQuery(ApiMixin, serializers.Serializer):
         """
         机构应用分页查询对象
         """
@@ -279,7 +281,7 @@ class ApplicationSerializer(serializers.Serializer):
             """
             获取机构应用查询集
             """
-            query_set = QuerySet(Application)
+            query_set = QuerySet(Application).filter(is_deleted=False)
             
             # 使用application_ids过滤
             application_ids = self.data.get("application_ids")
@@ -418,7 +420,8 @@ class ApplicationSerializer(serializers.Serializer):
                 }
             )
 
-    class SharePageQuery(ApiMixin, serializers.Serializer):
+
+class SharePageQuery(ApiMixin, serializers.Serializer):
         """
         共享知识库分页查询对象
         """
@@ -572,7 +575,7 @@ class ApplicationSerializer(serializers.Serializer):
             )
 
 
-    class Embed(serializers.Serializer):
+class Embed(serializers.Serializer):
         host = serializers.CharField(required=True, error_messages=ErrMessage.char(_("Host")))
         protocol = serializers.CharField(required=True, error_messages=ErrMessage.char(_("protocol")))
         token = serializers.CharField(required=True, error_messages=ErrMessage.char(_("token")))
@@ -653,7 +656,8 @@ class ApplicationSerializer(serializers.Serializer):
                 query += f"&asker={params.get('asker')}"
             return query
 
-    class AccessTokenSerializer(serializers.Serializer):
+
+class AccessTokenSerializer(serializers.Serializer):
         application_id = serializers.UUIDField(required=True, error_messages=ErrMessage.boolean(_("Application ID")))
 
         class AccessTokenEditSerializer(serializers.Serializer):
@@ -678,7 +682,7 @@ class ApplicationSerializer(serializers.Serializer):
         def edit(self, instance: Dict, with_valid=True):
             if with_valid:
                 self.is_valid(raise_exception=True)
-                ApplicationSerializer.AccessTokenSerializer.AccessTokenEditSerializer(data=instance).is_valid(
+                AccessTokenSerializer.AccessTokenEditSerializer(data=instance).is_valid(
                     raise_exception=True)
 
             application_access_token = QuerySet(ApplicationAccessToken).get(
@@ -741,7 +745,8 @@ class ApplicationSerializer(serializers.Serializer):
                     'language': application_access_token.language
                     }
 
-    class Authentication(serializers.Serializer):
+
+class Authentication(serializers.Serializer):
         access_token = serializers.CharField(required=True, error_messages=ErrMessage.char(_("access_token")))
         authentication_value = serializers.JSONField(required=False, allow_null=True,
                                                      error_messages=ErrMessage.char(_("Certification Information")))
@@ -799,7 +804,8 @@ class ApplicationSerializer(serializers.Serializer):
         def auth_password(source_authentication_value, authentication_value):
             return source_authentication_value.get('value') == authentication_value.get('value')
 
-    class Edit(serializers.Serializer):
+
+class Edit(serializers.Serializer):
         name = serializers.CharField(required=False, max_length=64, min_length=1,
                                      error_messages=ErrMessage.char(_("Application Name")))
         desc = serializers.CharField(required=False, max_length=256, min_length=1, allow_null=True, allow_blank=True,
@@ -829,7 +835,8 @@ class ApplicationSerializer(serializers.Serializer):
         model_params_setting = serializers.DictField(required=False,
                                                      error_messages=ErrMessage.dict(_('Model parameters')))
 
-    class Create(serializers.Serializer):
+
+class Create(serializers.Serializer):
         user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
 
         @valid_license(model=Application, count=5,
@@ -858,10 +865,10 @@ class ApplicationSerializer(serializers.Serializer):
             self.is_valid(raise_exception=True)
             user_id = self.data.get('user_id')
             ApplicationSerializer(data=application).is_valid(user_id=user_id, raise_exception=True)
-            application_model = ApplicationSerializer.Create.to_application_model(user_id, application)
+            application_model = Create.to_application_model(user_id, application)
             dataset_id_list = application.get('dataset_id_list', [])
             application_dataset_mapping_model_list = [
-                ApplicationSerializer.Create.to_application_dataset_mapping(application_model.id, dataset_id) for
+                Create.to_application_dataset_mapping(application_model.id, dataset_id) for
                 dataset_id in dataset_id_list]
             # 插入应用
             application_model.save()
@@ -899,7 +906,8 @@ class ApplicationSerializer(serializers.Serializer):
         def to_application_dataset_mapping(application_id: str, dataset_id: str):
             return ApplicationDatasetMapping(id=uuid.uuid1(), application_id=application_id, dataset_id=dataset_id)
 
-    class HitTest(serializers.Serializer):
+
+class HitTest(serializers.Serializer):
         id = serializers.CharField(required=True, error_messages=ErrMessage.uuid(_("Application ID")))
         user_id = serializers.UUIDField(required=False, error_messages=ErrMessage.uuid(_("User ID")))
         query_text = serializers.CharField(required=True, error_messages=ErrMessage.char(_("Query text")))
@@ -941,7 +949,8 @@ class ApplicationSerializer(serializers.Serializer):
             return [{**p, 'similarity': hit_dict.get(p.get('id')).get('similarity'),
                      'comprehensive_score': hit_dict.get(p.get('id')).get('comprehensive_score')} for p in p_list]
 
-    class Query(serializers.Serializer):
+
+class Query(serializers.Serializer):
         name = serializers.CharField(required=False, error_messages=ErrMessage.char(_("Application Name")))
 
         desc = serializers.CharField(required=False, error_messages=ErrMessage.char(_("Application Description")))
@@ -983,8 +992,9 @@ class ApplicationSerializer(serializers.Serializer):
 
             query_set_dict['application_custom_sql'] = QuerySet(model=get_dynamics_model(
                 {'application.user_id': models.CharField(),
+                 'application.is_deleted': models.BooleanField()
                  })).filter(
-                **{'application.user_id': user_id}
+                **{'application.user_id': user_id, 'application.is_deleted': False}
             )
 
             query_set_dict['team_member_permission_custom_sql'] = QuerySet(model=get_dynamics_model(
@@ -994,16 +1004,19 @@ class ApplicationSerializer(serializers.Serializer):
                                                                                           blank=True,
                                                                                           choices=AuthOperate.choices,
                                                                                           default=AuthOperate.USE)
-                                                              )})).filter(
+                                                              ),
+                 'application.is_deleted': models.BooleanField()
+                 })).filter(
                 **{'user_id': user_id, 'team_member_permission.operate__contains': ['USE'],
-                   'team_member_permission.auth_target_type': 'APPLICATION'})
+                   'team_member_permission.auth_target_type': 'APPLICATION',
+                   'application.is_deleted': False})
 
             return query_set_dict
 
         def list(self, with_valid=True):
             if with_valid:
                 self.is_valid(raise_exception=True)
-            return [ApplicationSerializer.Query.reset_application(a) for a in
+            return [Query.reset_application(a) for a in
                     native_search(self.get_query_set(), select_string=get_file_content(
                         os.path.join(PROJECT_DIR, "apps", "application", 'sql', 'list_application.sql')))]
 
@@ -1022,14 +1035,16 @@ class ApplicationSerializer(serializers.Serializer):
                 self.is_valid(raise_exception=True)
             return native_page_search(current_page, page_size, self.get_query_set(), select_string=get_file_content(
                 os.path.join(PROJECT_DIR, "apps", "application", 'sql', 'list_application.sql')),
-                                      post_records_handler=ApplicationSerializer.Query.reset_application)
+                                      post_records_handler=Query.reset_application)
 
-    class ApplicationModel(serializers.ModelSerializer):
+
+class ApplicationModel(serializers.ModelSerializer):
         class Meta:
             model = Application
             fields = ['id', 'name', 'desc', 'prologue', 'dialogue_number', 'icon', 'type']
 
-    class IconOperate(serializers.Serializer):
+
+class IconOperate(serializers.Serializer):
         application_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("Application ID")))
         user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
         image = UploadedImageField(required=True, error_messages=ErrMessage.image(_("picture")))
@@ -1048,9 +1063,10 @@ class ApplicationSerializer(serializers.Serializer):
             application_access_token = QuerySet(ApplicationAccessToken).filter(
                 application_id=self.data.get('application_id')).first()
             get_application_access_token(application_access_token.access_token, False)
-            return {**ApplicationSerializer.Query.reset_application(ApplicationSerializerModel(application).data)}
+            return {**Query.reset_application(ApplicationSerializerModel(application).data)}
 
-    class Import(serializers.Serializer):
+
+class Import(serializers.Serializer):
         file = UploadedFileField(required=True, error_messages=ErrMessage.image(_("file")))
         user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
 
@@ -1124,7 +1140,8 @@ class ApplicationSerializer(serializers.Serializer):
                                is_active=function_lib.get('is_active'),
                                permission_type=PermissionType.PRIVATE)
 
-    class Operate(serializers.Serializer):
+
+class Operate(serializers.Serializer):
         application_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("Application ID")))
         user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
 
@@ -1167,9 +1184,41 @@ class ApplicationSerializer(serializers.Serializer):
                 data={'user_id': application.user_id, 'id': model_id}).get_model_params(with_valid=True)
 
         def delete(self, with_valid=True):
+            """软删除应用"""
             if with_valid:
                 self.is_valid()
-            QuerySet(Application).filter(id=self.data.get('application_id')).delete()
+            from django.utils import timezone
+            application = QuerySet(Application).get(id=self.data.get('application_id'))
+            application.is_deleted = True
+            application.delete_time = timezone.now()
+            application.save()
+            return True
+
+        @transaction.atomic
+        def restore(self, with_valid=True):
+            """恢复已删除的应用"""
+            if with_valid:
+                self.is_valid()
+            application = QuerySet(Application).get(id=self.data.get('application_id'))
+            if not application.is_deleted:
+                raise AppApiException(500, _('应用未被删除，无法恢复'))
+            application.is_deleted = False
+            application.delete_time = None
+            application.save()
+            return True
+
+        @transaction.atomic
+        def permanently_delete(self, with_valid=True):
+            """永久删除应用"""
+            if with_valid:
+                self.is_valid()
+            application = QuerySet(Application).get(id=self.data.get('application_id'))
+            # 删除相关数据
+            from application.models import Chat, ChatRecord
+            QuerySet(Chat).filter(application=application).delete()
+            QuerySet(ChatRecord).filter(application_id=application.id).delete()
+            # 永久删除应用
+            application.delete()
             return True
 
         def export(self, with_valid=True):
@@ -1243,7 +1292,7 @@ class ApplicationSerializer(serializers.Serializer):
                                list(filter(lambda row: mapping_dataset_id_list.__contains__(row.get('id')),
                                            dataset_list))]
             self.update_search_node(application.work_flow, [str(dataset.get('id')) for dataset in dataset_list])
-            return {**ApplicationSerializer.Query.reset_application(ApplicationSerializerModel(application).data),
+            return {**Query.reset_application(ApplicationSerializerModel(application).data),
                     'dataset_id_list': dataset_id_list}
 
         def get_search_node(self, work_flow):
@@ -1331,8 +1380,8 @@ class ApplicationSerializer(serializers.Serializer):
                                                 'user_avatar': application_setting.user_avatar,
                                                 'show_user_avatar': application_setting.show_user_avatar,
                                                 'float_location': application_setting.float_location}
-            return ApplicationSerializer.Query.reset_application(
-                {**ApplicationSerializer.ApplicationModel(application).data,
+            return Query.reset_application(
+                {**ApplicationModel(application).data,
                  'stt_model_id': application.stt_model_id,
                  'tts_model_id': application.tts_model_id,
                  'stt_model_enable': application.stt_model_enable,
@@ -1351,7 +1400,7 @@ class ApplicationSerializer(serializers.Serializer):
         def edit(self, instance: Dict, with_valid=True):
             if with_valid:
                 self.is_valid()
-                ApplicationSerializer.Edit(data=instance).is_valid(
+                Edit(data=instance).is_valid(
                     raise_exception=True)
             application_id = self.data.get("application_id")
 
@@ -1563,12 +1612,13 @@ class ApplicationSerializer(serializers.Serializer):
             application_user_id = user_id if user_id == str(application.user_id) else None
 
             if application_user_id is not None:
-                all_applications = Application.objects.filter(user_id=application_user_id).exclude(id=application_id)
+                all_applications = Application.objects.filter(user_id=application_user_id, is_deleted=False).exclude(id=application_id)
             else:
                 all_applications = Application.objects.none()
 
             # 获取团队共享的应用
             shared_applications = Application.objects.filter(
+                is_deleted=False,
                 id__in=TeamMemberPermission.objects.filter(
                     auth_target_type='APPLICATION',
                     operate__contains=RawSQL("ARRAY['USE']", []),
@@ -1603,15 +1653,17 @@ class ApplicationSerializer(serializers.Serializer):
                                list(filter(lambda row: mapping_dataset_id_list.__contains__(row.get('id')),
                                            dataset_list))]
             self.update_search_node(embed_application.work_flow, [str(dataset.get('id')) for dataset in dataset_list])
-            return {**ApplicationSerializer.Query.reset_application(ApplicationSerializerModel(embed_application).data),
+            return {**Query.reset_application(ApplicationSerializerModel(embed_application).data),
                     'dataset_id_list': dataset_id_list}
 
-    class ApplicationKeySerializerModel(serializers.ModelSerializer):
+
+class ApplicationKeySerializerModel(serializers.ModelSerializer):
         class Meta:
             model = ApplicationApiKey
             fields = "__all__"
 
-    class ApplicationKeySerializer(serializers.Serializer):
+
+class ApplicationKeySerializer(serializers.Serializer):
         user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
 
         application_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("Application ID")))
@@ -1632,13 +1684,13 @@ class ApplicationSerializer(serializers.Serializer):
             application_api_key = ApplicationApiKey(id=uuid.uuid1(), secret_key=secret_key, user_id=application.user_id,
                                                     application_id=application_id)
             application_api_key.save()
-            return ApplicationSerializer.ApplicationKeySerializerModel(application_api_key).data
+            return ApplicationKeySerializerModel(application_api_key).data
 
         def list(self, with_valid=True):
             if with_valid:
                 self.is_valid(raise_exception=True)
             application_id = self.data.get("application_id")
-            return [ApplicationSerializer.ApplicationKeySerializerModel(application_api_key).data for
+            return [ApplicationKeySerializerModel(application_api_key).data for
                     application_api_key in
                     QuerySet(ApplicationApiKey).filter(application_id=application_id)]
 
@@ -1673,7 +1725,7 @@ class ApplicationSerializer(serializers.Serializer):
             def edit(self, instance, with_valid=True):
                 if with_valid:
                     self.is_valid(raise_exception=True)
-                    ApplicationSerializer.ApplicationKeySerializer.Edit(data=instance).is_valid(raise_exception=True)
+                    ApplicationKeySerializer.Edit(data=instance).is_valid(raise_exception=True)
                 api_key_id = self.data.get("api_key_id")
                 application_id = self.data.get('application_id')
                 application_api_key = QuerySet(ApplicationApiKey).filter(id=api_key_id,
@@ -1690,7 +1742,8 @@ class ApplicationSerializer(serializers.Serializer):
                 # 写入缓存
                 get_application_api_key(application_api_key.secret_key, False)
 
-    class McpServers(serializers.Serializer):
+
+class McpServers(serializers.Serializer):
         mcp_servers = serializers.JSONField(required=True)
 
         def get_mcp_servers(self, with_valid=True):
@@ -1713,4 +1766,117 @@ class ApplicationSerializer(serializers.Serializer):
                     }
                     for tool in asyncio.run(get_mcp_tools({server: servers[server]}))]
             return tools
+
+
+class RecycleBinQuery(ApiMixin, serializers.Serializer):
+        """
+        应用回收站查询对象
+        """
+        name = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('application name')),
+                                     max_length=128,
+                                     min_length=1)
+
+        desc = serializers.CharField(required=False,
+                                     error_messages=ErrMessage.char(_('application description')),
+                                     max_length=512,
+                                     min_length=1)
+
+        user_id = serializers.CharField(required=False, allow_blank=True)
+
+        def get_query_set(self):
+            """
+            获取回收站查询集（显示所有已软删除的应用，不再按 user_id 过滤）
+            """
+            return QuerySet(Application).filter(
+                is_deleted=True
+            )
+
+        def page(self, current_page: int, page_size: int):
+            """
+            分页获取回收站应用列表
+            """
+            query_set = self.get_query_set()
+            # 添加其他过滤条件
+            if "desc" in self.data and self.data.get('desc') is not None:
+                query_set = query_set.filter(desc__icontains=self.data.get("desc"))
+            if "name" in self.data and self.data.get('name') is not None:
+                query_set = query_set.filter(name__icontains=self.data.get("name"))
+            # 按删除时间倒序排列
+            query_set = query_set.order_by("-delete_time", "id")
+            total = query_set.count()
+            start = (current_page - 1) * page_size
+            end = start + page_size
+            items = query_set[start:end]
+            return {
+                'list': [{
+                    'id': str(item.id),
+                    'name': item.name,
+                    'desc': item.desc,
+                    'user_id': str(item.user_id),
+                    'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'delete_time': item.delete_time.strftime('%Y-%m-%d %H:%M:%S') if item.delete_time else '',
+                    'dialogue_number': item.dialogue_number,
+                    'type': item.type
+                } for item in items],
+                'total': total,
+                'page': current_page,
+                'page_size': page_size
+            }
+
+        def list(self):
+            """
+            获取回收站应用列表（不分页）
+            """
+            query_set = self.get_query_set()
+            # 添加其他过滤条件
+            if "desc" in self.data and self.data.get('desc') is not None:
+                query_set = query_set.filter(desc__icontains=self.data.get("desc"))
+            if "name" in self.data and self.data.get('name') is not None:
+                query_set = query_set.filter(name__icontains=self.data.get("name"))
+            # 按删除时间倒序排列
+            query_set = query_set.order_by("-delete_time", "id")
+            return [{
+                'id': str(item.id),
+                'name': item.name,
+                'desc': item.desc,
+                'user_id': str(item.user_id),
+                'create_time': item.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'update_time': item.update_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'delete_time': item.delete_time.strftime('%Y-%m-%d %H:%M:%S') if item.delete_time else '',
+                'dialogue_number': item.dialogue_number,
+                'type': item.type
+            } for item in query_set]
+
+        @staticmethod
+        def get_request_params_api():
+            return [
+                openapi.Parameter(name='name',
+                                 in_=openapi.IN_QUERY,
+                                 type=openapi.TYPE_STRING,
+                                 description=_('Application Name')),
+                openapi.Parameter(name='desc',
+                                 in_=openapi.IN_QUERY,
+                                 type=openapi.TYPE_STRING,
+                                 description=_('Application Description'))
+            ]
+
+        @staticmethod
+        def get_response_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['id', 'name', 'desc', 'user_id', 'create_time', 'update_time', 'delete_time', 'dialogue_number', 'type'],
+                properties={
+                    'id': openapi.Schema(type=openapi.TYPE_STRING, title=_("Application ID")),
+                    'name': openapi.Schema(type=openapi.TYPE_STRING, title=_("Application Name")),
+                    'desc': openapi.Schema(type=openapi.TYPE_STRING, title=_("Application Description")),
+                    'user_id': openapi.Schema(type=openapi.TYPE_STRING, title=_("User ID")),
+                    'create_time': openapi.Schema(type=openapi.TYPE_STRING, title=_("Create Time")),
+                    'update_time': openapi.Schema(type=openapi.TYPE_STRING, title=_("Update Time")),
+                    'delete_time': openapi.Schema(type=openapi.TYPE_STRING, title=_("Delete Time")),
+                    'dialogue_number': openapi.Schema(type=openapi.TYPE_INTEGER, title=_("Dialogue Number")),
+                    'type': openapi.Schema(type=openapi.TYPE_STRING, title=_("Application Type"))
+                }
+            )
     

@@ -78,7 +78,7 @@
                   :title="item.name"
                   :description="item.desc"
                   :class="{'cursor': item.permission !== 'READ' && !(datasetType === 'SHARED' && sharedType === 'ORGANIZATION')}"
-                  @click="!(datasetType === 'SHARED' && sharedType === 'ORGANIZATION') && item.permission !== 'read' && router.push({ path: `/dataset/${item.id}/document` })"
+                  @click="!(datasetType === 'SHARED' && sharedType === 'ORGANIZATION') && item.permission !== 'READ' && router.push({ path: `/dataset/${item.id}/document` })"
                 >
                   <template #icon>
                     <AppAvatar
@@ -139,7 +139,7 @@
                       :class="{
                         'purple-tag': item.permission === 'MANAGE',
                         'blue-tag': item.permission === 'WRITE',
-                        'green-tag': item.permission === 'read'
+                        'green-tag': item.permission === 'READ'
                       }"
                       style="height: 22px; margin-left: 8px"
                       >{{ 
@@ -162,7 +162,7 @@
                         <span class="bold">{{ item?.application_mapping_count || 0 }}</span>
                         {{ $t('views.dataset.relatedApp_count') }}
                       </div>
-                      <div @click.stop>
+                      <div @click.stop v-if="!(datasetType === 'SHARED' && sharedType === 'ORGANIZATION' && user.userInfo?.role !== 'ADMIN')">
                         <el-dropdown trigger="click">
                           <el-button text @click.stop>
                             <el-icon><MoreFilled /></el-icon>
@@ -217,7 +217,7 @@
                                   >{{ $t('views.document.setting.export') }} ZIP</el-dropdown-item
                                 >
                                 <el-dropdown-item 
-                                  v-if="datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && (item.permission === 'MANAGE' || item.permission === 'WRITE' || item.permission === 'read')"
+                                  v-if="datasetType === 'SHARED' && sharedType === 'SHARED_TO_ME' && (item.permission === 'MANAGE' || item.permission === 'WRITE' || item.permission === 'READ')"
                                   icon="Close"
                                   @click.stop="exitDataset(item)">{{
                                   $t('common.exit')
@@ -365,23 +365,21 @@
         </div>
 
         <!-- 搜索结果区域 -->
-        <LayoutContainer>
-          <template #header>
-            <div class="flex-between">
-              <div>
-                <h4>
-                  {{ $t('views.dataset.searchDataset.searchResult') }}
-                  <el-text type="info" class="ml-8">{{ $t('views.dataset.searchDataset.searchResultTip') }}</el-text>
-                </h4>
-              </div>
-              <div v-if="searchResults.length > 0">
-                <el-text type="success" class="result-count">
-                  {{ $t('views.dataset.searchDataset.resultsCount', { count: searchResults.length }) }}
-                </el-text>
-              </div>
+        <div class="search-result-section">
+          <div class="flex-between mb-16">
+            <div>
+              <h4>
+                {{ $t('views.dataset.searchDataset.searchResult') }}
+                <el-text type="info" class="ml-8">{{ $t('views.dataset.searchDataset.searchResultTip') }}</el-text>
+              </h4>
             </div>
-          </template>
-          <div class="search-result__main p-16" v-loading="searchLoading">
+            <div v-if="searchResults.length > 0">
+              <el-text type="success" class="result-count">
+                {{ $t('views.dataset.searchDataset.resultsCount', { count: searchResults.length }) }}
+              </el-text>
+            </div>
+          </div>
+          <div class="search-result-content" v-loading="searchLoading">
             <div class="question-title" :style="{ visibility: questionTitle ? 'visible' : 'hidden' }">
               <div class="avatar">
                 <AppAvatar>
@@ -457,9 +455,10 @@
               </div>
             </el-scrollbar>
           </div>
+        </div>
 
-          <ParagraphDialog ref="ParagraphDialogRef" :title="paragraphDialogTitle" @refresh="refreshParagraph" />
-        </LayoutContainer>
+        <!-- 段落弹窗 -->
+        <ParagraphDialog ref="ParagraphDialogRef" :title="paragraphDialogTitle" @refresh="refreshParagraph" />
 
         <!-- 参数设置弹窗 -->
         <el-popover :visible="popoverVisible" placement="right-end" :width="500" trigger="click">
@@ -1371,7 +1370,15 @@ onMounted(() => {
 
   
 
-  .search-result__main {
+  .search-result-section {
+    background: #fff;
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  }
+
+  .search-result-content {
     .question-title {
       .avatar {
         float: left;
@@ -1387,7 +1394,7 @@ onMounted(() => {
     }
 
     .search-result-height {
-      height: calc(var(--app-main-height) - 170px);
+      height: calc(var(--app-main-height) - 250px);
     }
 
     .document-card {
@@ -1422,9 +1429,8 @@ onMounted(() => {
         font-size: 12px;
       }
     }
-
     .search-result-list {
-      .search-result-item {
+    .search-result-item {
         background: #fff;
         border: 1px solid var(--el-border-color-light);
         border-radius: 8px;
@@ -1536,43 +1542,6 @@ onMounted(() => {
                 }
               }
             }
-          }
-        }
-      }
-    }
-  }
-
-  .search-operate {
-    .operate-textarea {
-      box-shadow: 0px 6px 24px 0px rgba(31, 35, 41, 0.08);
-      background-color: #ffffff;
-      border-radius: 8px;
-      border: 1px solid #ffffff;
-      box-sizing: border-box;
-
-      &:has(.el-textarea__inner:focus) {
-        border: 1px solid var(--el-color-primary);
-      }
-
-      :deep(.el-textarea__inner) {
-        border-radius: 8px !important;
-        box-shadow: none;
-        resize: none;
-        padding: 12px 16px;
-      }
-      .operate {
-        padding: 6px 10px;
-        .sent-button {
-          max-height: none;
-          .el-icon {
-            font-size: 24px;
-          }
-        }
-        :deep(.el-loading-spinner) {
-          margin-top: -15px;
-          .circular {
-            width: 31px;
-            height: 31px;
           }
         }
       }
