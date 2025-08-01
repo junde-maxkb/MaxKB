@@ -4,7 +4,7 @@ import { Role, ComplexPermission } from '@/utils/permission/type'
 const settingRouter = {
   path: '/setting',
   name: 'setting',
-  meta: { icon: 'Setting', title: 'views.system.title', permission: 'SETTING:READ' },
+  meta: { icon: 'Setting', title: 'views.system.title', permission: 'SETTING:READ', order: 4 },
   redirect: () => {
     if (hasPermission(new Role('ADMIN'), 'AND')) {
       return '/user'

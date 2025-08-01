@@ -4,7 +4,7 @@ import { ComplexPermission } from '@/utils/permission/type'
 const applicationRouter = {
   path: '/application',
   name: 'application',
-  meta: { title: 'views.application.title', permission: 'APPLICATION:READ' },
+  meta: { title: 'views.application.title', permission: 'APPLICATION:READ', order: 1 },
   redirect: '/application',
   component: () => import('@/layout/layout-template/AppLayout.vue'),
   children: [

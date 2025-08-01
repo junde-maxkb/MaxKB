@@ -1,4 +1,5 @@
 import notFound from './404'
+import home from './home'
 import application from './application'
 import applicationOverview from './application-overview'
 import dataset from './dataset'
@@ -17,6 +18,7 @@ import operateLog from './operate-log'
 import teamManage from './team-manage'
 export default {
   notFound,
+  home,
   application,
   applicationOverview,
   system,

@@ -2,7 +2,7 @@ import Layout from '@/layout/layout-template/DetailLayout.vue'
 const datasetRouter = {
   path: '/dataset',
   name: 'dataset',
-  meta: { title: 'views.dataset.title', permission: 'DATASET:READ' },
+  meta: { title: 'views.dataset.title', permission: 'DATASET:READ', order: 2 },
   component: () => import('@/layout/layout-template/AppLayout.vue'),
   redirect: '/dataset',
   children: [

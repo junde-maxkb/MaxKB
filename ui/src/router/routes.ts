@@ -3,12 +3,17 @@ import { Role } from '@/utils/permission/type'
 
 const modules: any = import.meta.glob('./modules/*.ts', { eager: true })
 const rolesRoutes: RouteRecordRaw[] = [...Object.keys(modules).map((key) => modules[key].default)]
+  .sort((a, b) => {
+    const orderA = a.meta?.order ?? 999
+    const orderB = b.meta?.order ?? 999
+    return orderA - orderB
+  })
 
 export const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'home',
-    redirect: '/application',
+    name: 'root',
+    redirect: '/home',
     children: [...rolesRoutes]
   },
 

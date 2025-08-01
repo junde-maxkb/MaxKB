@@ -15,7 +15,7 @@ import { getChildRouteListByPathAndName } from '@/router/index'
 import MenuItem from './MenuItem.vue'
 
 const topMenuList = computed(() => {
-  return getChildRouteListByPathAndName('/', 'home')
+  return getChildRouteListByPathAndName('/', 'root')
 })
 </script>
 <style lang="scss" scope>
