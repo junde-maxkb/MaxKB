@@ -1,7 +1,7 @@
 const functionLibRouter = {
   path: '/function-lib',
   name: 'function_lib',
-  meta: { title: 'views.functionLib.title', permission: 'APPLICATION:READ', order: 3 },
+  meta: { title: 'views.functionLib.title', permission: 'APPLICATION:READ' },
   redirect: '/function-lib',
   component: () => import('@/layout/layout-template/AppLayout.vue'),
   children: [

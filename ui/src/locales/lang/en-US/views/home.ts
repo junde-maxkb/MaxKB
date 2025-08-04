@@ -1,7 +1,7 @@
 export default {
   title: 'Home',
-  welcome: 'Welcome to MaxKB',
-  description: 'Intelligent Knowledge Base Q&A System',
+  welcome: 'Welcome to Intelligent Knowledge Base Q&A System',
+  description: '',
   searchPlaceholder: 'Search applications, datasets, documents...',
   search: 'Search',
   hotSearches: 'Hot Searches',
