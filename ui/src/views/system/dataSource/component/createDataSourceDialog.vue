@@ -52,7 +52,7 @@
     </el-form-item>
 
 
-    <el-form-item label="数据库名称" prop="database_name">
+    <el-form-item v-if="form.db_type !== 'dm'" label="数据库名称" prop="database_name">
       <el-input v-model="form.database_name" />
     </el-form-item>
 
@@ -271,9 +271,10 @@ const activeCollapse = ref([])
 const  dataSourceTableList = ref([])
 const formRef = ref<FormInstance>()
 const dbTypes = [
-  { label: 'MySQL', value: 'mysql' },
-  { label: 'PostgreSQL', value: 'postgresql' },
-  { label: 'Oracle', value: 'oracle' }
+  {label: 'MySQL', value: 'mysql'},
+  {label: 'PostgreSQL', value: 'postgresql'},
+  {label: 'Oracle', value: 'oracle'},
+  {label: '达梦数据库', value: 'dm'}
 ]
 const charset = ref(['GBK', 'BIG5', 'ISO-8859-1', 'UTF-8', 'UTF-16', 'CP850', 'EUC_JP', 'EUC_KR'])
 const target_charset = ref(['GBK', 'UTF-8'])
@@ -313,7 +314,20 @@ const rules = reactive({
   name: [{ required: true, message: '请输入数据源名称', trigger: 'blur' }],
   host: [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
   port: [{ required: true, message: '请输入端口号', trigger: 'blur' }],
-  database_name: [{ required: true, message: '请输入数据库名称', trigger: 'blur' }],
+  database_name: [
+    {
+      required: true,
+      message: '请输入数据库名称',
+      trigger: 'blur',
+      validator: (rule: any, value: any, callback: any) => {
+        if (form.db_type !== 'dm' && !value) {
+          callback(new Error('请输入数据库名称'))
+        } else {
+          callback()
+        }
+      }
+    }
+  ],
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   'extra_params.schema': [{ 
@@ -407,6 +421,11 @@ watch(() => form.db_type, (newType) => {
     form.port = '5432'
   } else if (newType === 'oracle') {
     form.port = '1521'
+  } else if (newType === 'dm') {
+    form.port = '5236'
+    form.database_name = 'dm'
+  } else {
+    form.database_name = ''
   }
 })
 
