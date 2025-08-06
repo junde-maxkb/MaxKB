@@ -199,8 +199,6 @@ class DBConnector:
 
             elif db_type == 'dm':
                 with engine.connect() as conn:
-                    current_user = conn.execute(text("SELECT USER FROM DUAL")).scalar()
-
                     schema = db_params.get('schema')
                     if schema:
                         target_schema = schema.upper()
@@ -460,15 +458,15 @@ class DBConnector:
         """
         engine = None
         try:
-            # 添加详细调试信息
-            print(f"Oracle Debug: query_columns调用")
-            print(f"  db_params: {db_params}")
-            print(f"  table_name: {table_name}")
-            print(f"  columns: {columns}")
-
             engine = cls._get_engine(db_params)
             metadata = MetaData()
             db_type = db_params['db_type']
+
+            # 添加详细调试信息
+            print(f"{db_type} Debug: query_columns调用")
+            print(f"  db_params: {db_params}")
+            print(f"  table_name: {table_name}")
+            print(f"  columns: {columns}")
 
             if db_type == 'oracle':
                 table_name = table_name.upper()
@@ -523,6 +521,141 @@ class DBConnector:
                     result = conn.execute(query_sql)
                     data = [dict(zip(columns, row)) for row in result]
                     print(f"Oracle: 查询成功，返回 {len(data)} 行数据")
+                    return data
+
+                if db_type == 'dm':
+                    table_name_input = table_name
+                    columns_input = columns
+                    schema = db_params.get('schema')
+
+                    current_user = conn.execute(text("SELECT USER FROM DUAL")).scalar()
+
+                    if schema:
+                        # 如果指定了schema，直接使用指定的schema
+                        print(f"DM: 使用指定的schema: {schema}")
+                        found_schema = schema.upper()
+
+                        # 验证schema是否存在且用户有权限访问
+                        schema_check = conn.execute(
+                            text("""
+                                SELECT COUNT(*) FROM SYSOBJECTS SCH
+                                JOIN DBA_USERS U ON SCH.PID = U.USER_ID
+                                WHERE SCH.TYPE$ = 'SCH' 
+                                AND SCH.NAME = :schema
+                                AND U.USERNAME = :user
+                            """),
+                            {'schema': found_schema, 'user': current_user.upper()}
+                        ).scalar()
+
+                        if schema_check == 0:
+                            raise ValueError(f"Schema {schema} 不存在或用户 {current_user} 没有访问权限")
+
+                        actual_table_name = None
+                        table_candidates = [table_name_input, table_name_input.upper(), table_name_input.lower()]
+
+                        for candidate_table in table_candidates:
+                            table_check = conn.execute(
+                                text("SELECT COUNT(*) FROM all_tables WHERE owner = :schema AND table_name = :table"),
+                                {"schema": found_schema, "table": candidate_table}
+                            ).scalar()
+                            if table_check > 0:
+                                actual_table_name = candidate_table
+                                break
+                        if not actual_table_name:
+                            available_tables = conn.execute(
+                                text("SELECT table_name FROM all_tables WHERE owner = :schema"),
+                                {"schema": found_schema}
+                            ).fetchall()
+                            table_names = [row[0] for row in available_tables]
+                            raise ValueError(
+                                f"在schema {found_schema} 中未找到表: {table_name_input}。可用表: {table_names}")
+                    else:
+                        # 如果没有指定schema，搜索用户拥有的所有schema
+                        print(f"DM: 未指定schema，搜索用户 {current_user} 拥有的所有schema")
+                        res = conn.execute(text("""
+                            SELECT SCH.NAME AS schema_name
+                              FROM SYSOBJECTS SCH
+                              JOIN DBA_USERS U ON SCH.PID = U.USER_ID
+                             WHERE SCH.TYPE$ = 'SCH'
+                               AND U.USERNAME = :user
+                             ORDER BY SCH.NAME
+                        """), {'user': current_user.upper()})
+                        user_schemas = [row[0] for row in res]
+
+                        print(f"DM: 用户 {current_user} 拥有的schemas: {user_schemas}")
+
+                        # 查找表所在的schema
+                        found_schema = None
+                        actual_table_name = None
+                        table_candidates = [table_name_input, table_name_input.upper(), table_name_input.lower()]
+
+                        for candidate_table in table_candidates:
+                            for sch in user_schemas:
+                                table_check = conn.execute(
+                                    text(
+                                        "SELECT COUNT(*) FROM all_tables WHERE owner = :schema AND table_name = :table"),
+                                    {"schema": sch, "table": candidate_table}
+                                ).scalar()
+                                if table_check > 0:
+                                    found_schema = sch
+                                    actual_table_name = candidate_table
+                                    break
+                            if found_schema:
+                                break
+
+                        if not found_schema:
+                            available_tables = []
+                            for sch in user_schemas:
+                                tables = conn.execute(
+                                    text("SELECT table_name FROM all_tables WHERE owner = :schema"),
+                                    {"schema": sch}
+                                ).fetchall()
+                                for table in tables:
+                                    available_tables.append(f"{sch}.{table[0]}")
+
+                            raise ValueError(
+                                f"达梦数据库未找到表: {table_name_input}。可用表: {available_tables[:10]}...")
+
+                    print(f"DM: 找到表 {actual_table_name} 在schema {found_schema}")
+
+                    columns_checked = []
+                    for col in columns_input:
+                        col_candidates = [col, col.upper(), col.lower()]
+                        found_col = None
+                        for candidate_col in col_candidates:
+                            col_check = conn.execute(
+                                text(
+                                    "SELECT COUNT(*) FROM all_tab_columns WHERE owner = :schema AND table_name = :table AND column_name = :column"),
+                                {"schema": found_schema, "table": actual_table_name, "column": candidate_col}
+                            ).scalar()
+                            if col_check > 0:
+                                found_col = candidate_col
+                                break
+
+                        if not found_col:
+                            actual_columns = conn.execute(
+                                text(
+                                    "SELECT column_name FROM all_tab_columns WHERE owner = :schema AND table_name = :table"),
+                                {"schema": found_schema, "table": actual_table_name}
+                            ).fetchall()
+                            col_names = [row[0] for row in actual_columns]
+                            raise ValueError(
+                                f"达梦数据库表 {found_schema}.{actual_table_name} 中未找到字段: {col}。可用字段: {col_names}")
+
+                        columns_checked.append(found_col)
+
+                    print(f"DM: 验证字段成功: {columns_checked}")
+
+                    # 构建查询SQL
+                    column_list = ', '.join([f'"{col}"' for col in columns_checked])
+                    qualified_table = f'{found_schema}.{actual_table_name}'
+                    query_sql = text(f'SELECT {column_list} FROM {qualified_table}')
+
+                    print(f"DM: 执行SQL: {query_sql}")
+                    result = conn.execute(query_sql)
+                    data = [dict(zip(columns_input, row)) for row in result]
+                    print(f"DM: 查询成功，返回 {len(data)} 行数据")
+                    print(f"DM: 查询成功，返回数据: {data[:5]}...")
                     return data
 
                 else:
