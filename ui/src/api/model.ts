@@ -14,6 +14,20 @@ import type {
 import type { FormField } from '@/components/dynamics-form/type'
 import type { KeyValue } from './type/common'
 const prefix = '/model'
+/**
+ * 直连模型单轮对话（后端新接口）
+ */
+export const postModelChat = (
+  model_id: string,
+  data: {
+    messages?: Array<{ role: string; content: string }>
+    message?: string
+    system?: string
+    [k: string]: any
+  }
+) => {
+  return post(`${prefix}/${model_id}/chat`, data)
+}
 const prefix_provider = '/provider'
 
 /**
@@ -205,5 +219,6 @@ export default {
   pauseDownload,
   getModelParamsForm,
   updateModelParamsForm,
-  getProviderByModelType
+  getProviderByModelType,
+  postModelChat
 }

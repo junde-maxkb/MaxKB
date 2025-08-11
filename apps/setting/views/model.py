@@ -23,6 +23,7 @@ from setting.swagger_api.provide_api import ProvideApi, ModelCreateApi, ModelQue
 from django.utils.translation import gettext_lazy as _
 
 from setting.views.common import get_model_operation_object, get_edit_model_details
+from setting.services.direct_model_service import DirectModelService
 
 
 class Model(APIView):
@@ -154,6 +155,58 @@ class Model(APIView):
         def get(self, request: Request, model_id: str):
             return result.success(
                 ModelSerializer.Operate(data={'id': model_id, 'user_id': request.user.id}).one(with_valid=True))
+
+    class Chat(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['POST'], detail=False)
+        @swagger_auto_schema(operation_summary=_('Direct model chat (single-turn, no history)'),
+                             operation_id=_('Direct model chat (single-turn, no history)'),
+                             tags=[_('model')])
+        @has_permissions(PermissionConstants.MODEL_READ)
+        def post(self, request: Request, model_id: str):
+            """
+            直接调用指定 model_id 的大语言模型进行单轮对话。
+            请求体支持：
+            - message: string（与下方 messages 互斥，优先使用 messages）
+            - system: string（可选，和 message 搭配使用）
+            - messages: [{ role: 'system'|'user'|'assistant', content: string }]
+            额外参数将透传至底层模型调用。
+            返回：{ content: string, metadata: any }
+            """
+            body = request.data or {}
+            messages = body.get('messages')
+            if not messages:
+                system = body.get('system')
+                message = body.get('message') or ''
+                messages = []
+                if system:
+                    messages.append({ 'role': 'system', 'content': system })
+                messages.append({ 'role': 'user', 'content': message })
+
+            # 透传其他参数（如温度、最大token、stream等）
+            extra = { k: v for k, v in body.items() if k not in ('messages', 'message', 'system') }
+            # 携带用户ID，便于鉴权与路由私有模型
+            extra['user_id'] = request.user.id if hasattr(request, 'user') else None
+
+            # 是否流式
+            stream = bool(extra.pop('stream', False))
+            if stream:
+                gen = DirectModelService.stream(model_id, messages, **extra)
+                from django.http import StreamingHttpResponse
+                import json
+
+                def sse():
+                    for chunk in gen:
+                        yield 'data: ' + json.dumps({'content': getattr(chunk, 'content', getattr(chunk, 'text', '')) or ''}, ensure_ascii=False) + '\n\n'
+                    yield 'data: ' + json.dumps({'content': '', 'is_end': True}, ensure_ascii=False) + '\n\n'
+
+                r = StreamingHttpResponse(streaming_content=sse(), content_type='text/event-stream;charset=utf-8')
+                r['Cache-Control'] = 'no-cache'
+                return r
+            else:
+                resp = DirectModelService.chat(model_id, messages, **extra)
+                return result.success(resp)
 
 
 class Provide(APIView):
