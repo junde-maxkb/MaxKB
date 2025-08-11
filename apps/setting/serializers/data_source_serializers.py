@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-
 from common.exception.app_exception import AppApiException
 from common.mixins.api_mixin import ApiMixin
 
@@ -9,7 +8,6 @@ from django.utils.translation import gettext_lazy as _
 from setting.models.data_source import DataSourceConfig
 
 FIELD = serializers.IntegerField(min_value=1, max_value=65535)
-
 
 
 class DBConfigerializer(serializers.Serializer):
@@ -31,8 +29,7 @@ class DBConfigerializer(serializers.Serializer):
         model = DataSourceConfig
         fields = '__all__'
 
-
-    def add_data_source(self,with_valid=True):
+    def add_data_source(self, with_valid=True):
         """
         添加一个sql数据源
         :param with_valid:
@@ -45,10 +42,9 @@ class DBConfigerializer(serializers.Serializer):
         if user:
             raise AppApiException(500, _('The current source already exist'))
         DataSourceConfig.objects.create(
-           **self.data
+            **self.data
         )
         return True
-
 
     class Operate(ApiMixin, serializers.Serializer):
 
@@ -64,7 +60,7 @@ class DBConfigerializer(serializers.Serializer):
             if not self.is_valid():
                 raise AppApiException(403, _('Permission denied.'))
 
-            data_source = DataSourceConfig.objects.get(id = self.data.get('id'))
+            data_source = DataSourceConfig.objects.get(id=self.data.get('id'))
             if not data_source:
                 raise AppApiException(403, _('Permission denied.'))
             DataSourceConfig.objects.filter(id=self.data.get('id')).update(**data)
@@ -82,7 +78,7 @@ class DBConfigerializer(serializers.Serializer):
 
 
 class DBConnectionSerializer(serializers.Serializer):
-    db_type = serializers.ChoiceField(choices=['mysql', 'postgresql', 'oracle'])
+    db_type = serializers.ChoiceField(choices=['mysql', 'postgresql', 'oracle', 'dm'])
     host = serializers.CharField()
     port = serializers.IntegerField(min_value=1, max_value=65535)
     username = serializers.CharField()
