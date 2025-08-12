@@ -274,7 +274,8 @@ const dbTypes = [
   {label: 'MySQL', value: 'mysql'},
   {label: 'PostgreSQL', value: 'postgresql'},
   {label: 'Oracle', value: 'oracle'},
-  {label: '达梦数据库', value: 'dm'}
+  {label: '达梦数据库', value: 'dm'},
+  {label: '虚谷数据库', value: 'xg'},
 ]
 const charset = ref(['GBK', 'BIG5', 'ISO-8859-1', 'UTF-8', 'UTF-16', 'CP850', 'EUC_JP', 'EUC_KR'])
 const target_charset = ref(['GBK', 'UTF-8'])
@@ -424,6 +425,8 @@ watch(() => form.db_type, (newType) => {
   } else if (newType === 'dm') {
     form.port = '5236'
     form.database_name = 'dm'
+  } else if (newType === 'xg') {
+    form.port = '5138'
   } else {
     form.database_name = ''
   }

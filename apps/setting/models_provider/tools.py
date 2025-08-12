@@ -16,6 +16,7 @@ from setting.models import Model
 from setting.models_provider import get_model
 from django.utils.translation import gettext_lazy as _
 from sqlalchemy import text
+from sqlalchemy.dialects import registry
 
 # 检查Oracle驱动是否可用
 try:
@@ -113,7 +114,17 @@ class DBConnector:
                 pool_recycle=3600,  # 连接回收时间
                 echo=False
             )
-
+        elif db_params['db_type'] == 'xg':
+            print(db_params)
+            registry.register("xg", "xg.xgPython", "dialect")
+            engine_url = f"xg://{db_params['user']}:{db_params['password']}@{db_params['host']}:{db_params['port']}/{db_params['dbname']}"
+            return create_engine(
+                engine_url,
+                pool_pre_ping=True,
+                pool_timeout=30,  # 连接池超时
+                pool_recycle=3600,  # 连接回收时间
+                echo=False
+            )
         else:
             raise ValueError(f"不支持的数据库类型: {db_params['db_type']}")
 
@@ -234,6 +245,51 @@ class DBConnector:
                         tables = [row[0] for row in result]
                         print(f"DM: 共找到 {tables} 个表 in all user schemas")
                     return True, tables
+
+            elif db_type == 'xg':
+                with engine.connect() as conn:
+                    schema = db_params.get('schema')
+                    if schema:
+                        target_schema = schema.upper()
+                        result = conn.execute(
+                            text(
+                                """
+                                SELECT t.table_name
+                                FROM dba_tables t
+                                JOIN dba_schemas s
+                                  ON t.schema_id = s.schema_id
+                                  AND t.db_id = s.db_id
+                                WHERE s.schema_name = :schema
+                                  AND t.table_name NOT LIKE 'SYS%'
+                                  AND t.table_name NOT LIKE 'DBA_%'
+                                  AND t.table_name NOT LIKE 'ALL_%'
+                                  AND t.table_name NOT LIKE 'USER_%'
+                                ORDER BY t.table_name
+                                """
+                            ),
+                            {"schema": target_schema},
+                        ).fetchall()
+                        tables = [row[0] for row in result]
+                        print(f"XG: 共找到 {len(tables)} 个表 in schema {target_schema}")
+                    else:
+                        result = conn.execute(
+                            text(
+                                """
+                                SELECT table_name FROM user_tables 
+                                WHERE table_name NOT LIKE 'SYS%'
+                                  AND table_name NOT LIKE 'DBA_%'
+                                  AND table_name NOT LIKE 'ALL_%'
+                                  AND table_name NOT LIKE 'USER_%'
+                                  AND table_name NOT LIKE 'V$%'
+                                  AND table_name NOT LIKE 'GV$%'
+                                  AND table_name NOT LIKE 'X$%'
+                                ORDER BY table_name
+                                """
+                            )
+                        ).fetchall()
+                        tables = [row[0] for row in result]
+                        print(f"XG: 共找到 {len(tables)} 个表 (当前用户)")
+                    return True, tables
         except Exception as e:
             # 记录详细错误信息用于调试
             error_msg = str(e)
@@ -251,7 +307,7 @@ class DBConnector:
             columns = []
             comments = {}
             schema = db_params.get('schema')
-
+            print(f"获取列信息调用: {db_params}, 表名: {table_name}, Schema: {schema}")
             if db_type == 'oracle':
                 with engine.connect() as conn:
                     # 获取列信息
@@ -372,6 +428,48 @@ class DBConnector:
                         })
                     return True, columns
 
+            elif db_type == 'xg':
+                with engine.connect() as conn:
+                    if schema:
+                        result = conn.execute(
+                            text("""
+                                SELECT col_name, comments FROM 
+                                dba_columns WHERE 
+                                table_id = (
+                                    SELECT t.table_id FROM dba_tables t
+                                    JOIN dba_schemas s ON t.schema_id = s.schema_id AND t.db_id = s.db_id
+                                    WHERE t.table_name = :table AND s.schema_name = :schema
+                                )
+                                """),
+                            {"schema": schema.upper(), "table": table_name.upper()},
+                        ).fetchall()
+                    else:
+                        result = conn.execute(
+                            text("""
+                                SELECT col_name, data_type, comments FROM 
+                                dba_columns WHERE 
+                                table_id = (SELECT table_id FROM dba_tables 
+                                           WHERE table_name = :table)
+                                ORDER BY col_id
+                                """),
+                            {"table": table_name.upper()},
+                        ).fetchall()
+
+                    columns = []
+                    for row in result:
+                        col_name = row[0]
+                        data_type = row[1] if len(row) > 1 else 'UNKNOWN'
+                        comment = row[2] if len(row) > 2 else ''
+
+                        columns.append({
+                            'name': col_name,
+                            'type': data_type,
+                            'db_comment': comment or '',
+                            'verbose_name': col_name
+                        })
+
+                    return True, columns
+
             model = cls._find_model(table_name)
             verbose_names = {
                 field.name: field.verbose_name
@@ -435,7 +533,14 @@ class DBConnector:
                     """), {'user': current_user.upper()})
                     schemas = [row[0] for row in res]
                     return True, schemas
-
+            elif db_type == "xg":
+                with engine.connect() as conn:
+                    result = conn.execute(
+                        text("SELECT schema_name FROM user_schemas ORDER BY schema_name")
+                    )
+                    schema_rows = result.fetchall()
+                    target_schemas = [row[0] for row in schema_rows]
+                    return True, target_schemas
             else:
                 return True, []
 
@@ -657,7 +762,97 @@ class DBConnector:
                     print(f"DM: 查询成功，返回 {len(data)} 行数据")
                     print(f"DM: 查询成功，返回数据: {data[:5]}...")
                     return data
+                if db_type == 'xg':
+                    table_name_input = table_name
+                    columns_input = columns
+                    schema = db_params.get('schema')
 
+                    if schema:
+                        # 如果指定了schema，直接使用指定的schema
+                        print(f"XG: 使用指定的schema: {schema}")
+                        found_schema = schema.upper()
+
+                        # 验证表是否存在
+                        table_check = conn.execute(
+                            text("""
+                                SELECT COUNT(*) FROM dba_tables t
+                                JOIN dba_schemas s ON t.schema_id = s.schema_id AND t.db_id = s.db_id
+                                WHERE s.schema_name = :schema AND t.table_name = :table
+                            """),
+                            {"schema": found_schema, "table": table_name_input.upper()}
+                        ).scalar()
+
+                        if table_check == 0:
+                            raise ValueError(f"XG数据库schema {found_schema} 中未找到表: {table_name_input}")
+
+                        actual_table_name = table_name_input.upper()
+                    else:
+                        # 如果没有指定schema，查找表所在的schema
+                        print(f"XG: 未指定schema，搜索表 {table_name_input}")
+
+                        # 查找表所在的schema
+                        schema_result = conn.execute(
+                            text("""
+                                SELECT s.schema_name FROM dba_tables t
+                                JOIN dba_schemas s ON t.schema_id = s.schema_id AND t.db_id = s.db_id
+                                WHERE t.table_name = :table
+                            """),
+                            {"table": table_name_input.upper()}
+                        ).fetchone()
+
+                        if not schema_result:
+                            raise ValueError(f"XG数据库未找到表: {table_name_input}")
+
+                        found_schema = schema_result[0]
+                        actual_table_name = table_name_input.upper()
+
+                    print(f"XG: 找到表 {actual_table_name} 在schema {found_schema}")
+
+                    # 验证字段是否存在
+                    columns_checked = []
+                    for col in columns_input:
+                        col_check = conn.execute(
+                            text("""
+                                SELECT COUNT(*) FROM dba_columns c
+                                JOIN dba_tables t ON c.table_id = t.table_id
+                                JOIN dba_schemas s ON t.schema_id = s.schema_id AND t.db_id = s.db_id
+                                WHERE s.schema_name = :schema 
+                                AND t.table_name = :table 
+                                AND c.col_name = :column
+                            """),
+                            {"schema": found_schema, "table": actual_table_name, "column": col.upper()}
+                        ).scalar()
+
+                        if col_check == 0:
+                            # 获取可用字段列表用于错误提示
+                            available_cols = conn.execute(
+                                text("""
+                                    SELECT c.col_name FROM dba_columns c
+                                    JOIN dba_tables t ON c.table_id = t.table_id
+                                    JOIN dba_schemas s ON t.schema_id = s.schema_id AND t.db_id = s.db_id
+                                    WHERE s.schema_name = :schema AND t.table_name = :table
+                                    ORDER BY c.col_id
+                                """),
+                                {"schema": found_schema, "table": actual_table_name}
+                            ).fetchall()
+                            col_names = [row[0] for row in available_cols]
+                            raise ValueError(
+                                f"XG数据库表 {found_schema}.{actual_table_name} 中未找到字段: {col}。可用字段: {col_names}")
+
+                        columns_checked.append(col.upper())
+
+                    print(f"XG: 验证字段成功: {columns_checked}")
+
+                    # 构建查询SQL
+                    column_list = ', '.join([f'"{col}"' for col in columns_checked])
+                    qualified_table = f'{found_schema}.{actual_table_name}'
+                    query_sql = text(f'SELECT {column_list} FROM {qualified_table}')
+
+                    print(f"XG: 执行SQL: {query_sql}")
+                    result = conn.execute(query_sql)
+                    data = [dict(zip(columns_input, row)) for row in result]
+                    print(f"XG: 查询成功，返回 {len(data)} 行数据")
+                    return data
                 else:
                     # 非Oracle数据库使用原来的autoload方式
                     try:
