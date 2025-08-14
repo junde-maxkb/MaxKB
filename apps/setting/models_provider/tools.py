@@ -446,11 +446,14 @@ class DBConnector:
                     else:
                         result = conn.execute(
                             text("""
-                                SELECT col_name, data_type, comments FROM 
+                                SELECT col_name, comments FROM
                                 dba_columns WHERE 
-                                table_id = (SELECT table_id FROM dba_tables 
-                                           WHERE table_name = :table)
-                                ORDER BY col_id
+                                table_id = (
+                                    SELECT t.table_id FROM dba_tables t
+                                    JOIN dba_schemas s ON t.schema_id = s.schema_id AND t.db_id = s.db_id
+                                    WHERE t.table_name = :table
+                                )
+                                ORDER BY col_name
                                 """),
                             {"table": table_name.upper()},
                         ).fetchall()
