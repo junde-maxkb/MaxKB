@@ -68,6 +68,7 @@ opencv-python-headless = "^4.11.0.86"
 pymysql = "^1.1.1"
 oracledb = "^2.5.0"
 accelerate = "^1.6.0"
+dmPython = "^2.5.22"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
