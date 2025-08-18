@@ -16,7 +16,7 @@
       label-position="top"
       require-asterisk-position="right"
     >
-      <el-form-item :label="$t('views.dataset.datasetForm.form.datasetType.label')" required>
+      <el-form-item v-if="datasetTypes.length > 1" :label="$t('views.dataset.datasetForm.form.datasetType.label')">
         <el-radio-group v-model="datasetForm.type" class="card__radio" @change="radioChange">
           <el-row :gutter="20">
             <el-col :span="24">
@@ -80,6 +80,10 @@ const datasetForm = ref({
   source_url: '',
   selector: ''
 })
+// 当前可用类型列表（如后续恢复多类型，可在此扩展）
+const datasetTypes = ref([
+  { value: '0', label: t('views.dataset.general') }
+])
 
 const rules = reactive({
   source_url: [

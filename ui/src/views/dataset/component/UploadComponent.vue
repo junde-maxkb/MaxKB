@@ -13,8 +13,8 @@
         <el-radio-button value="table">{{
           $t('views.document.fileType.table.label')
         }}</el-radio-button>
-        <el-radio-button value="QA">{{ $t('views.document.fileType.QA.label') }}</el-radio-button>
-        <el-radio-button value="SQL">{{ $t('views.document.fileType.SQL.label') }}</el-radio-button>
+        <el-radio-button v-if="isAdmin" value="QA">{{ $t('views.document.fileType.QA.label') }}</el-radio-button>
+        <el-radio-button v-if="isAdmin" value="SQL">{{ $t('views.document.fileType.SQL.label') }}</el-radio-button>
       </el-radio-group>
     </div>
 
@@ -298,9 +298,10 @@ import useStore from '@/stores'
 import { useRoute } from 'vue-router'
 import { t } from '@/locales'
 const filterText = ref('')
-const { dataset } = useStore()
+const { dataset, user } = useStore()
 const documentsFiles = computed(() => dataset.documentsFiles)
 const documentsType = computed(() => dataset.documentsType)
+const isAdmin = computed(() => user.userInfo?.role === 'ADMIN')
 const form = ref({
   fileType: 'txt',
   fileList: [] as any

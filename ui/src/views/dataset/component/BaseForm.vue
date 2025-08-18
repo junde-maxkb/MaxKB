@@ -30,7 +30,8 @@
         @blur="form.desc = form.desc.trim()"
       />
     </el-form-item>
-    <el-form-item
+    <!-- 向量模型固定为默认（maxkb-embedding），前端不展示选择 -->
+    <el-form-item v-if="false"
       :label="$t('views.dataset.datasetForm.form.EmbeddingModel.label')"
       prop="embedding_mode_id"
     >
@@ -78,13 +79,7 @@ const rules = reactive({
       trigger: 'blur'
     }
   ],
-  embedding_mode_id: [
-    {
-      required: true,
-      message: t('views.dataset.datasetForm.form.EmbeddingModel.requiredMessage'),
-      trigger: 'change'
-    }
-  ]
+  // 向量模型固定为默认，不再校验用户选择
 })
 
 const FormRef = ref()
@@ -119,7 +114,15 @@ function getModel() {
   model
     .asyncGetModel({ model_type: 'EMBEDDING' })
     .then((res: any) => {
-      modelOptions.value = groupBy(res?.data, 'provider')
+      // 自动选择名为 maxkb-embedding 的模型作为默认
+      const list = res?.data || []
+      const def = list.find((m: any) => m?.name === 'maxkb-embedding' || m?.model_name === 'maxkb-embedding')
+      if (def?.id) {
+        form.value.embedding_mode_id = def.id
+      } else if (list[0]?.id) {
+        form.value.embedding_mode_id = list[0].id
+      }
+      modelOptions.value = groupBy(list, 'provider')
       loading.value = false
     })
     .catch(() => {

@@ -1,6 +1,6 @@
 import { request } from './../request/index'
 import { Result } from '@/request/Result'
-import { get, post, del, put } from '@/request/index'
+import { get, post, del, put, postStream } from '@/request/index'
 import { type Ref } from 'vue'
 import type {
   modelRequest,
@@ -27,6 +27,21 @@ export const postModelChat = (
   }
 ) => {
   return post(`${prefix}/${model_id}/chat`, data)
+}
+
+/**
+ * 流式直连模型对话（返回原生 fetch Response）
+ */
+export const postModelChatStream = (
+  model_id: string,
+  data: {
+    messages?: Array<{ role: string; content: string }>
+    message?: string
+    system?: string
+    [k: string]: any
+  }
+) => {
+  return postStream(`/api${prefix}/${model_id}/chat`, { ...data, stream: true })
 }
 const prefix_provider = '/provider'
 
@@ -220,5 +235,6 @@ export default {
   getModelParamsForm,
   updateModelParamsForm,
   getProviderByModelType,
-  postModelChat
+  postModelChat,
+  postModelChatStream
 }

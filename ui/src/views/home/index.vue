@@ -1,6 +1,6 @@
 <template>
   <div class="home-container">
-    <div class="hero-section" :class="{ 'searched': searchResults.length > 0 || aiAnswer }">
+    <div class="hero-section" :class="{ 'searched': searchResults.length > 0 || chatMessages.length > 0 || isStreaming }">
       <div class="welcome-content">
         <h1 class="hero-title">{{ $t('views.home.welcome') }}</h1>
         <p class="hero-subtitle">{{ $t('views.home.description') }}</p>
@@ -57,23 +57,45 @@
     </div>
     
     <!-- 搜索结果展示区域 -->
-    <div v-if="(searchResults.length > 0 || aiAnswerLoading || aiAnswer) && (searchQuery || searchResults.length > 0 || aiAnswerLoading || aiAnswer)" class="search-results-section" :class="{ 'show': searchResults.length > 0 || aiAnswerLoading || aiAnswer }">
+    <div v-if="(searchResults.length > 0 || chatMessages.length > 0 || isStreaming) && (searchQuery || searchResults.length > 0 || chatMessages.length > 0 || isStreaming)" class="search-results-section" :class="{ 'show': searchResults.length > 0 || chatMessages.length > 0 || isStreaming }">
       <div class="container">
-        <!-- AI回答 -->
-        <div v-if="aiAnswerLoading || aiAnswer" class="ai-answer-card">
+        <!-- 多轮对话（AI回答） -->
+        <div class="ai-answer-card">
           <div class="answer-header">
             <el-icon class="answer-icon">
               <ChatDotRound />
             </el-icon>
             <h3 class="answer-title">AI回答</h3>
           </div>
-          <div v-if="aiAnswerLoading" class="answer-loading">
-            <span class="loading-text">回答中</span>
-            <span class="dot dot1">.</span>
-            <span class="dot dot2">.</span>
-            <span class="dot dot3">.</span>
+          <div class="chat-window">
+            <div
+              v-for="(msg, idx) in chatMessages"
+              :key="idx"
+              class="chat-row"
+              :class="{ 'from-user': msg.role === 'user', 'from-ai': msg.role !== 'user' }"
+            >
+              <div class="bubble">{{ msg.content }}</div>
+            </div>
+            <div v-if="isStreaming" class="chat-row from-ai">
+              <div class="bubble">
+                <span class="loading-text">回答中</span>
+                <span class="dot dot1">.</span>
+                <span class="dot dot2">.</span>
+                <span class="dot dot3">.</span>
+              </div>
+            </div>
           </div>
-          <div v-else class="answer-content" v-html="aiAnswer"></div>
+
+          <div class="chat-input">
+            <el-input
+              v-model="chatInput"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 4 }"
+              placeholder="请输入问题，回车发送"
+              @keyup.enter.exact.prevent="sendChat"
+            />
+            <el-button type="primary" :loading="isStreaming" @click="sendChat">发送</el-button>
+          </div>
             </div>
 
         <!-- 检索结果 -->
@@ -126,7 +148,7 @@ import { useRouter } from 'vue-router'
 import { MsgSuccess, MsgError } from '@/utils/message'
 import applicationApi from '@/api/application'
 import datasetApi from '@/api/dataset'
-import { postModelChat } from '@/api/model'
+import { postModelChat, postModelChatStream } from '@/api/model'
 
 const router = useRouter()
 
@@ -144,8 +166,10 @@ const hotSearches = ref([
 
 // 搜索结果
 const searchResults = ref<any[]>([])
-const aiAnswer = ref('')
-const aiAnswerLoading = ref(false)
+// 多轮对话状态
+const chatMessages = ref<Array<{ role: 'user'|'assistant'|'system'; content: string }>>([])
+const chatInput = ref('')
+const isStreaming = ref(false)
 const resultsCount = computed(() => searchResults.value.length)
 const isResultsExpanded = ref(false)
 
@@ -157,8 +181,8 @@ const organizationDatasets = ref<any[]>([]) // 机构知识库
 const handleScopeChange = () => {
   // 清空搜索结果
   searchResults.value = []
-  aiAnswer.value = ''
-  
+  chatMessages.value = []
+
   // 如果切换到个人或机构知识库，可以在这里添加相应的处理逻辑
   // 例如：重新加载对应范围的知识库数据
   if (datasetScope.value === 'personal') {
@@ -216,8 +240,9 @@ const handleSearch = async () => {
   
   searchLoading.value = true
   searchResults.value = []
-  aiAnswer.value = ''
-  aiAnswerLoading.value = false
+  chatMessages.value = []
+  chatInput.value = ''
+  isStreaming.value = false
   
   try {
     // 1. 首先进行知识库检索
@@ -367,51 +392,139 @@ const resolveDefaultModelId = async (): Promise<string> => {
 }
 
 // AI回答（改为调用直连模型单轮对话接口）
+// 首轮：基于检索上下文发起一轮对话（把上下文放system）
 const performAIAnswer = async () => {
   try {
-    aiAnswerLoading.value = true
+    isStreaming.value = true
     // 构建检索到的内容作为上下文，包含标题、内容、来源和数据集信息
-    const context = searchResults.value
-      .slice(0, 3) // 只使用前3个最相关的结果
-      .map((result, index) => `条目 ${index + 1}：
-标题：${result.title || `条目 ${index + 1}`}
-内容：${result.content}
-来源：${result.source || '知识库'}
-数据集：${result.dataset_name || '未知'}`)
-      .join('\n\n')
+    const buildSearchContext = () => {
+      return searchResults.value
+        .slice(0, 3) // 只使用前3个最相关的结果
+        .map((result, index) => `条目 ${index + 1}：
+ 标题：${result.title || `条目 ${index + 1}`}
+ 内容：${result.content}
+ 来源：${result.source || '知识库'}
+ 数据集：${result.dataset_name || '未知'}`)
+        .join('\n\n')
+    }
+    const context = buildSearchContext()
     
     // 构建消息
     const messages = [
-      {
-        role: 'system',
-        content: '你是一个知识库助手，请根据以下上下文回答问题:\n\n' + context
-      },
-      {
-        role: 'user',
-        content: searchQuery.value
-      }
+      { role: 'system', content: '你是一个知识库助手，请根据以下上下文回答问题:\n\n' + context },
+      ...chatMessages.value,
+      { role: 'user', content: searchQuery.value }
     ]
 
     // 选择一个默认模型或从配置中获取，这里先从本地存储或固定ID占位
     const defaultModelId = await resolveDefaultModelId()
     if (!defaultModelId) {
       console.warn('未找到可用模型，请先在“模型”中创建/配置。')
-      aiAnswer.value = '未找到可用模型，请到“模型”页面创建或配置一个可用的大语言模型后再试。'
+      chatMessages.value.push({ role: 'assistant', content: '未找到可用模型，请到“模型”页面创建或配置一个可用的大语言模型后再试。' })
       return
     }
 
-    const resp = await postModelChat(defaultModelId, { messages })
-    if (resp.code === 200 && resp.data) {
-      aiAnswer.value = resp.data.content
+    // 累积到对话窗口
+    chatMessages.value.push({ role: 'user', content: searchQuery.value })
+    const resp = await postModelChatStream(defaultModelId, { messages })
+    if (resp?.body && typeof resp.body.getReader === 'function') {
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value)
+        const parts = chunk.match(/data:.*\n\n/g)
+        if (parts) {
+          for (const p of parts) {
+            try {
+              const json = JSON.parse(p.replace('data:', ''))
+              if (json?.content) {
+                // 若上一条是assistant，拼接；否则新开一条assistant
+                const last = chatMessages.value[chatMessages.value.length - 1]
+                if (last && last.role === 'assistant') {
+                  last.content += json.content
+                } else {
+                  chatMessages.value.push({ role: 'assistant', content: json.content })
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } else if ((resp as any)?.data?.content) {
+      chatMessages.value.push({ role: 'assistant', content: (resp as any).data.content })
     } else {
-      aiAnswer.value = '抱歉，生成回答失败。'
+      chatMessages.value.push({ role: 'assistant', content: '抱歉，生成回答失败。' })
     }
   } catch (error) {
     console.error('AI回答失败:', error)
-    aiAnswer.value = '抱歉，生成回答时出现错误，请重试。'
+    chatMessages.value.push({ role: 'assistant', content: '抱歉，生成回答时出现错误，请重试。' })
   }
   finally {
-    aiAnswerLoading.value = false
+    isStreaming.value = false
+  }
+}
+
+// 继续多轮：仅把历史 messages 和最新用户输入发送
+const sendChat = async () => {
+  const content = chatInput.value.trim()
+  if (!content) return
+  isStreaming.value = true
+  try {
+    const defaultModelId = await resolveDefaultModelId()
+    if (!defaultModelId) {
+      MsgError('未找到可用模型，请先在“模型”中创建/配置。')
+      isStreaming.value = false
+      return
+    }
+    // 每次追问也附带最近一次检索上下文（放在 system）
+    const ctx = searchResults.value
+      .slice(0, 3)
+      .map((r, i) => `条目 ${i + 1}：\n标题：${r.title || `条目 ${i + 1}`}\n内容：${r.content}\n来源：${r.source || '知识库'}\n数据集：${r.dataset_name || '未知'}`)
+      .join('\n\n')
+    const messages = [
+      { role: 'system', content: '你是一个知识库助手，请根据以下上下文回答问题:\n\n' + ctx },
+      ...chatMessages.value,
+      { role: 'user', content }
+    ]
+    chatMessages.value.push({ role: 'user', content })
+    chatInput.value = ''
+    const resp = await postModelChatStream(defaultModelId, { messages })
+    if (resp?.body && typeof resp.body.getReader === 'function') {
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value)
+        const parts = chunk.match(/data:.*\n\n/g)
+        if (parts) {
+          for (const p of parts) {
+            try {
+              const json = JSON.parse(p.replace('data:', ''))
+              if (json?.content) {
+                const last = chatMessages.value[chatMessages.value.length - 1]
+                if (last && last.role === 'assistant') {
+                  last.content += json.content
+                } else {
+                  chatMessages.value.push({ role: 'assistant', content: json.content })
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } else if ((resp as any)?.data?.content) {
+      chatMessages.value.push({ role: 'assistant', content: (resp as any).data.content })
+    } else {
+      chatMessages.value.push({ role: 'assistant', content: '抱歉，生成回答失败。' })
+    }
+  } catch (e) {
+    console.error(e)
+    chatMessages.value.push({ role: 'assistant', content: '服务异常，请稍后再试。' })
+  } finally {
+    isStreaming.value = false
   }
 }
 
@@ -651,6 +764,40 @@ onMounted(() => {
   }
   
   .ai-answer-card {
+    .chat-window {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+    }
+
+    .chat-row {
+      display: flex;
+      margin: 8px 0;
+      &.from-user { justify-content: flex-end; }
+      &.from-ai { justify-content: flex-start; }
+      .bubble {
+        max-width: 80%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+      &.from-user .bubble {
+        background: #4f46e5;
+        color: #fff;
+      }
+      &.from-ai .bubble {
+        background: #f3f4f6;
+        color: #111827;
+      }
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
     background: #ffffff;
     border-radius: 16px;
     padding: 32px;
