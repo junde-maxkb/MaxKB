@@ -198,7 +198,7 @@ const handleScopeChange = () => {
 const getPersonalDatasets = async () => {
   try {
     // 获取我的知识库
-    const myDatasetsResponse = await datasetApi.getDataset({ current_page: 1, page_size: 1000 }, { type: 'MY' })
+    const myDatasetsResponse = await datasetApi.getDataset({ current_page: 1, page_size: 1000 }, {})
     const myDatasets = myDatasetsResponse.data?.records || []
     
     // 获取共享给我的知识库

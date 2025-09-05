@@ -42,7 +42,17 @@ export default defineConfig(({ mode }) => {
       proxy: proxyConf
     },
     build: {
-      outDir: 'dist/ui'
+      outDir: 'dist/ui',
+      chunkSizeWarningLimit: 2000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              return 'vendor';
+            }
+          }
+        }
+      }
     },
     resolve: {
       alias: {

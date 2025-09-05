@@ -3,6 +3,7 @@ import { get, post, del, put, exportExcel, exportFile } from '@/request/index'
 import type { datasetData } from '@/api/type/dataset'
 import type { pageRequest } from '@/api/type/common'
 import type { ApplicationFormType } from '@/api/type/application'
+import type { WebDatasetData, LarkDatasetData, QADatasetData, DatasetHitTestData, LarkDocumentListData, ImportLarkDocumentData, GenerateRelatedData } from '@/api/type/datasetTypes'
 import { type Ref } from 'vue'
 
 const prefix = '/dataset'
@@ -20,7 +21,7 @@ const prefix = '/dataset'
  */
 const getDataset: (
   page: pageRequest,
-  param: any,
+  param: { name?: string },
   loading?: Ref<boolean>
 ) => Promise<Result<any>> = (page, param, loading) => {
   return get(`${prefix}/${page.current_page}/${page.page_size}`, param, loading)
@@ -87,7 +88,7 @@ const postDataset: (data: datasetData, loading?: Ref<boolean>) => Promise<Result
  "selector": "string",
  }
  */
-const postWebDataset: (data: any, loading?: Ref<boolean>) => Promise<Result<any>> = (
+const postWebDataset: (data: WebDatasetData, loading?: Ref<boolean>) => Promise<Result<any>> = (
   data,
   loading
 ) => {
@@ -104,7 +105,7 @@ const postWebDataset: (data: any, loading?: Ref<boolean>) => Promise<Result<any>
  "folder_token": "string",
  }
  */
-const postLarkDataset: (data: any, loading?: Ref<boolean>) => Promise<Result<any>> = (
+const postLarkDataset: (data: LarkDatasetData, loading?: Ref<boolean>) => Promise<Result<any>> = (
   data,
   loading
 ) => {
@@ -120,7 +121,7 @@ const postLarkDataset: (data: any, loading?: Ref<boolean>) => Promise<Result<any
  "desc": "string",
  }
  */
-const postQADataset: (data: any, loading?: Ref<boolean>) => Promise<Result<any>> = (
+const postQADataset: (data: QADatasetData, loading?: Ref<boolean>) => Promise<Result<any>> = (
   data,
   loading
 ) => {
@@ -149,14 +150,14 @@ const getDatasetDetail: (dataset_id: string, loading?: Ref<boolean>) => Promise<
  */
 const putDataset: (
   dataset_id: string,
-  data: any,
+  data: { name?: string, desc?: string },
   loading?: Ref<boolean>
 ) => Promise<Result<any>> = (dataset_id, data, loading) => {
   return put(`${prefix}/${dataset_id}`, data, undefined, loading)
 }
 const putLarkDataset: (
   dataset_id: string,
-  data: any,
+  data: { name?: string, desc?: string, app_id?: string, app_secret?: string, folder_token?: string },
   loading?: Ref<boolean>
 ) => Promise<Result<any>> = (dataset_id, data, loading) => {
   return put(`${prefix}/lark/${dataset_id}`, data, undefined, loading)
@@ -183,7 +184,7 @@ const listUsableApplication: (
  */
 const getDatasetHitTest: (
   dataset_id: string,
-  data: any,
+  data: DatasetHitTestData,
   loading?: Ref<boolean>
 ) => Promise<Result<Array<any>>> = (dataset_id, data, loading) => {
   return get(`${prefix}/${dataset_id}/hit_test`, data, loading)
@@ -264,7 +265,7 @@ const getDatasetModel: (
 const getLarkDocumentList: (
   dataset_id: string,
   folder_token: string,
-  data: any,
+  data: LarkDocumentListData,
   loading?: Ref<boolean>
 ) => Promise<Result<Array<any>>> = (dataset_id, folder_token, data, loading) => {
   return post(`${prefix}/lark/${dataset_id}/${folder_token}/doc_list`, data, null, loading)
@@ -272,7 +273,7 @@ const getLarkDocumentList: (
 
 const importLarkDocument: (
   dataset_id: string,
-  data: any,
+  data: ImportLarkDocumentData,
   loading?: Ref<boolean>
 ) => Promise<Result<Array<any>>> = (dataset_id, data, loading) => {
   return post(`${prefix}/lark/${dataset_id}/import`, data, null, loading)
@@ -286,7 +287,7 @@ const importLarkDocument: (
  */
 const generateRelated: (
   dataset_id: string,
-  data: any,
+  data: GenerateRelatedData,
   loading?: Ref<boolean>
 ) => Promise<Result<Array<any>>> = (dataset_id, data, loading) => {
   return put(`${prefix}/${dataset_id}/generate_related`, data, null, loading)

@@ -120,7 +120,7 @@ function changeState(bool: Boolean, row: any) {
     is_active: bool
   }
   const str = bool ? t('common.status.enableSuccess') : t('common.status.disableSuccess')
-  teamApi.putUserManage(row.id, obj, loading).then((res) => {
+  teamApi.setAdminManage(row.id, obj).then((res: any) => {
     getList(teamId.value)
     MsgSuccess(str)
   })

@@ -76,7 +76,7 @@
     prop="extra_params.schema"
     >
       <template v-slot:label>
-        <el-button text size="small" @click="getDsSchema(formRef)" style="color: #0070ff; margin-left: 2px">
+        <el-button text size="small" @click="getDsSchema" style="color: #0070ff; margin-left: 2px">
           <template #icon>
             <el-icon><Plus /></el-icon>
           </template>
@@ -87,7 +87,7 @@
         v-model="form.extra_params.schema"
         :options="schemas"
         filterable
-        :placeholder="请选择"
+        placeholder="请选择"
         class="de-select"
         @change="validatorSchema"
       />
@@ -190,7 +190,7 @@
                 :min="1"
                 :max="10"
                 controls-position="right"
-                @change="handleChange"
+
                 style="width: 300px;"
               />
             </el-form-item>
@@ -202,7 +202,7 @@
                 :min="1"
                 :max="10"
                 controls-position="right"
-                @change="handleChange"
+
                 style="width: 300px;"
               />
             </el-form-item>
@@ -217,7 +217,7 @@
                 :min="1"
                 :max="10"
                 controls-position="right"
-                @change="handleChange"
+
                 style="width: 300px;"
               />
             </el-form-item>
@@ -229,7 +229,7 @@
                 :min="1"
                 :max="10"
                 controls-position="right"
-                @change="handleChange"
+
                 style="width: 300px;"
               />
             </el-form-item>
@@ -352,7 +352,7 @@ const rules = reactive({
       required: true, 
       message: '请输入SSH密码', 
       trigger: 'blur',
-      validator: (rule, value, callback) => {
+      validator: (rule: any, value: any, callback: any) => {
         if (form.ssh_enabled && form.ssh_config.authType === 'password' && !value) {
           callback(new Error('请输入SSH密码'))
         } else {
@@ -364,7 +364,7 @@ const rules = reactive({
       required: true, 
       message: '请输入SSH Key', 
       trigger: 'blur',
-      validator: (rule, value, callback) => {
+      validator: (rule: any, value: any, callback: any) => {
         if (form.ssh_enabled && form.ssh_config.authType === 'key' && !value) {
           callback(new Error('请输入SSH Key'))
         } else {
@@ -376,7 +376,7 @@ const rules = reactive({
   advanced: {
     maxActive: [
       { 
-        validator: (rule, value, callback) => {
+        validator: (rule: any, value: any, callback: any) => {
           if (value < form.advanced.minIdle) {
             callback(new Error('最大连接数不能小于最小连接数'))
           } else {
@@ -390,7 +390,7 @@ const rules = reactive({
 })
 const schemas = ref([])
 const resetForm = () => {
-  formRef.value.resetFields()
+  formRef.value?.resetFields()
 }
 
 const dialogVisible = ref<boolean>(false)
@@ -473,10 +473,10 @@ const testConnect = async (formEl: FormInstance | undefined) => {
 }
 const getDsSchema = async () => {
   try {
-    rules["extra_params.schema"] = { message: '请选择', trigger: 'blur'}
-    await formRef.value.validate();
+    // Schema validation is handled in the existing validator
+    await formRef.value?.validate();
     const res = await dBSourceApi.SearchDataSourceSchema(form);
-    schemas.value = res.data.map(item => ({ label: item, value: item }));
+    schemas.value = res.data.map((item: any) => ({ label: item, value: item }));
     MsgSuccess('Schema获取成功');
   } catch (error) {
     console.error('获取Schema失败:', error);

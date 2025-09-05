@@ -168,8 +168,8 @@ const createDataSourceRef = ref<InstanceType<typeof createDataSourceDialog>>()
 const EditDataSourceRef= ref<InstanceType<typeof EditDataSourceDialog>>()
 const loading = ref(false)
 const rLoading = ref(false)
-const sourceList = ref([]) // 全部成员
-const filterMember = ref<TeamMember[]>([]) // 搜索过滤后列表
+const sourceList = ref<any[]>([]) // 全部成员
+const filterMember = ref<any[]>([]) // 搜索过滤后列表
 const currentSource = ref<String>('')
 const currentSourceId = ref('')
 const filterText = ref('')
@@ -217,7 +217,7 @@ function isManage(type: String) {
 }
 
 
-function deleteMember(row: TeamMember) {
+function deleteMember(row: any) {
   MsgConfirm(
     `${t('views.team.delete.confirmTitle')}${row.name}?`,
     t('views.team.delete.confirmMessage'),
@@ -258,9 +258,11 @@ function getSource(id?: string) {
     .then((res) => {
       sourceList.value = res.data
       filterMember.value = res.data
-      currentSource.value = sourceList.value[0].name
-      dataSource.value = res.data[0]
-      currentSourceId.value = res.data[0].id
+      if (sourceList.value.length > 0) {
+        currentSource.value = sourceList.value[0].name
+        dataSource.value = res.data[0]
+        currentSourceId.value = res.data[0].id
+      }
       loading.value = false
     })
     .catch(() => {

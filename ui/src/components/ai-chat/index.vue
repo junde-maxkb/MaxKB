@@ -5,6 +5,26 @@
     :class="type"
     :style="{ height: firsUserInput ? '100%' : undefined }"
   >
+    <!-- 开场动画 -->
+    <IntroAnimation
+      :show="showIntroAnimation"
+      :video-src="introVideoSrc"
+      :poster-src="introPosterSrc"
+      :skip-timeout="5000"
+      @complete="onIntroComplete"
+      @skip="onIntroSkip"
+      @error="onIntroError"
+    />
+    
+    <!-- 回答前动画 -->
+    <AnswerAnimation
+      :show="showAnswerAnimation"
+      :video-src="answerVideoSrc"
+      :poster-src="answerPosterSrc"
+      @complete="onAnswerAnimationComplete"
+      @skip="onAnswerAnimationSkip"
+      @error="onAnswerAnimationError"
+    />
     <div
       v-show="showUserInputContent"
       :class="firsUserInput ? 'firstUserInput' : 'popperUserInput'"
@@ -110,9 +130,25 @@ import ChatInputOperate from '@/components/ai-chat/component/chat-input-operate/
 import PrologueContent from '@/components/ai-chat/component/prologue-content/index.vue'
 import UserForm from '@/components/ai-chat/component/user-form/index.vue'
 import Control from '@/components/ai-chat/component/control/index.vue'
+import IntroAnimation from '@/components/ai-chat/component/intro-animation/index.vue'
+import AnswerAnimation from '@/components/ai-chat/component/answer-animation/index.vue'
 import { t } from '@/locales'
 import bus from '@/bus'
+import animationManager from '@/utils/animation-manager'
+import { animationDebug } from '@/utils/animation-debug'
 const transcribing = ref<boolean>(false)
+
+// 动画相关状态
+const showIntroAnimation = ref(false)
+const showAnswerAnimation = ref(false)
+const introVideoSrc = ref('/videos/intro-animation.mp4')
+const introPosterSrc = ref('/images/intro-poster.jpg')
+const answerVideoSrc = ref('/videos/answer-animation.mp4')
+const answerPosterSrc = ref('/images/answer-poster.jpg')
+
+// 动画配置
+const animationConfig = ref(animationManager.getConfig())
+
 defineOptions({ name: 'AiChat' })
 const route = useRoute()
 const {
@@ -293,6 +329,59 @@ const openChatId: () => Promise<string> = () => {
     }
   }
 }
+// 动画事件处理
+const onIntroComplete = () => {
+  showIntroAnimation.value = false
+  animationManager.endIntro()
+  console.log('开场动画播放完成')
+}
+
+const onIntroSkip = () => {
+  showIntroAnimation.value = false
+  animationManager.skipIntro()
+  console.log('开场动画被跳过')
+}
+
+const onIntroError = (error: string) => {
+  showIntroAnimation.value = false
+  animationManager.skipIntro()
+  console.error('开场动画播放错误:', error)
+}
+
+const onAnswerAnimationComplete = () => {
+  showAnswerAnimation.value = false
+  animationManager.endAnswer()
+  console.log('回答动画播放完成')
+}
+
+const onAnswerAnimationSkip = () => {
+  showAnswerAnimation.value = false
+  animationManager.skipAnswer()
+  console.log('回答动画被跳过')
+}
+
+const onAnswerAnimationError = (error: string) => {
+  showAnswerAnimation.value = false
+  animationManager.skipAnswer()
+  console.error('回答动画播放错误:', error)
+}
+
+// 显示开场动画
+const showIntro = () => {
+  if (animationManager.shouldPlayIntro()) {
+    showIntroAnimation.value = true
+    animationManager.startIntro()
+  }
+}
+
+// 显示回答动画
+const showAnswerAnim = () => {
+  if (animationManager.shouldPlayAnswer()) {
+    showAnswerAnimation.value = true
+    animationManager.startAnswer()
+  }
+}
+
 /**
  * 对话
  */
@@ -389,6 +478,9 @@ const errorWrite = (chat: any, message?: string) => {
 // 保存上传文件列表
 
 function chatMessage(chat?: any, problem?: string, re_chat?: boolean, other_params_data?: any) {
+  // 显示回答动画
+  showAnswerAnim()
+  
   loading.value = true
   if (!chat) {
     chat = reactive({
@@ -565,6 +657,14 @@ onMounted(() => {
       }
     })
   })
+  
+  // 显示开场动画（仅在首次加载时）
+  if (chatList.value.length === 0) {
+    setTimeout(() => {
+      animationDebug.logAll() // 调试信息
+      showIntro()
+    }, 500)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -590,6 +690,10 @@ defineExpose({
 </script>
 <style lang="scss">
 @import './index.scss';
+
+.ai-chat {
+  position: relative; /* 为动画组件提供定位上下文 */
+}
 .firstUserInput {
   height: 100%;
   display: flex;

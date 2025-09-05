@@ -937,11 +937,7 @@ function getList() {
   } else if (datasetType.value === 'SHARED' && sharedType.value === 'ORGANIZATION') {
     apiPromise = datasetApi.getOrganizationDataset(paginationConfig, params, loading)
   } else {
-    apiPromise = datasetApi.getDataset(paginationConfig, {
-      ...params,
-      type: datasetType.value,
-      ...(datasetType.value === 'SHARED' && { shared_type: sharedType.value })
-    }, loading)
+    apiPromise = datasetApi.getDataset(paginationConfig, params, loading)
   }
 
   apiPromise.then((res) => {
@@ -1131,7 +1127,7 @@ function loadAvailableDatasets() {
   // 并行获取用户的知识库、共享知识库和机构知识库
   const promises = [
     // 我的知识库
-    datasetApi.getDataset({ current_page: 1, page_size: 1000 }, { type: 'MY' }, datasetsLoading),
+    datasetApi.getDataset({ current_page: 1, page_size: 1000 }, {}, datasetsLoading),
     // 共享给我的知识库
     datasetApi.getSharedToMeDataset({ current_page: 1, page_size: 1000 }, {}, datasetsLoading),
     // 机构知识库

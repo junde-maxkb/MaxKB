@@ -1,10 +1,7 @@
 FROM ghcr.io/1panel-dev/maxkb-vector-model:v1.0.1 AS vector-model
 FROM node:18-alpine3.18 AS web-build
 COPY ui ui
-RUN cd ui && \
-    npm install && \
-    npm run build && \
-    rm -rf ./node_modules
+
 FROM ghcr.io/1panel-dev/maxkb-python-pg:python3.11-pg15.8 AS stage-build
 
 ARG DEPENDENCIES="                    \
@@ -30,9 +27,9 @@ RUN python3 -m venv /opt/py3 && \
     export MAXKB_CONFIG_TYPE=ENV && python3 /opt/maxkb/app/apps/manage.py compilemessages
 
 FROM ghcr.io/1panel-dev/maxkb-python-pg:python3.11-pg15.8
-ARG DOCKER_IMAGE_TAG=dev \
-    BUILD_AT \
-    GITHUB_COMMIT
+ARG DOCKER_IMAGE_TAG=dev
+ARG BUILD_AT
+ARG GITHUB_COMMIT
 
 ENV MAXKB_VERSION="${DOCKER_IMAGE_TAG} (build at ${BUILD_AT}, commit: ${GITHUB_COMMIT})" \
     MAXKB_CONFIG_TYPE=ENV \

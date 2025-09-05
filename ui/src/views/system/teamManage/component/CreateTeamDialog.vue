@@ -78,7 +78,7 @@ const submitTeam = async (formEl: FormInstance | undefined) => {
     if (valid) {
       loading.value = true
       // let idsArray = teamForm.value.name.map((obj: any) => obj.id)
-      TeamApi.CreateTeam(teamForm.value)
+      TeamApi.CreateTeam([teamForm.value.team_name])
         .then((res) => {
           if (res.code == 200){
             MsgSuccess(t('common.submitSuccess'))

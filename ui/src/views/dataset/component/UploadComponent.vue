@@ -289,7 +289,7 @@
 </template>
 <script setup lang="ts">
 import { ref, reactive, onUnmounted, onMounted, computed, watch, nextTick, shallowRef} from 'vue'
-import type { UploadFiles } from 'element-plus'
+import type { UploadFiles, UploadFile } from 'element-plus'
 import { filesize, getImgUrl, isRightType } from '@/utils/utils'
 import { MsgError,MsgSuccess } from '@/utils/message'
 import documentApi from '@/api/document'
@@ -312,8 +312,8 @@ const rules = reactive({
     { required: true, message: t('views.document.upload.requiredMessage'), trigger: 'change' }
   ]
 })
-const selectedNames= ref([])
-const selectable = (row, index) => {
+const selectedNames = ref<string[]>([])
+const selectable = (row: any, index: number) => {
   return true; 
 };
 watch(filterText, (val) => {
@@ -333,7 +333,7 @@ const FormRef = ref()
 const tableForm = reactive({
   source_id:"",
   table_name:"",
-  columns:[]
+  columns:[] as string[]
 })
 const isListVisible = ref()
 const isTableVisible = ref()
@@ -350,7 +350,7 @@ const dbRules = reactive({
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 })
-const tableData = ref([])
+const tableData = ref<any[]>([])
 const connectionStatus = reactive({
   message: '',
   type: 'info'
@@ -374,7 +374,7 @@ const handleFocus = async () => {
     console.error('数据加载失败:', error);
   }
 };
-const handleSelectionChange = (selectedRows) => {
+const handleSelectionChange = (selectedRows: Array<{ name: string }>) => {
   selectedNames.value = selectedRows.map(row => row.name);
   tableForm.columns = selectedNames.value
   console.log('已选中的物理字段名:', selectedNames);
@@ -387,8 +387,8 @@ const state = reactive({
   isLoaded: false,
   fieldCollapse: ['dimension', 'quota']
 })
-const filterTeamList = ref([])
-const tabelDataList = ref([])
+const filterTeamList = ref<Array<{label: string, value: string}>>([])
+const tabelDataList = ref<Array<{label: string, value: string}>>([])
 const showDataSourceDropdown = true
 const resetDbForm = () => {
   dbFormRef.value?.resetFields()
@@ -402,14 +402,14 @@ watch(form.value, (value) => {
 function handleSearch(){
   
 }
-const clickListHandle = async (selectedValue: any) => {
+const clickListHandle = async (selectedValue: { value: string }) => {
   isTableVisible.value = true
 
   try {
     const res = await dataSourceApi.getTableColumns(currentSourceId.value,selectedValue.value); // 调用你的 API 方法
     if (res.code === 200) {
       isListVisible.value = true
-      tableData.value = res.data
+      tableData.value = res.data as unknown as any[]
       tableForm.table_name = selectedValue.value
       
     }
@@ -418,15 +418,15 @@ const clickListHandle = async (selectedValue: any) => {
     console.error('数据加载失败:', error);
   }
 }
-const handleSelectChange = async (selectedValue:any) => {
+const handleSelectChange = async (selectedValue: string) => {
   if(!selectedValue) return
   try {  
     const res = await dataSourceApi.getTable(selectedValue); 
     if (res.code === 200) {
       console.log("res.data",res.data)
       isListVisible.value = true
-      tabelDataList.value = res.data.map(item => ({ label: item, value: item }))
-      filterTeamList.value = res.data.map(item => ({ label: item, value: item }))
+      tabelDataList.value = (res.data as unknown as string[]).map((item: string) => ({ label: item, value: item }))
+      filterTeamList.value = (res.data as unknown as string[]).map((item: string) => ({ label: item, value: item }))
       currentSourceId.value = selectedValue
       tableForm.source_id = selectedValue
     }
@@ -468,9 +468,9 @@ function deleteFile(index: number) {
 }
 
 // 上传on-change事件
-const fileHandleChange = (file: any, fileList: UploadFiles) => {
+const fileHandleChange = (file: UploadFile, fileList: UploadFiles) => {
   //1、判断文件大小是否合法，文件限制不能大于100M
-  const isLimit = file?.size / 1024 / 1024 < 100
+  const isLimit = (file?.size || 0) / 1024 / 1024 < 100
   if (!isLimit) {
     MsgError(t('views.document.upload.errorMessage1'))
     fileList.splice(-1, 1) //移除当前超出大小的文件
@@ -496,10 +496,9 @@ const onExceed = () => {
 }
 
 const handlePreview = (bool: boolean) => {
-  let inputDom: any = null
   nextTick(() => {
-    if (document.querySelector('.el-upload__input') != null) {
-      inputDom = document.querySelector('.el-upload__input')
+    const inputDom = document.querySelector('.el-upload__input') as HTMLInputElement
+    if (inputDom) {
       inputDom.webkitdirectory = bool
     }
   })
@@ -510,7 +509,7 @@ const handlePreview = (bool: boolean) => {
 */
 function validate() {
   if (form.value.fileType === 'SQL') {
-    return dbFormRef.value.validate((valid: any) => {
+    return dbFormRef.value.validate((valid: boolean) => {
       if (valid) {
         // 这里可以添加额外的验证逻辑
         return true
@@ -519,7 +518,7 @@ function validate() {
     })
   } else {
     if (!FormRef.value) return
-    return FormRef.value.validate((valid: any) => {
+    return FormRef.value.validate((valid: boolean) => {
       return valid
     })
   }

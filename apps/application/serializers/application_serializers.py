@@ -1288,9 +1288,15 @@ class Operate(serializers.Serializer):
             dataset_list = self.list_dataset(with_valid=False)
             mapping_dataset_id_list = [adm.dataset_id for adm in
                                        QuerySet(ApplicationDatasetMapping).filter(application_id=application_id)]
-            dataset_id_list = [d.get('id') for d in
-                               list(filter(lambda row: mapping_dataset_id_list.__contains__(row.get('id')),
-                                           dataset_list))]
+            
+            # 修复：直接使用映射关系中的数据集ID，确保已保存的关联关系能正确显示
+            # 只要是已关联的数据集就应该显示，不管用户当前是否有权限访问
+            dataset_id_list = [str(dataset_id) for dataset_id in mapping_dataset_id_list]
+            
+            # 为了向后兼容，我们还是需要检查用户可访问的数据集，但仅用于工作流节点的更新
+            accessible_dataset_id_list = [d.get('id') for d in
+                                         list(filter(lambda row: mapping_dataset_id_list.__contains__(row.get('id')),
+                                                     dataset_list))]
             self.update_search_node(application.work_flow, [str(dataset.get('id')) for dataset in dataset_list])
             return {**Query.reset_application(ApplicationSerializerModel(application).data),
                     'dataset_id_list': dataset_id_list}
@@ -1649,9 +1655,11 @@ class Operate(serializers.Serializer):
             dataset_list = self.list_dataset(with_valid=False)
             mapping_dataset_id_list = [adm.dataset_id for adm in
                                        QuerySet(ApplicationDatasetMapping).filter(application_id=app_id)]
-            dataset_id_list = [d.get('id') for d in
-                               list(filter(lambda row: mapping_dataset_id_list.__contains__(row.get('id')),
-                                           dataset_list))]
+            
+            # 修复：直接使用映射关系中的数据集ID，确保已保存的关联关系能正确显示
+            # 只要是已关联的数据集就应该显示，不管用户当前是否有权限访问
+            dataset_id_list = [str(dataset_id) for dataset_id in mapping_dataset_id_list]
+            
             self.update_search_node(embed_application.work_flow, [str(dataset.get('id')) for dataset in dataset_list])
             return {**Query.reset_application(ApplicationSerializerModel(embed_application).data),
                     'dataset_id_list': dataset_id_list}
