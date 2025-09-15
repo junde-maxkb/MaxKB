@@ -50,7 +50,25 @@ router.beforeEach(
       if (!user.userInfo) {
         await user.profile()
       }
+      
+      // 用户角色路由控制
+      const userRole = user.userInfo?.role
+      const isUserRoute = to.path.startsWith('/user-')
+      const isAdminRoute = !isUserRoute && !['/login', '/register', '/forgot_password', '/reset_password', '/oauth_login', '/chat', '/404'].some(path => to.path.startsWith(path))
+      
+      // 非ADMIN用户只能访问用户页面
+      if (userRole !== 'ADMIN' && isAdminRoute) {
+        next('/user-home')
+        return
+      }
+      
+      // ADMIN用户不应该访问用户专用页面
+      if (userRole === 'ADMIN' && isUserRoute) {
+        next('/home')
+        return
+      }
     }
+    
     // 判断是否有菜单权限
     if (to.meta.permission ? hasPermission(to.meta.permission as any, 'OR') : true) {
       next()

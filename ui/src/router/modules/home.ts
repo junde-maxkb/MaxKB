@@ -1,7 +1,14 @@
+import { Role } from '@/utils/permission/type'
+
 const homeRouter = {
   path: '/home',
   name: 'home',
-  meta: { title: 'views.home.title', icon: 'app-home', order: 0 },
+  meta: { 
+    title: 'views.home.title', 
+    icon: 'app-home', 
+    order: 0,
+    permission: new Role('ADMIN')
+  },
   redirect: '/home',
   component: () => import('@/layout/layout-template/AppLayout.vue'),
   children: [

@@ -13,7 +13,17 @@ export const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     name: 'root',
-    redirect: '/home',
+    redirect: (to) => {
+      // 动态重定向：根据用户角色决定默认页面
+      const userStore = JSON.parse(localStorage.getItem('user') || '{}')
+      const userRole = userStore.userInfo?.role
+      
+      if (userRole === 'ADMIN') {
+        return '/home'
+      } else {
+        return '/user-home'
+      }
+    },
     children: [...rolesRoutes]
   },
 
