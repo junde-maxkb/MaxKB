@@ -9,7 +9,7 @@ export default {
   },
   setting: {
     migration: '迁移',
-    cancelGenerateQuestion: '取消生成问题',
+    cancelGenerateQuestion: '取消生成智能标签',
     cancelVectorization: '取消向量化',
     cancelGenerate: '取消生成',
     export: '导出'
@@ -169,13 +169,13 @@ export default {
     directly_return: '直接回答'
   },
   generateQuestion: {
-    title: '生成问题',
-    successMessage: '生成问题成功',
+    title: '生成智能标签',
+    successMessage: '生成智能标签成功',
     tip1: '提示词中的 {data} 为分段内容的占位符，执行时替换为分段内容发送给 AI 模型；',
-    tip2: 'AI 模型根据分段内容生成相关问题，请将生成的问题放至',
-    tip3: '标签中，系统会自动关联标签中的问题；',
+    tip2: 'AI 模型根据分段内容生成相关问题，请将生成的智能标签放至',
+    tip3: '标签中，系统会自动关联标签中的智能标签；',
     tip4: '生成效果依赖于所选模型和提示词，用户可自行调整至最佳效果。',
-    prompt1: `内容：{data}\n\n请总结上面的内容，并根据内容总结生成 5 个问题。\n回答要求：\n- 请只输出问题；\n- 请将每个问题放置`,
+    prompt1: `内容：{data}\n\n请总结上面的内容，并根据内容总结生成 5 个智能标签。\n回答要求：\n- 请只输出智能标签；\n- 请将每个智能标签放置`,
     prompt2: `标签中。`
   },
   feishu: {

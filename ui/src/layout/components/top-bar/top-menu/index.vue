@@ -15,7 +15,7 @@ import { getChildRouteListByPathAndName } from '@/router/index'
 import MenuItem from './MenuItem.vue'
 
 const topMenuList = computed(() => {
-  return getChildRouteListByPathAndName('/', 'root')
+  return getChildRouteListByPathAndName('/', 'root').filter(menu => !menu.meta?.hidden)
 })
 </script>
 <style lang="scss" scope>

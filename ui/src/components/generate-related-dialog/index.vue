@@ -166,7 +166,7 @@ const submitHandle = async (formEl: FormInstance) => {
           document_id_list: idList.value,
           state_list: stateMap[state.value]
         }
-        documentApi.batchGenerateRelated(id, data, loading).then(() => {
+        documentApi.batchGenerateRelated(id ? id : datasetId.value, data, loading).then(() => {
           MsgSuccess(t('views.document.generateQuestion.successMessage'))
           emit('refresh')
           dialogVisible.value = false

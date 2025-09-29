@@ -34,35 +34,14 @@ const goToKnowledge = () => {
 <style lang="scss" scoped>
 .home-container {
   min-height: calc(100vh - 64px);
-  background: linear-gradient(135deg, #cde5ff 0%, #ddeeff 20%, #e8f3ff 40%, #f2f8ff 60%, #f8fcff 80%, #feffff 100%);
+  background-color: #e8f3ff; /* 备用背景色 */
+  background-image: url('/images/homepage-bg.webp');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   position: relative;
   overflow: hidden;
-  
-  // 第一层波浪
-  &::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: -10%;
-    width: 120%;
-    height: 200px;
-    background: linear-gradient(45deg, rgba(104, 163, 240, 0.4) 0%, rgba(136, 184, 247, 0.3) 100%);
-    border-radius: 100% 100% 0 0;
-    pointer-events: none;
-  }
-  
-  // 第二层波浪
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 50px;
-    left: -5%;
-    width: 110%;
-    height: 150px;
-    background: linear-gradient(60deg, rgba(90, 154, 237, 0.25) 0%, rgba(122, 178, 243, 0.2) 100%);
-    border-radius: 120% 120% 0 0;
-    pointer-events: none;
-  }
   
   .hero-section {
     display: flex;
@@ -84,7 +63,9 @@ const goToKnowledge = () => {
                     color: #2c5aa0;
                     margin-bottom: 80px;
                     line-height: 1.2;
-                    text-shadow: 0 2px 8px rgba(44, 90, 160, 0.15);
+                    text-shadow: 
+                      0 2px 8px rgba(255, 255, 255, 0.8),
+                      0 4px 16px rgba(44, 90, 160, 0.3);
                     letter-spacing: 2px;
                   }
       
@@ -131,6 +112,8 @@ const goToKnowledge = () => {
 
 @media (max-width: 768px) {
   .home-container {
+    background-attachment: scroll; // 移动端使用scroll以提高性能
+    
     .hero-section {
       padding: 40px 20px;
       

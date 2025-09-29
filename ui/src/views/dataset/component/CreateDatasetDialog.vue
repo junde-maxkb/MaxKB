@@ -44,9 +44,57 @@
                 </div>
               </el-card>
             </el-col>
+            <el-col :span="24">
+              <el-card
+                shadow="never"
+                class="mb-16"
+                :class="datasetForm.type === '1' ? 'active' : ''"
+                @click="datasetForm.type = '1'"
+              >
+                <div class="flex-between">
+                  <div class="flex align-center">
+                    <AppAvatar class="mr-8 avatar-green" shape="square" :size="32">
+                      <img src="@/assets/icon_web.svg" style="width: 58%" alt="" />
+                    </AppAvatar>
+                    <div>
+                      <p>
+                        <el-text>{{ $t('views.dataset.web') }}</el-text>
+                      </p>
+                      <el-text type="info">{{
+                        $t('views.dataset.datasetForm.form.datasetType.webInfo')
+                      }}</el-text>
+                    </div>
+                  </div>
+                  <el-radio value="1" size="large" style="width: 16px"></el-radio>
+                </div>
+              </el-card>
+            </el-col>
           </el-row>
         </el-radio-group>
       </el-form-item>
+      
+      <!-- WEB类型的额外字段 -->
+      <div v-if="datasetForm.type === '1'">
+        <el-form-item 
+          :label="$t('views.dataset.datasetForm.form.source_url.label')" 
+          prop="source_url"
+        >
+          <el-input
+            v-model="datasetForm.source_url"
+            :placeholder="$t('views.dataset.datasetForm.form.source_url.placeholder')"
+          />
+        </el-form-item>
+        
+        <el-form-item 
+          :label="$t('views.dataset.datasetForm.form.selector.label')" 
+          prop="selector"
+        >
+          <el-input
+            v-model="datasetForm.selector"
+            :placeholder="$t('views.dataset.datasetForm.form.selector.placeholder')"
+          />
+        </el-form-item>
+      </div>
     </el-form>
     <template #footer>
       <span class="dialog-footer">
@@ -80,9 +128,10 @@ const datasetForm = ref({
   source_url: '',
   selector: ''
 })
-// 当前可用类型列表（如后续恢复多类型，可在此扩展）
+// 当前可用类型列表（恢复多类型支持）
 const datasetTypes = ref([
-  { value: '0', label: t('views.dataset.general') }
+  { value: '0', label: t('views.dataset.general') },
+  { value: '1', label: t('views.dataset.web') }
 ])
 
 const rules = reactive({
