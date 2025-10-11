@@ -63,7 +63,7 @@
                       <el-icon class="node-icon">
                         <component :is="data.icon" />
                       </el-icon>
-                      <span class="node-label">{{ data.label }}</span>
+                      <span class="node-label" :title="data.label">{{ data.label }}</span>
               </div>
                     <el-dropdown 
                       trigger="click" 
@@ -157,11 +157,11 @@
                   <!-- 二级目录 - 知识库 -->
                   <div v-else-if="data.level === 2" class="node-content level-2-content">
                     <div class="node-left">
-                      <el-icon class="node-icon">
-                        <Folder />
-                      </el-icon>
-                      <span class="node-label">{{ data.label }}</span>
-                      <span class="doc-count">({{ data.documentCount || 0 }})</span>
+                    <el-icon class="node-icon">
+                      <Folder />
+                    </el-icon>
+                    <span class="node-label" :title="data.label">{{ data.label }}</span>
+                    <span class="doc-count">({{ data.documentCount || 0 }})</span>
             </div>
             
                     <!-- 知识库操作按钮 -->
@@ -195,12 +195,24 @@
                             </el-dropdown-item>
                           </template>
                           
-                          <!-- 共享知识库 - 只能退出共享 -->
+                          <!-- 共享知识库 - 辅助管理可以查看详情 -->
                           <template v-if="getKBType(data) === 'shared'">
-                            <el-dropdown-item :command="{ action: 'exit-share', data }">
-                              <el-icon><Close /></el-icon>
-                              退出共享
-                            </el-dropdown-item>
+                            <template v-if="data.permission === 'MANAGE' || (data.shared_with_type === 'TEAM' && data.team_permission === 'MANAGE')">
+                              <el-dropdown-item :command="{ action: 'view', data }">
+                                <el-icon><View /></el-icon>
+                                查看详情
+                              </el-dropdown-item>
+                              <el-dropdown-item divided :command="{ action: 'exit-share', data }">
+                                <el-icon><Close /></el-icon>
+                                退出共享
+                              </el-dropdown-item>
+                            </template>
+                            <template v-else>
+                              <el-dropdown-item :command="{ action: 'exit-share', data }">
+                                <el-icon><Close /></el-icon>
+                                退出共享
+                              </el-dropdown-item>
+                            </template>
                           </template>
                           
                           <!-- 机构知识库 - 管理员权限 -->
@@ -231,9 +243,9 @@
                     <el-icon class="node-icon">
                       <DocumentCopy />
                     </el-icon>
-                    <span class="node-label">{{ data.label }}</span>
+                    <span class="node-label" :title="data.label">{{ data.label }}</span>
                     <span class="file-size">{{ formatFileSize(data.size) }}</span>
-            </div>
+                  </div>
                 </div>
               </template>
             </el-tree>
@@ -575,6 +587,9 @@ interface TreeNode {
   icon?: string
   checked?: boolean
   children?: TreeNode[]
+  permission?: string
+  shared_with_type?: string
+  team_permission?: string
   datasetId?: string
   documentId?: string
   description?: string
@@ -1305,8 +1320,22 @@ const loadSharedKBs = async () => {
         name: kb.name,
         create_time: kb.create_time,
         creator: kb.user?.username || '未知',
-        shared_user_count: kb.shared_user_count || 0
+        shared_user_count: kb.shared_user_count || 0,
+        permission: kb.permission,  // 添加权限信息
+        shared_with_type: kb.shared_with_type,
+        team_permission: kb.team_permission
       })))
+      
+      // 打印原始权限数据
+      sharedKBsList.forEach(kb => {
+        console.log('知识库权限详情:', {
+          name: kb.name,
+          permission: kb.permission,
+          shared_with_type: kb.shared_with_type,
+          team_permission: kb.team_permission,
+          shared_with_id: kb.shared_with_id
+        })
+      })
       
       sharedKBs.value = sharedKBsList
       
@@ -1352,6 +1381,9 @@ const updateTreeData = async (categoryId: string, datasets: any[]) => {
       datasetId: dataset.id,
       description: dataset.description,
       documentCount: dataset.document_count || 0,
+      permission: dataset.permission,  // 添加权限信息
+      shared_with_type: dataset.shared_with_type,
+      team_permission: dataset.team_permission,
       children: [] // 先设置为空数组，稍后加载文档
     }
     
@@ -2036,7 +2068,7 @@ onMounted(async () => {
     }
     
     .tree-node {
-      width: 100%;
+      width: 80%;
     
     &.active {
         .node-content {
@@ -2050,7 +2082,7 @@ onMounted(async () => {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 12px;
+      padding: 2px 12px;
       border-radius: 6px;
       transition: all 0.3s ease;
       min-height: 36px;
@@ -2097,7 +2129,7 @@ onMounted(async () => {
       }
       
       &.level-2-content {
-        padding-left: 32px;
+        padding-left: 10px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -2151,7 +2183,7 @@ onMounted(async () => {
       }
       
       &.level-3-content {
-        padding-left: 48px;
+        padding-left: 10px;
         display: flex;
         align-items: center;
         

@@ -28,6 +28,7 @@ from setting.serializers.provider_serializers import ModelSerializer
 from django.utils.translation import gettext_lazy as _
 from dataset.models.data_set import DataSet, DatasetShare
 from users.models import User
+from setting.models.team_management import Team
 from django.db.models import Q
 
 
@@ -378,12 +379,13 @@ class Dataset(APIView):
                     'permission': share.permission if share.permission else 'NONE'
                 })
             for share in dataset_share_team:
-                Team = Team.objects.get(id=share.shared_with_id)
-                
+                team = Team.objects.get(id=share.shared_with_id)
+
                 members_with_permissions.append({
                     'user_id': str(share.shared_with_id),
                     'type': 'TEAM',
-                    'username': Team.name,
+                    'username': team.name,
+                    'team_name': team.name,
                     'permission': share.permission if share.permission else 'NONE'
                 })
                 

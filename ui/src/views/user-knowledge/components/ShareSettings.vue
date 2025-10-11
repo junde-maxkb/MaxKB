@@ -9,7 +9,7 @@
           @input="showDropdown = true"
           @blur="onBlur"
           type="text"
-          placeholder="搜索用户或团队..."
+          placeholder="搜索团队..."
           class="search-input"
         />
         <div v-if="showDropdown && filteredResults.length" class="dropdown">
@@ -21,7 +21,7 @@
             @mousedown.prevent="addUser(item)"
           >
             <div class="name">{{ item.name }}</div>
-            <div v-if="item.type === 'TEAM'" class="members">{{ item.members }} 成员</div>
+            <div class="members">团队</div>
           </div>
         </div>
       </div>
@@ -32,7 +32,7 @@
           <div class="user-info">
             <div class="name">{{ user.name }}</div>
             <div class="type">
-              {{ user.type === 'USER' ? '用户' : `团队 · ${user.members || ''}${user.members ? ' 成员' : ''}` }}
+              团队
             </div>
           </div>
           <div class="permission-select" 
@@ -61,7 +61,7 @@
       <div v-if="!memberList.length" class="empty-state">
         <div class="empty-icon">👥</div>
         <div class="empty-text">还没有共享给任何人</div>
-        <div class="empty-subtext" v-if="canManageShare">搜索并添加用户或团队来开始共享</div>
+        <div class="empty-subtext" v-if="canManageShare">搜索并添加团队来开始共享</div>
       </div>
 
       <!-- 底部按钮 -->
@@ -110,19 +110,16 @@ const userPermission = ref('READ')
 const PERMISSION_OPTIONS = [
   { value: 'READ', label: '只读权限' },
   { value: 'WRITE', label: '编辑权限' },
-  { value: 'MANAGE', label: '管理权限' }
+  { value: 'MANAGE', label: '辅助管理' }
 ]
 
 // 计算属性
 const filteredResults = computed(() => {
   const query = searchQuery.value.toLowerCase()
   if (!query) return []
-  
+
+  // 只搜索团队，不再搜索用户
   const allItems = [
-    ...availableMembers.value.map(member => ({
-      ...member,
-      type: 'USER'
-    })),
     ...availableTeams.value.map(team => ({
       ...team,
       type: 'TEAM'
@@ -143,8 +140,9 @@ const permissionLabel = (val: string) => {
 }
 
 const getPermissionOptions = (user: any) => {
+  // 团队可以选择只读权限和辅助管理权限
   if (user.type === 'TEAM') {
-    return PERMISSION_OPTIONS.filter(opt => opt.value === 'READ')
+    return PERMISSION_OPTIONS.filter(opt => ['READ', 'MANAGE'].includes(opt.value))
   }
   return PERMISSION_OPTIONS
 }
@@ -172,7 +170,8 @@ const openDropdown = (user: any) => {
 }
 
 const changePermission = (user: any, value: string) => {
-  if (user.type === 'TEAM') {
+  // 团队只能设置为只读权限或辅助管理权限
+  if (user.type === 'TEAM' && !['READ', 'MANAGE'].includes(value)) {
     user.permission = 'READ'
   } else {
     user.permission = value
@@ -183,25 +182,25 @@ const changePermission = (user: any, value: string) => {
 const addUser = (item: any) => {
   // 检查是否已经存在（同时判断id和type）
   if (!memberList.value.some(u => u.id === item.id && u.type === item.type)) {
-    // 添加新成员
+    // 添加新团队
     const newMember = {
       id: item.id,
       name: item.name,
       type: item.type,
-      permission: 'READ',
+      permission: item.type === 'TEAM' ? 'MANAGE' : 'READ', // 团队默认辅助管理权限，其他默认只读
       showDropdown: false
     }
-    
+
     memberList.value.push(newMember)
   }
-  
+
   showDropdown.value = false
   searchQuery.value = ''
 }
 
 const removePermission = async (user: any) => {
   try {
-    await MsgConfirm(`确定要移除${user.type === 'USER' ? '用户' : '团队'}"${user.name}"的访问权限吗？`, '移除确认', {
+    await MsgConfirm(`确定要移除团队"${user.name}"的访问权限吗？`, '移除确认', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
@@ -233,7 +232,7 @@ const onSave = async () => {
     for (const member of memberList.value) {
       const params = {
         user_id: member.id,
-        permission: member.permission,
+        permission: member.permission,  // 使用选择的权限
         type: member.type
       }
       await datasetApi.putMemberPermission(props.datasetId, params)
@@ -256,7 +255,7 @@ const getMemberList = async () => {
       .filter((member: any) => member.permission !== 'NONE')
       .map((member: any) => ({
         id: member.user_id,
-        name: member.username,
+        name: member.type === 'TEAM' ? member.team_name : member.username,
         type: member.type,
         permission: member.permission || 'READ',
         members: member.members,
@@ -270,17 +269,14 @@ const getMemberList = async () => {
   }
 }
 
-// 获取可用成员列表
+// 获取可用团队列表（不包含用户）
 const getAvailableUsersOrTeams = async () => {
   try {
     const res = await teamApi.getAvailableUsersOrTeams()
-    
+
     if (res.data) {
-      availableMembers.value = (res.data.users || []).map((member: any) => ({
-        id: member.id,
-        name: member.name,
-        type: 'USER'
-      }))
+      // 只处理团队，不处理用户
+      availableMembers.value = []
       availableTeams.value = (res.data.teams || []).map((team: any) => ({
         id: team.id,
         name: team.name,
@@ -288,7 +284,7 @@ const getAvailableUsersOrTeams = async () => {
       }))
     }
   } catch (error) {
-    console.error('获取可用用户和团队列表失败:', error)
+    console.error('获取可用团队列表失败:', error)
   }
 }
 

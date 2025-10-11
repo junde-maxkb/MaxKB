@@ -388,6 +388,7 @@ import { hitHandlingMethod } from '@/enums/document'
 import { MsgSuccess, MsgConfirm, MsgError } from '@/utils/message'
 import { TaskType, State } from '@/utils/status'
 import useStore from '@/stores'
+import datasetApi from '@/api/dataset'
 
 // Props
 interface Props {
@@ -403,7 +404,7 @@ const emit = defineEmits<{
 }>()
 
 // Store
-const { common } = useStore()
+const { common, user } = useStore()
 const storeKey = 'user_documents'
 
 // 响应式数据
@@ -564,19 +565,29 @@ const refreshDocument = async (row: any) => {
 
 const deleteDocument = async (row: any) => {
   try {
-    await MsgConfirm(`确定要删除文档"${row.name}"吗？此操作不可恢复。`, '删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
+    // 获取知识库详情，检查是否是知识库所有者
+    const response = await datasetApi.getDatasetDetail(props.datasetId)
+    console.log('知识库详情:', response.data)
+    console.log('当前用户:', user.userInfo)
     
-    await documentApi.delDocument(props.datasetId, row.id)
-    ElMessage.success('文档删除成功')
-    await getList()
+    // 检查是否是个人知识库
+    if (response.data && String(response.data.user_id) === String(user.userInfo?.id)) {
+      await MsgConfirm(`确定要删除文档"${row.name}"吗？此操作不可恢复。`, '删除确认', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+      
+      await documentApi.delDocument(props.datasetId, row.id)
+      ElMessage.success('文档删除成功')
+      await getList()
+    } else {
+      ElMessage.error('您不能删除非个人知识库中的文档')
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除文档失败:', error)
-      ElMessage.error('删除失败')
+      ElMessage.error('删除失败，请稍后重试')
     }
   }
 }
@@ -599,21 +610,31 @@ const deleteMulDocument = async () => {
   if (multipleSelection.value.length === 0) return
   
   try {
-    await MsgConfirm(`确定要删除选中的 ${multipleSelection.value.length} 个文档吗？此操作不可恢复。`, '批量删除确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
+    // 获取知识库详情，检查是否是知识库所有者
+    const response = await datasetApi.getDatasetDetail(props.datasetId)
+    console.log('知识库详情:', response.data)
+    console.log('当前用户:', user.userInfo)
     
-    const ids = multipleSelection.value.map(doc => doc.id)
-    await documentApi.delMulDocument(props.datasetId, ids)
-    ElMessage.success('批量删除成功')
-    multipleSelection.value = []
-    await getList()
+    // 检查是否是个人知识库
+    if (response.data && String(response.data.user_id) === String(user.userInfo?.id)) {
+      await MsgConfirm(`确定要删除选中的 ${multipleSelection.value.length} 个文档吗？此操作不可恢复。`, '批量删除确认', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+      
+      const ids = multipleSelection.value.map(doc => doc.id)
+      await documentApi.delMulDocument(props.datasetId, ids)
+      ElMessage.success('批量删除成功')
+      multipleSelection.value = []
+      await getList()
+    } else {
+      ElMessage.error('您不能删除非个人知识库中的文档')
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('批量删除失败:', error)
-      ElMessage.error('批量删除失败')
+      ElMessage.error('删除失败，请稍后重试')
     }
   }
 }

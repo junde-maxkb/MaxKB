@@ -91,7 +91,7 @@ def generate_related_by_document_id(document_id, model_id, prompt, state_list=No
                                          State.STARTED)
         llm_model = get_llm_model(model_id)
 
-        # 生成问题函数
+        # 生成智能标签函数
         generate_problem = get_generate_problem(llm_model, prompt,
                                                 ListenerManagement.get_aggregation_document_status(
                                                     document_id), is_the_task_interrupted)
@@ -102,7 +102,7 @@ def generate_related_by_document_id(document_id, model_id, prompt, state_list=No
         ).filter(task_type_status__in=state_list, document_id=document_id)
         page_desc(query_set, 10, generate_problem, is_the_task_interrupted)
     except Exception as e:
-        max_kb_error.error(f'根据文档生成问题:{document_id}出现错误{str(e)}{traceback.format_exc()}')
+        max_kb_error.error(f'根据文档生成智能标签:{document_id}出现错误{str(e)}{traceback.format_exc()}')
         max_kb_error.error(_('Generate issue based on document: {document_id} error {error}{traceback}').format(
             document_id=document_id, error=str(e), traceback=traceback.format_exc()))
     finally:
@@ -124,7 +124,7 @@ def generate_related_by_paragraph_id_list(document_id, paragraph_id_list, model_
                                          TaskType.GENERATE_PROBLEM,
                                          State.STARTED)
         llm_model = get_llm_model(model_id)
-        # 生成问题函数
+        # 生成智能标签函数
         generate_problem = get_generate_problem(llm_model, prompt, ListenerManagement.get_aggregation_document_status(
             document_id))
 

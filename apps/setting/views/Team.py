@@ -202,66 +202,26 @@ class ShareableList(APIView):
                          tags=[_('Team')])
     @has_permissions(PermissionConstants.TEAM_READ)
     def get(self, request: Request):
-        from setting.models.team_management import Team, TeamMember
-        from django.db.models import Q
-        from django.contrib.auth import get_user_model
-        
-        
-        # 获取用户作为管理员的团队
-        managed_teams = TeamMember.objects.filter(
-            user_id=request.user.id, 
-            is_manager=True
-        ).select_related('team').values(
-            'team_id', 
-            'team__name'
+        from setting.models.team_management import Team
+
+        # 获取所有团队（不限于用户所在团队）
+        all_teams = Team.objects.all().values(
+            'id',
+            'name'
         )
-        
-        # 获取用户作为成员的团队
-        member_teams = TeamMember.objects.filter(
-            user_id=request.user.id,
-            is_manager=False
-        ).select_related('team').values(
-            'team_id', 
-            'team__name'
-        )
-        
-        # 获取所有团队成员
-        team_members = TeamMember.objects.filter(
-            team__in=[team['team_id'] for team in managed_teams]
-        ).select_related('user').values(
-            'user_id',
-            'user__username',
-            'user__email'
-        ).distinct()
-        
-        # 构建返回结果
+
+        # 构建返回结果（只返回团队，不返回用户）
         shareable_list = {
             'teams': [],
             'users': []
         }
-        
-        # 添加团队信息
-        for team in managed_teams:
+
+        # 添加所有团队信息
+        for team in all_teams:
             shareable_list['teams'].append({
-                'id': str(team['team_id']),
-                'name': team['team__name'],
+                'id': str(team['id']),
+                'name': team['name'],
                 'type': 'TEAM'
             })
-            
-        for team in member_teams:
-            shareable_list['teams'].append({
-                'id': str(team['team_id']),
-                'name': team['team__name'],
-                'type': 'TEAM'
-            })
-            
-        # 添加用户信息
-        for member in team_members:
-            shareable_list['users'].append({
-                'id': str(member['user_id']),
-                'name': member['user__username'],
-                'email': member['user__email'],
-                'type': 'USER'
-            })
-            
+
         return result.success(shareable_list)
