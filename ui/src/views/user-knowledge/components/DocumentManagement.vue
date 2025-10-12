@@ -397,6 +397,11 @@ interface Props {
 
 const props = defineProps<Props>()
 
+// 定义发射的事件
+const emit = defineEmits<{
+  documentChanged: []
+}>()
+
 // Store
 const { user } = useStore()
 const storeKey = 'user_documents'
@@ -589,6 +594,8 @@ const deleteDocument = async (row: any) => {
       await documentApi.delDocument(props.datasetId, row.id)
       ElMessage.success('文档删除成功')
       await getList()
+      // 通知父组件文档发生变化
+      emit('documentChanged')
     } else {
       ElMessage.error('您不能删除非个人知识库中的文档')
     }
@@ -636,6 +643,8 @@ const deleteMulDocument = async () => {
       ElMessage.success('批量删除成功')
       multipleSelection.value = []
       await getList()
+      // 通知父组件文档发生变化
+      emit('documentChanged')
     } else {
       ElMessage.error('您不能删除非个人知识库中的文档')
     }
@@ -826,6 +835,8 @@ const handleUploadSuccess = () => {
   }
   showUploadDialog.value = false
   getList()
+  // 通知父组件文档发生变化
+  emit('documentChanged')
 }
 
 // 迁移成功后刷新列表
@@ -834,6 +845,8 @@ const handleMigrationSuccess = () => {
   multipleTableRef.value?.clearSelection()
   // 重新获取列表
   getList()
+  // 通知父组件文档发生变化
+  emit('documentChanged')
 }
 
 // 打开上传对话框

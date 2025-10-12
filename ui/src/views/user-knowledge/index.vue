@@ -473,6 +473,7 @@
         :dataset-id="currentDatasetId"
         :dataset-name="currentDatasetName"
         @close="showDocumentModal = false"
+        @document-changed="handleDocumentChanged"
       />
       <template #footer>
         <div class="dialog-footer">
@@ -1264,6 +1265,39 @@ const refreshKnowledgeBase = async (type: string) => {
   }
 }
 
+// 处理文档变化事件
+const handleDocumentChanged = async () => {
+  try {
+    // 刷新当前知识库的文档列表
+    if (currentDatasetId.value) {
+      const parentNodeId = `my_${currentDatasetId.value}`
+      await loadDocuments(currentDatasetId.value, parentNodeId)
+      
+      // 更新知识库节点的文档数量统计
+      const findAndUpdateDocumentCount = (nodes: TreeNode[]): boolean => {
+        for (let node of nodes) {
+          if (node.id === parentNodeId) {
+            node.documentCount = node.children?.length || 0
+            return true
+          }
+          if (node.children && findAndUpdateDocumentCount(node.children)) {
+            return true
+          }
+        }
+        return false
+      }
+      findAndUpdateDocumentCount(treeData.value)
+    }
+    
+    // 刷新个人知识库列表以更新文档数量统计
+    await loadPersonalKBs()
+    
+    console.log('文档变化已处理，知识库数据已更新')
+  } catch (error) {
+    console.error('处理文档变化失败:', error)
+  }
+}
+
 // 显示文档详情
 const showDocumentDetail = (document: TreeNode) => {
   console.log('显示文档详情:', document)
@@ -1327,7 +1361,7 @@ const loadSharedKBs = async () => {
       })))
       
       // 打印原始权限数据
-      sharedKBsList.forEach(kb => {
+      sharedKBsList.forEach((kb: any) => {
         console.log('知识库权限详情:', {
           name: kb.name,
           permission: kb.permission,
