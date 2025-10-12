@@ -362,7 +362,13 @@
                         </div>
                         <div class="paragraph-content">{{ paragraph.content }}</div>
                         <div class="paragraph-meta">
-                          <span class="paragraph-source">来源: {{ paragraph.source || paragraph.dataset_name }}</span>
+                          <span 
+                            class="paragraph-source clickable" 
+                            @click="openDocumentParagraphs(paragraph)"
+                            :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"
+                          >
+                            来源: {{ paragraph.document_name || paragraph.source || paragraph.dataset_name }}
+                          </span>
                           <span class="paragraph-dataset">数据集: {{ paragraph.dataset_name }}</span>
                         </div>
                       </div>
@@ -550,6 +556,14 @@
       </template>
     </el-dialog>
 
+    <!-- 文档分段详情弹窗 -->
+    <DocumentParagraphsDialog
+        v-model="showParagraphsDialog"
+        :document-id="currentDocumentId"
+        :dataset-id="currentParagraphDatasetId"
+        :document-name="currentDocumentName"
+    />
+
     <!-- 重命名知识库对话框 -->
     <el-dialog
         v-model="showRenameDialog"
@@ -624,6 +638,7 @@ import documentApi from '@/api/document'
 import modelApi, {postModelChatStream} from '@/api/model'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
+import DocumentParagraphsDialog from './components/DocumentParagraphsDialog.vue'
 
 // 类型定义
 interface TreeNode {
@@ -656,6 +671,9 @@ interface Message {
     dataset_name: string
     similarity?: number
     comprehensive_score?: number
+    document_id?: string
+    dataset_id?: string
+    document_name?: string
   }>
 }
 
@@ -675,8 +693,12 @@ const isLoading = ref(false)
 const showCreateDialog = ref(false)
 const showDocumentModal = ref(false)
 const showShareModal = ref(false)
+const showParagraphsDialog = ref(false)
 const currentDatasetId = ref('')
 const currentDatasetName = ref('')
+const currentDocumentId = ref('')
+const currentParagraphDatasetId = ref('')
+const currentDocumentName = ref('')
 
 // 重命名相关状态
 const showRenameDialog = ref(false)
@@ -931,6 +953,28 @@ const selectKnowledgeBase = (kb: TreeNode) => {
   selectedKB.value = kb
   // 清空之前的对话
   // chatMessages.value = [] // 临时注释，测试消息保持
+}
+
+// 打开文档分段详情
+const openDocumentParagraphs = (paragraph: any) => {
+  console.log('点击的分段数据:', paragraph)
+  console.log('document_id:', paragraph.document_id)
+  console.log('dataset_id:', paragraph.dataset_id)
+  
+  if (!paragraph.document_id || !paragraph.dataset_id) {
+    console.error('缺少必要字段:', {
+      document_id: paragraph.document_id,
+      dataset_id: paragraph.dataset_id,
+      paragraph: paragraph
+    })
+    ElMessage.warning('无法获取文档信息')
+    return
+  }
+  
+  currentDocumentId.value = paragraph.document_id
+  currentParagraphDatasetId.value = paragraph.dataset_id
+  currentDocumentName.value = paragraph.document_name || paragraph.source || paragraph.dataset_name
+  showParagraphsDialog.value = true
 }
 
 // 处理树节点点击
@@ -1650,7 +1694,10 @@ const sendMessage = async () => {
         title: result.title,
         content: result.content,
         source: result.document_name || result.source, // 优先使用文档名称
+        document_name: result.document_name,
         dataset_name: result.dataset_name,
+        document_id: result.document_id,
+        dataset_id: result.dataset_id,
         similarity: result.similarity,
         comprehensive_score: result.comprehensive_score
       }))
@@ -2567,6 +2614,7 @@ onMounted(async () => {
               text-overflow: ellipsis;
               display: -webkit-box;
               -webkit-line-clamp: 6;
+              line-clamp: 6;
               -webkit-box-orient: vertical;
             }
 
@@ -2581,6 +2629,17 @@ onMounted(async () => {
                 background: #e9ecef;
                 padding: 2px 6px;
                 border-radius: 3px;
+              }
+
+              .paragraph-source.clickable {
+                cursor: pointer;
+                transition: all 0.3s ease;
+                
+                &:hover {
+                  background: #3370ff;
+                  color: white;
+                  transform: translateY(-1px);
+                }
               }
             }
           }
