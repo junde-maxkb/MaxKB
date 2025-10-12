@@ -215,7 +215,7 @@
                       class="justify-center"
                       >全部
                     </el-dropdown-item>
-                    <template v-for="(value, key) of hitHandlingMethod" :key="key">
+                    <template v-for="(value, key) of hitHandlingMethodText" :key="key">
                       <el-dropdown-item
                         :class="filterMethod['hit_handling_method'] === key ? 'is-active' : ''"
                         class="justify-center"
@@ -364,8 +364,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive, computed, nextTick } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, onMounted, reactive, computed, nextTick, onBeforeUnmount } from 'vue'
+import { ElMessage } from 'element-plus'
 import {
   Upload,
   Filter,
@@ -384,8 +384,7 @@ import SelectDatasetDialog from './SelectDatasetDialog.vue'
 import GenerateRelatedDialog from '@/components/generate-related-dialog/index.vue'
 import { datetimeFormat } from '@/utils/time'
 import { numberFormat } from '@/utils/utils'
-import { hitHandlingMethod } from '@/enums/document'
-import { MsgSuccess, MsgConfirm, MsgError } from '@/utils/message'
+import { MsgConfirm } from '@/utils/message'
 import { TaskType, State } from '@/utils/status'
 import useStore from '@/stores'
 import datasetApi from '@/api/dataset'
@@ -398,13 +397,8 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Emits
-const emit = defineEmits<{
-  close: []
-}>()
-
 // Store
-const { common, user } = useStore()
+const { user } = useStore()
 const storeKey = 'user_documents'
 
 // 响应式数据
@@ -464,14 +458,19 @@ const getList = async (isPolling = false) => {
       loading.value = true
     }
     const params = {
-      name: filterText.value,
+      ...(filterText.value && { name: filterText.value }),
       current_page: paginationConfig.current_page,
       page_size: paginationConfig.page_size,
       ...filterMethod.value
     }
     
-    const response = await documentApi.getDocument(props.datasetId, paginationConfig, filterMethod.value)
-    
+    const response = await documentApi.getDocument(
+      props.datasetId,
+      paginationConfig as any,
+      params,
+      isPolling ? undefined : (loading as any)
+    )
+
     if (response.data) {
       documentData.value = response.data.records || []
       paginationConfig.total = response.data.total || 0
@@ -648,10 +647,6 @@ const deleteMulDocument = async () => {
   }
 }
 
-const openBatchEditDocument = () => {
-  if (multipleSelection.value.length === 0) return
-  ElMessage.info('批量设置功能开发中...')
-}
 
 // 批量生成智能标签
 const batchGenerateQuestions = () => {
@@ -679,11 +674,6 @@ const batchMigrateDocuments = () => {
 }
 
 
-// 单个文档生成智能标签
-const generateQuestions = (row: any) => {
-  ElMessage.info(`正在为文档 "${row.name}" 生成智能标签...`)
-  // TODO: 实现单个文档生成智能标签逻辑
-}
 
 // 单个文档迁移
 const migrateDocument = (row: any) => {
@@ -866,9 +856,37 @@ const closeUploadDialog = () => {
   showUploadDialog.value = false
 }
 
+// 轮询定时器
+let interval: number | null = null
+
+// 初始化轮询（每 6s 拉取一次，避免 loading 闪烁）
+const initInterval = () => {
+  if (interval) return
+  interval = window.setInterval(() => {
+    getList(true)
+  }, 6000)
+}
+
+// 关闭轮询
+const closeInterval = () => {
+  if (interval) {
+    clearInterval(interval)
+    interval = null
+  }
+}
+
 // 组件挂载
 onMounted(() => {
   getList()
+
+  // 启动轮询
+  initInterval()
+})
+
+// 组件卸载
+onBeforeUnmount(() => {
+  // 清除轮询
+  closeInterval()
 })
 </script>
 
