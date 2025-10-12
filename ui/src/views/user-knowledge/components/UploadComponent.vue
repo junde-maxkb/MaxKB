@@ -59,7 +59,7 @@
               点击上传
             </em>
             <em class="hover ml-4" @click.prevent="handlePreview(true)">
-              选择多个文件
+              选择文件夹
             </em>
           </p>
           <div class="upload__decoration">
@@ -102,7 +102,7 @@
               点击上传
             </em>
             <em class="hover ml-4" @click.prevent="handlePreview(true)">
-              选择多个文件
+              选择文件夹
             </em>
           </p>
           <div class="upload__decoration">
@@ -140,13 +140,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onUnmounted, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onUnmounted, onMounted, computed, watch, nextTick } from 'vue'
 import type { UploadFiles, UploadFile } from 'element-plus'
 import { filesize, getImgUrl, isRightType } from '@/utils/utils'
-import { MsgError, MsgSuccess } from '@/utils/message'
+import { MsgError } from '@/utils/message'
 import documentApi from '@/api/document'
 import useStore from '@/stores'
-import { useRoute } from 'vue-router'
 import { t } from '@/locales'
 import { Delete } from '@element-plus/icons-vue'
 import AppIcon from '@/components/icons/AppIcon.vue'
@@ -164,10 +163,9 @@ const emit = defineEmits<{
 }>()
 
 // Store
-const { dataset, user } = useStore()
+const { dataset } = useStore()
 const documentsFiles = computed(() => dataset.documentsFiles)
 const documentsType = computed(() => dataset.documentsType)
-const isAdmin = computed(() => user.userInfo?.role === 'ADMIN')
 
 // 响应式数据
 const FormRef = ref()
@@ -211,8 +209,12 @@ const fileHandleChange = (file: UploadFile, fileList: UploadFiles) => {
 }
 
 const handlePreview = (multiple: boolean) => {
-  // 这里可以添加文件选择逻辑
-  console.log('选择文件:', multiple ? '多个' : '单个')
+  nextTick(() => {
+    const inputDom = document.querySelector('.el-upload__input') as HTMLInputElement
+    if (inputDom) {
+      inputDom.webkitdirectory = multiple
+    }
+  })
 }
 
 const onExceed = () => {
