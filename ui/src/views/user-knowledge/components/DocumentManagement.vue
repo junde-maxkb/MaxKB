@@ -684,7 +684,7 @@ const migrateDocument = (row: any) => {
 
 const cancelTask = async (row: any, taskType: number) => {
   try {
-    await documentApi.cancelTask(props.datasetId, row.id, { task_type: taskType })
+    await documentApi.cancelTask(props.datasetId, row.id, { type: taskType })
     ElMessage.success('任务已取消')
     await getList()
   } catch (error) {
