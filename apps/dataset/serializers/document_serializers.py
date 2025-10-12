@@ -743,6 +743,9 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
             if with_valid:
                 self.is_valid(raise_exception=True)
             dataset = QuerySet(DataSet).filter(id=self.data.get('dataset_id')).first()
+            if dataset is None:
+                raise AppApiException(500, _('Dataset does not exist'))
+            # 修复字段名错误：使用正确的字段名 embedding_mode_id (ForeignKey的id)
             embedding_model_id = dataset.embedding_mode_id
             dataset_user_id = dataset.user_id
             embedding_model = QuerySet(Model).filter(id=embedding_model_id).first()
@@ -751,22 +754,32 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
             if embedding_model.permission_type == 'PRIVATE' and dataset_user_id != embedding_model.user_id:
                 raise AppApiException(500, _('No permission to use this model') + f"{embedding_model.name}")
             document_id = self.data.get("document_id")
+            # 检查文档是否存在
+            document = QuerySet(Document).filter(id=document_id).first()
+            if document is None:
+                raise AppApiException(500, _('Document does not exist'))
             ListenerManagement.update_status(QuerySet(Document).filter(id=document_id), TaskType.EMBEDDING,
                                              State.PENDING)
-            ListenerManagement.update_status(QuerySet(Paragraph).annotate(
+            # 修复EmptyResultSet错误：只有当存在符合条件的段落时才更新状态
+            paragraph_queryset = QuerySet(Paragraph).annotate(
                 reversed_status=Reverse('status'),
                 task_type_status=Substr('reversed_status', TaskType.EMBEDDING.value,
                                         1),
             ).filter(task_type_status__in=state_list, document_id=document_id)
-                                             .values('id'),
-                                             TaskType.EMBEDDING,
-                                             State.PENDING)
+
+            if paragraph_queryset.exists():
+                ListenerManagement.update_status(paragraph_queryset.values('id'),
+                                                 TaskType.EMBEDDING,
+                                                 State.PENDING)
             ListenerManagement.get_aggregation_document_status(document_id)()
 
             try:
                 embedding_by_document.delay(document_id, embedding_model_id, state_list)
             except AlreadyQueued as e:
                 raise AppApiException(500, _('The task is being executed, please do not send it repeatedly.'))
+            except Exception as e:
+                # 添加更详细的错误处理
+                raise AppApiException(500, _('Failed to start vectorization task: ') + str(e))
 
         def cancel(self, instance, with_valid=True):
             if with_valid:

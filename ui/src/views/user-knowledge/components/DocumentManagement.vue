@@ -457,9 +457,12 @@ const getTaskState = (status: string, taskType: number) => {
 }
 
 // 方法
-const getList = async () => {
+const getList = async (isPolling = false) => {
   try {
-    loading.value = true
+    // 只有非轮询时才显示loading状态
+    if (!isPolling) {
+      loading.value = true
+    }
     const params = {
       name: filterText.value,
       current_page: paginationConfig.current_page,
@@ -474,10 +477,16 @@ const getList = async () => {
       paginationConfig.total = response.data.total || 0
     }
   } catch (error) {
-    console.error('加载文档失败:', error)
-    ElMessage.error('加载文档失败')
+    // 轮询时的错误不显示给用户，避免频繁弹窗
+    if (!isPolling) {
+      console.error('加载文档失败:', error)
+      ElMessage.error('加载文档失败')
+    }
   } finally {
-    loading.value = false
+    // 只有非轮询时才重置loading状态
+    if (!isPolling) {
+      loading.value = false
+    }
   }
 }
 
