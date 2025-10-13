@@ -362,8 +362,8 @@
                         </div>
                         <div class="paragraph-content">{{ paragraph.content }}</div>
                         <div class="paragraph-meta">
-                          <span 
-                            class="paragraph-source clickable" 
+                          <span
+                            class="paragraph-source clickable"
                             @click="openDocumentParagraphs(paragraph)"
                             :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"
                           >
@@ -460,6 +460,32 @@
                 </el-select>
               </div>
 
+              <!-- STT设置面板 -->
+              <div class="stt-settings" v-if="sttModelEnabled">
+                <div class="stt-settings-header">
+                  <el-icon>
+                    <Microphone />
+                  </el-icon>
+                  <span>语音设置</span>
+                  <el-tag size="small" type="success" style="margin-left: auto;">
+                    已启用
+                  </el-tag>
+                </div>
+                <div class="stt-settings-content">
+                  <el-checkbox v-model="sttAutoSend" size="small">
+                    自动发送语音转换结果
+                  </el-checkbox>
+                </div>
+              </div>
+
+              <!-- STT不可用提示 -->
+              <div class="stt-disabled-tip" v-else-if="getSelectedStats().datasets > 0">
+                <el-icon>
+                  <Microphone />
+                </el-icon>
+                <span>语音功能不可用，请检查STT模型配置</span>
+              </div>
+
               <!-- 输入区域 -->
               <div class="input-container">
                 <div class="input-wrapper">
@@ -474,6 +500,38 @@
                         @focus="handleInputFocus"
                         :disabled="isStreaming || getSelectedStats().datasets === 0"
                     />
+
+                    <!-- 语音录制按钮 -->
+                    <el-button
+                        text
+                        class="voice-btn"
+                        @click="startRecording"
+                        v-if="recorderStatus === 'STOP'"
+                        :disabled="isStreaming || getSelectedStats().datasets === 0 || !sttModelEnabled"
+                    >
+                      <el-icon>
+                        <Microphone />
+                      </el-icon>
+                    </el-button>
+
+                    <!-- 录音状态显示 -->
+                    <div v-else class="voice-recording flex align-center">
+                      <el-text type="info" class="recording-time">
+                        00:{{ recorderTime < 10 ? `0${recorderTime}` : recorderTime }}
+                      </el-text>
+                      <el-button
+                          text
+                          type="primary"
+                          @click="stopRecording"
+                          :loading="recorderStatus === 'TRANSCRIBING'"
+                          class="stop-btn"
+                      >
+                        <el-icon v-if="recorderStatus !== 'TRANSCRIBING'">
+                          <i class="stop-icon">⏹</i>
+                        </el-icon>
+                      </el-button>
+                    </div>
+
                     <el-button
                         type="primary"
                         class="send-btn"
@@ -631,14 +689,20 @@ import {
   Download,
   Collection,
   Clock,
-  Switch
+  Switch,
+  Microphone
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
 import modelApi, {postModelChatStream} from '@/api/model'
+import applicationApi from '@/api/application'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
 import DocumentParagraphsDialog from './components/DocumentParagraphsDialog.vue'
+import Recorder from 'recorder-core'
+import 'recorder-core/src/engine/mp3'
+import 'recorder-core/src/engine/mp3-engine'
+import { MsgAlert, MsgWarning } from '@/utils/message'
 
 // 类型定义
 interface TreeNode {
@@ -767,6 +831,18 @@ const modelsLoading = ref(false)
 // 分段展开状态管理
 const expandedParagraphs = ref<Set<number>>(new Set())
 
+// 语音录制相关状态
+const intervalId = ref<any | null>(null)
+const recorderTime = ref(0)
+const recorderStatus = ref<'START' | 'TRANSCRIBING' | 'STOP'>('STOP')
+
+// STT相关状态
+const sttModelEnabled = ref(false)
+const sttAutoSend = ref(false)
+const availableSTTModels = ref<any[]>([])
+const selectedSTTModelId = ref('')
+const tempApplicationId = ref('')
+
 // 用户权限
 const {user} = useStore()
 const userRole = computed(() => user.getRole())
@@ -783,11 +859,10 @@ const organizationKBSortType = ref<'time' | 'name'>('time') // 机构知识库�
 const sharedKBSortType = ref<'time' | 'name'>('time') // 共享知识库排序类型
 
 // 计算属性
-const filteredKnowledgeBases = computed(() => {
+computed(() => {
   // 这里可以根据搜索文本过滤树形数据
   return treeData.value
-})
-
+});
 // 判断是否有聊天消息
 const hasMessages = computed(() => {
   return chatMessages.value.length > 0
@@ -862,7 +937,8 @@ const loadAvailableModels = async () => {
   try {
     const res = await modelApi.getModel()
     const list = res.data || []
-
+    
+    console.log("模型列表：",res)
     // 过滤出支持对话的模型
     availableModels.value = list.filter(model => isChatModel(model))
 
@@ -886,6 +962,69 @@ const loadAvailableModels = async () => {
     ElMessage.error('加载模型列表失败')
   } finally {
     modelsLoading.value = false
+  }
+}
+
+// 加载可用的STT模型列表
+const loadAvailableSTTModels = async () => {
+  try {
+    // 从全局模型列表中过滤出STT模型
+    const res = await modelApi.getModel()
+    const list = res.data || []
+    
+    // 过滤出STT类型的模型
+    const sttModels = list.filter(model => model.model_type === 'STT')
+    
+    if (sttModels.length > 0) {
+      availableSTTModels.value = sttModels
+      sttModelEnabled.value = true
+
+      // 自动选择第一个STT模型
+      if (!selectedSTTModelId.value) {
+        selectedSTTModelId.value = sttModels[0].id
+      }
+    } else {
+      sttModelEnabled.value = false
+    }
+  } catch (error) {
+    console.error('加载STT模型失败:', error)
+    sttModelEnabled.value = false
+  }
+}
+
+// 创建临时应用ID
+const createTempApplicationId = async () => {
+  try {
+    const selectedDatasets = getSelectedDatasets()
+    if (selectedDatasets.length === 0) {
+      throw new Error('请先选择知识库')
+    }
+
+    // 使用第一个选中的知识库ID创建临时应用
+    const datasetId = selectedDatasets[0].datasetId
+    if (!datasetId) {
+      throw new Error('无法获取知识库ID')
+    }
+
+    // 创建临时应用数据
+    const tempAppData = {
+      name: '临时语音应用',
+      desc: '用于语音转文字的临时应用',
+      model_id: selectedModelId.value,
+      multiple_rounds_dialogue: true,
+      dataset_id_list: [datasetId]
+    }
+
+    const response = await applicationApi.postChatOpen(tempAppData)
+    if (response.data && response.data.id) {
+      tempApplicationId.value = response.data.id
+      return response.data.id
+    } else {
+      throw new Error('创建临时应用失败')
+    }
+  } catch (error) {
+    console.error('创建临时应用失败:', error)
+    throw error
   }
 }
 
@@ -960,7 +1099,7 @@ const openDocumentParagraphs = (paragraph: any) => {
   console.log('点击的分段数据:', paragraph)
   console.log('document_id:', paragraph.document_id)
   console.log('dataset_id:', paragraph.dataset_id)
-  
+
   if (!paragraph.document_id || !paragraph.dataset_id) {
     console.error('缺少必要字段:', {
       document_id: paragraph.document_id,
@@ -970,7 +1109,7 @@ const openDocumentParagraphs = (paragraph: any) => {
     ElMessage.warning('无法获取文档信息')
     return
   }
-  
+
   currentDocumentId.value = paragraph.document_id
   currentParagraphDatasetId.value = paragraph.dataset_id
   currentDocumentName.value = paragraph.document_name || paragraph.source || paragraph.dataset_name
@@ -1729,7 +1868,7 @@ const sendMessage = async () => {
       context = '未找到与问题相关的知识库内容。'
       contextNote = '\n\n注意：在选中的知识库中未找到相关内容，回答将基于通用知识。'
     }
-    
+
     // 构建消息
     const systemPrompt = hasEmbeddingError || hasConnectionError
       ? `你是一个专业的知识库助手。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。`
@@ -1927,7 +2066,7 @@ const createKnowledgeBase = async () => {
     // 重置表单
     newKB.value = {
       name: ''
-      // description 字段隐藏，不需要重置
+      // description 字段隐藏，将在创建时自动使用标题
     }
 
     showCreateDialog.value = false
@@ -2003,6 +2142,205 @@ const confirmRename = async () => {
   }
 }
 
+// 取消录音控制台日志
+Recorder.CLog = function () {}
+
+// 语音录制管理类
+class RecorderManage {
+  recorder?: any
+  uploadRecording: (blob: Blob, duration: number) => void
+
+  constructor(uploadRecording: (blob: Blob, duration: number) => void) {
+    this.uploadRecording = uploadRecording
+  }
+
+  open(callback?: () => void) {
+    const recorder = new Recorder({
+      type: 'mp3',
+      bitRate: 128,
+      sampleRate: 16000
+    })
+    if (!this.recorder) {
+      recorder.open(() => {
+        this.recorder = recorder
+        if (callback) {
+          callback()
+        }
+      }, this.errorCallBack)
+    }
+  }
+
+  start() {
+    if (this.recorder) {
+      this.recorder.start()
+      recorderStatus.value = 'START'
+      handleTimeChange()
+    } else {
+      const recorder = new Recorder({
+        type: 'mp3',
+        bitRate: 128,
+        sampleRate: 16000
+      })
+      recorder.open(() => {
+        this.recorder = recorder
+        recorder.start()
+        recorderStatus.value = 'START'
+        handleTimeChange()
+      }, this.errorCallBack)
+    }
+  }
+
+  stop() {
+    if (this.recorder) {
+      this.recorder.stop(
+        (blob: Blob, duration: number) => {
+          this.uploadRecording(blob, duration)
+        },
+        (err: any) => {
+          MsgAlert('提示', err, {
+            confirmButtonText: '确定',
+            dangerouslyUseHTMLString: true
+          })
+        }
+      )
+    }
+  }
+
+  close() {
+    if (this.recorder) {
+      this.recorder.close()
+      this.recorder = undefined
+    }
+  }
+
+  private errorCallBack(err: any, isUserNotAllow: boolean) {
+    if (isUserNotAllow) {
+      MsgAlert('提示', err, {
+        confirmButtonText: '确定',
+        dangerouslyUseHTMLString: true
+      })
+    } else {
+      MsgAlert(
+        '提示',
+        `${err}
+        <div style="width: 100%;height:1px;border-top:1px var(--el-border-color) solid;margin:10px 0;"></div>
+        录音功能需要麦克风权限，请在浏览器设置中允许此网站访问麦克风。`,
+        {
+          confirmButtonText: '确定',
+          dangerouslyUseHTMLString: true
+        }
+      )
+    }
+  }
+}
+
+// 上传录音文件并转换为文字
+const uploadRecording = async (audioBlob: Blob) => {
+  try {
+    recorderStatus.value = 'TRANSCRIBING'
+    const formData = new FormData()
+    formData.append('file', audioBlob, 'recording.mp3')
+
+    // 检查STT模型是否可用
+    if (!sttModelEnabled.value) {
+      ElMessage.warning('语音转文字功能不可用，请检查STT模型配置')
+      recorderStatus.value = 'STOP'
+      return
+    }
+
+    // 获取或创建临时应用ID
+    let applicationId = tempApplicationId.value
+    if (!applicationId) {
+      try {
+        applicationId = await createTempApplicationId()
+      } catch (error: any) {
+        ElMessage.error('创建临时应用失败：' + error.message)
+        recorderStatus.value = 'STOP'
+        return
+      }
+    }
+
+    const response = await applicationApi.postSpeechToText(applicationId, formData)
+    if (response.data) {
+      const transcribedText = typeof response.data === 'string' ? response.data : ''
+      currentMessage.value = transcribedText
+      ElMessage.success('语音转换完成')
+
+      // 如果启用自动发送，则自动发送消息
+      if (sttAutoSend.value && transcribedText.trim()) {
+        await nextTick()
+        sendMessage()
+      }
+    } else {
+      ElMessage.error('语音转换失败')
+    }
+  } catch (error: any) {
+    console.error('语音转换失败:', error)
+    ElMessage.error('语音转换失败，请重试')
+  } finally {
+    recorderStatus.value = 'STOP'
+    stopTimer()
+  }
+}
+
+// 创建录音管理器实例
+const recorderManage = new RecorderManage(uploadRecording)
+
+// 开始录音
+const startRecording = () => {
+  if (getSelectedStats().datasets === 0) {
+    ElMessage.warning('请先选择知识库')
+    return
+  }
+
+  if (!sttModelEnabled.value) {
+    ElMessage.warning('语音转文字功能不可用，请检查STT模型配置')
+    return
+  }
+
+  recorderManage.start()
+}
+
+// 停止录音
+const stopRecording = () => {
+  recorderManage.stop()
+}
+
+// 处理录音计时
+const handleTimeChange = () => {
+  recorderTime.value = 0
+  if (intervalId.value) {
+    return
+  }
+  intervalId.value = setInterval(() => {
+    if (recorderStatus.value === 'STOP') {
+      clearInterval(intervalId.value!)
+      intervalId.value = null
+      return
+    }
+
+    recorderTime.value++
+
+    // 60秒自动停止录音
+    if (recorderTime.value === 60) {
+      stopRecording()
+      clearInterval(intervalId.value!)
+      intervalId.value = null
+      recorderStatus.value = 'STOP'
+      ElMessage.warning('录音时长超过60秒，已自动停止')
+    }
+  }, 1000)
+}
+
+// 停止计时
+const stopTimer = () => {
+  if (intervalId.value !== null) {
+    clearInterval(intervalId.value)
+    recorderTime.value = 0
+    intervalId.value = null
+  }
+}
+
 onMounted(async () => {
   // 从缓存中恢复选择的模型
   const cachedModelId = localStorage.getItem('user_knowledge_default_model_id')
@@ -2038,12 +2376,13 @@ onMounted(async () => {
     sharedKBSortType.value = cachedSharedSortType
   }
 
-  // 并行加载知识库和模型列表
+  // 并行加载知识库、模型列表和STT模型
   await Promise.all([
     loadOrganizationKBs(),
     loadSharedKBs(),
     loadPersonalKBs(),
-    loadAvailableModels()
+    loadAvailableModels(),
+    loadAvailableSTTModels()
   ])
 })
 </script>
@@ -2634,7 +2973,7 @@ onMounted(async () => {
               .paragraph-source.clickable {
                 cursor: pointer;
                 transition: all 0.3s ease;
-                
+
                 &:hover {
                   background: #3370ff;
                   color: white;
@@ -2826,6 +3165,64 @@ onMounted(async () => {
               box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
             }
           }
+
+          // 语音按钮样式
+          .voice-btn {
+            border-radius: 8px;
+            padding: 6px 12px;
+            height: 36px;
+            color: #606266;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+
+            &:hover:not(:disabled) {
+              color: #409eff;
+              background-color: #ecf5ff;
+              transform: translateY(-1px);
+            }
+
+            &:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+            }
+          }
+
+          // 录音状态显示样式
+          .voice-recording {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #f0f9ff;
+            border: 1px solid #409eff;
+            border-radius: 8px;
+            height: 36px;
+            flex-shrink: 0;
+
+            .recording-time {
+              font-size: 12px;
+              font-weight: 500;
+              color: #409eff;
+              min-width: 35px;
+            }
+
+            .stop-btn {
+              padding: 4px 8px;
+              height: 24px;
+              border-radius: 4px;
+              color: #409eff;
+
+              &:hover:not(:disabled) {
+                background-color: #409eff;
+                color: white;
+              }
+
+              .stop-icon {
+                font-style: normal;
+                font-size: 12px;
+              }
+            }
+          }
         }
       }
     }
@@ -2909,6 +3306,58 @@ onMounted(async () => {
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
+}
+
+/* STT设置面板样式 */
+.stt-settings {
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  background: #f0f9ff;
+  border-radius: 8px;
+  border: 1px solid #b3d8ff;
+
+  .stt-settings-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #409eff;
+
+    .el-icon {
+      font-size: 14px;
+    }
+  }
+
+  .stt-settings-content {
+    .el-checkbox {
+      font-size: 12px;
+      color: #606266;
+
+      :deep(.el-checkbox__label) {
+        font-size: 12px;
+      }
+    }
+  }
+}
+
+/* STT不可用提示样式 */
+.stt-disabled-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #fef0f0;
+  border-radius: 6px;
+  border: 1px solid #fbc4c4;
+  font-size: 12px;
+  color: #f56c6c;
+
+  .el-icon {
+    font-size: 14px;
+  }
 }
 
 .model-selector-label {
