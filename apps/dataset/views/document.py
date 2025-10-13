@@ -123,6 +123,31 @@ class TableDocument(APIView):
                 with_valid=True))
 
 
+class AudioDocument(APIView):
+    authentication_classes = [TokenAuth]
+    parser_classes = [MultiPartParser]
+
+    @action(methods=['POST'], detail=False)
+    @swagger_auto_schema(operation_summary=_('Import audio files and create documents'),
+                         operation_id=_('Import audio files and create documents'),
+                         manual_parameters=DocumentWebInstanceSerializer.get_request_params_api(),
+                         responses=result.get_api_response(DocumentSerializers.Create.get_response_body_api()),
+                         tags=[_('Knowledge Base/Documentation')])
+    @has_permissions(
+        lambda r, k: Permission(group=Group.DATASET, operate=Operate.MANAGE,
+                                dynamic_tag=k.get('dataset_id')))
+    @log(menu='document', operate="Import audio files and create documents",
+         get_operation_object=lambda r, keywords: get_dataset_document_operation_object(
+             get_dataset_operation_object(keywords.get('dataset_id')),
+             {'name': f'[{",".join([file.name for file in r.FILES.getlist("file")])}]',
+              'document_list': [{'name': file.name} for file in r.FILES.getlist("file")]}))
+    def post(self, request: Request, dataset_id: str):
+        return result.success(
+            DocumentSerializers.Create(data={'dataset_id': dataset_id}).save_audio(
+                {'file_list': request.FILES.getlist('file')},
+                with_valid=True))
+
+
 class DataSourceView(APIView):
     authentication_classes = [TokenAuth]
 

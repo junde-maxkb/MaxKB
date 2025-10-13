@@ -445,6 +445,8 @@ const getUploadingText = () => {
     return '上传问答对中...'
   } else if (fileType === 'table') {
     return '上传表格中...'
+  } else if (fileType === 'audio') {
+    return '音频转文字中...'
   }
   return '上传中...'
 }
@@ -759,6 +761,16 @@ const handleUpload = async () => {
       } else if (fileType === 'txt') {
         // 文本文档：使用智能分段方式直接上传
         await handleTxtDocumentUpload(fileList)
+      } else if (fileType === 'audio') {
+        // 音频文档：使用后端API处理
+        let fd = new FormData()
+        fileList.forEach((item: any) => {
+          if (item?.raw) {
+            fd.append('file', item.raw)
+          }
+        })
+        await documentApi.postAudioDocument(props.datasetId, fd)
+        ElMessage.success('音频文档上传成功')
       }
       
       // 上传成功后的处理
@@ -826,6 +838,7 @@ const handleTxtDocumentUpload = async (fileList: any[]) => {
     throw error
   }
 }
+
 
 const handleUploadSuccess = () => {
   uploading.value = false

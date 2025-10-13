@@ -260,6 +260,19 @@ const postTableDocument: (
 }
 
 /**
+ * 导入音频文档
+ * @param 参数
+ * file
+ */
+const postAudioDocument: (
+  dataset_id: string,
+  data: any,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (dataset_id, data, loading) => {
+  return post(`${prefix}/${dataset_id}/document/audio`, data, undefined, loading)
+}
+
+/**
  * 批量迁移文档
  * @param 参数 dataset_id,target_dataset_id,
  */
@@ -421,6 +434,7 @@ export default {
   exportTableTemplate,
   postQADocument,
   postTableDocument,
+  postAudioDocument,
   exportDocument,
   batchRefresh,
   batchGenerateRelated,

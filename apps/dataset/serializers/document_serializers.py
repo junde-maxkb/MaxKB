@@ -898,6 +898,78 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                     return parse_table_handle.handle(file, get_buffer, save_image)
             raise AppApiException(500, _('Unsupported file format'))
 
+        @staticmethod
+        def parse_audio_file(file):
+            """处理音频文件：语音转文字 + 智能分段"""
+            from setting.models_provider.tools import get_model_instance_by_model_user_id
+            from setting.models_provider.impl.base_stt import BaseSpeechToText
+            from common.util.split_model import SplitModel
+            import re
+            
+            # 检查文件是否为音频格式
+            file_name = file.name.lower()
+            audio_extensions = ['.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac']
+            if not any(file_name.endswith(ext) for ext in audio_extensions):
+                raise AppApiException(500, _('Unsupported audio file format'))
+            
+            try:
+                # 获取可用的STT模型
+                from setting.models import Model
+                from django.db.models import Q
+                stt_models = Model.objects.filter(
+                    Q(model_type='STT') & Q(status='SUCCESS')
+                ).order_by('create_time')
+                
+                if not stt_models.exists():
+                    raise AppApiException(500, _('No available STT model found'))
+                
+                stt_model = stt_models.first()
+                
+                # 获取STT模型实例
+                model_instance = get_model_instance_by_model_user_id(stt_model.id, None)
+                
+                if not isinstance(model_instance, BaseSpeechToText):
+                    raise AppApiException(500, _('STT model is not available'))
+                
+                # 语音转文字
+                transcribed_text = model_instance.speech_to_text(file)
+                
+                if not transcribed_text or not transcribed_text.strip():
+                    raise AppApiException(500, _('Audio transcription failed or returned empty result'))
+                
+                # 智能分段
+                text_content = transcribed_text.strip()
+                
+                # 使用默认的分段模式
+                default_pattern_list = [
+                    re.compile('(?<=^)# .*|(?<=\\n)# .*'),
+                    re.compile('(?<=\\n)(?<!#)## (?!#).*|(?<=^)(?<!#)## (?!#).*'),
+                    re.compile("(?<=\\n)(?<!#)### (?!#).*|(?<=^)(?<!#)### (?!#).*"),
+                    re.compile("(?<=\\n)(?<!#)#### (?!#).*|(?<=^)(?<!#)#### (?!#).*"),
+                    re.compile("(?<=\\n)(?<!#)##### (?!#).*|(?<=^)(?<!#)##### (?!#).*"),
+                    re.compile("(?<=\\n)(?<!#)###### (?!#).*|(?<=^)(?<!#)###### (?!#).*")
+                ]
+                
+                split_model = SplitModel(default_pattern_list, with_filter=True, limit=800)
+                segments = split_model.parse(text_content)
+                
+                if not segments:
+                    # 如果没有分段，创建一个默认分段
+                    segments = [{'title': '音频转录内容', 'content': text_content}]
+                
+                # 返回文档格式
+                import re
+                file_name_without_ext = re.sub(r'\.[^/.]+$', '', file.name)
+                return [{
+                    'name': file_name_without_ext + '_音频转录',
+                    'content': segments
+                }]
+                
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                raise AppApiException(500, f'Audio processing failed: {str(e)}')
+
         def save_qa(self, instance: Dict, with_valid=True):
             if with_valid:
                 DocumentInstanceQASerializer(data=instance).is_valid(raise_exception=True)
@@ -912,6 +984,14 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                 self.is_valid(raise_exception=True)
             file_list = instance.get('file_list')
             document_list = flat_map([self.parse_table_file(file) for file in file_list])
+            return DocumentSerializers.Batch(data={'dataset_id': self.data.get('dataset_id')}).batch_save(document_list)
+
+        def save_audio(self, instance: Dict, with_valid=True):
+            if with_valid:
+                DocumentInstanceQASerializer(data=instance).is_valid(raise_exception=True)
+                self.is_valid(raise_exception=True)
+            file_list = instance.get('file_list')
+            document_list = flat_map([self.parse_audio_file(file) for file in file_list])
             return DocumentSerializers.Batch(data={'dataset_id': self.data.get('dataset_id')}).batch_save(document_list)
 
         def save_data_source(self, dataset_id, data: Dict):

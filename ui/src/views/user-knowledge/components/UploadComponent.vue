@@ -11,6 +11,7 @@
       <el-radio-group v-model="form.fileType" @change="radioChange" class="app-radio-button-group">
         <el-radio-button value="txt">文本文档</el-radio-button>
         <el-radio-button value="table">表格文档</el-radio-button>
+        <el-radio-button value="audio">音频文档</el-radio-button>
       </el-radio-group>
     </div>
 
@@ -64,6 +65,47 @@
           </p>
           <div class="upload__decoration">
             <p>支持格式：XLS、XLSX、CSV</p>
+          </div>
+        </div>
+      </el-upload>
+    </el-form-item>
+    
+    <el-form-item prop="fileList" v-if="form.fileType === 'audio'">
+      <div class="update-info flex p-8-12 border-r-4 mb-16 w-full">
+        <div class="mt-4">
+          <AppIcon iconName="app-warning-colorful" style="font-size: 16px"></AppIcon>
+        </div>
+        <div class="ml-16 lighter">
+          <p>支持 mp3、wav、ogg、aac、m4a、flac 格式音频文件，单个文件大小不超过 100MB。</p>
+          <p>系统将自动将音频转换为文字，并进行智能分段处理。</p>
+          <p>为保证识别效果，建议上传清晰、无噪音的音频文件。</p>
+        </div>
+      </div>
+      <el-upload
+        :webkitdirectory="false"
+        class="w-full"
+        drag
+        multiple
+        v-model:file-list="form.fileList"
+        action="#"
+        :auto-upload="false"
+        :show-file-list="false"
+        accept=".mp3,.wav,.ogg,.aac,.m4a,.flac"
+        :limit="10"
+        :on-exceed="onExceed"
+        :on-change="fileHandleChange"
+        @click.prevent="handlePreview(false)"
+      >
+        <img src="@/assets/upload-icon.svg" alt="" />
+        <div class="el-upload__text">
+          <p>
+            将音频文件拖到此处，或
+            <em class="hover" @click.prevent="handlePreview(false)">
+              点击上传
+            </em>
+          </p>
+          <div class="upload__decoration">
+            <p>支持格式：MP3、WAV、OGG、AAC、M4A、FLAC</p>
           </div>
         </div>
       </el-upload>
