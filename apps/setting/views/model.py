@@ -208,6 +208,46 @@ class Model(APIView):
                 resp = DirectModelService.chat(model_id, messages, **extra)
                 return result.success(resp)
 
+    class STT(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['POST'], detail=False)
+        @swagger_auto_schema(operation_summary=_('Direct STT model speech to text'),
+                             operation_id=_('Direct STT model speech to text'),
+                             tags=[_('model')])
+        @has_permissions(PermissionConstants.MODEL_READ)
+        def post(self, request: Request, model_id: str):
+            """
+            直接调用指定 model_id 的STT模型进行语音转文字。
+            请求体支持：
+            - file: 音频文件（multipart/form-data）
+            返回：转换后的文本
+            """
+            from setting.models_provider.tools import get_model_instance_by_model_user_id
+            from setting.models_provider.impl.base_stt import BaseSpeechToText
+            
+            # 获取音频文件
+            audio_file = request.FILES.get('file')
+            if not audio_file:
+                return result.error('音频文件不能为空')
+            
+            # 获取用户ID
+            user_id = request.user.id if hasattr(request, 'user') else None
+            
+            try:
+                # 获取STT模型实例
+                model_instance = get_model_instance_by_model_user_id(model_id, user_id)
+                
+                if not isinstance(model_instance, BaseSpeechToText):
+                    return result.error('该模型不支持语音转文字功能')
+                
+                # 调用STT模型
+                text = model_instance.speech_to_text(audio_file)
+                return result.success(text)
+                
+            except Exception as e:
+                return result.error(f'语音转文字失败: {str(e)}')
+
 
 class Provide(APIView):
     authentication_classes = [TokenAuth]

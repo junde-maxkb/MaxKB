@@ -838,7 +838,7 @@ const sttModelEnabled = ref(false)
 const sttAutoSend = ref(false)
 const availableSTTModels = ref<any[]>([])
 const selectedSTTModelId = ref('')
-const tempApplicationId = ref('')
+// 不再需要临时应用ID
 
 // 用户权限
 const {user} = useStore()
@@ -989,41 +989,7 @@ const loadAvailableSTTModels = async () => {
   }
 }
 
-// 创建临时应用ID
-const createTempApplicationId = async () => {
-  try {
-    const selectedDatasets = getSelectedDatasets()
-    if (selectedDatasets.length === 0) {
-      throw new Error('请先选择知识库')
-    }
-
-    // 使用第一个选中的知识库ID创建临时应用
-    const datasetId = selectedDatasets[0].datasetId
-    if (!datasetId) {
-      throw new Error('无法获取知识库ID')
-    }
-
-    // 创建临时应用数据
-    const tempAppData = {
-      name: '临时语音应用',
-      desc: '用于语音转文字的临时应用',
-      model_id: selectedModelId.value,
-      multiple_rounds_dialogue: true,
-      dataset_id_list: [datasetId]
-    }
-
-    const response = await applicationApi.postChatOpen(tempAppData)
-    if (response.data && response.data.id) {
-      tempApplicationId.value = response.data.id
-      return response.data.id
-    } else {
-      throw new Error('创建临时应用失败')
-    }
-  } catch (error) {
-    console.error('创建临时应用失败:', error)
-    throw error
-  }
-}
+// 不再需要创建临时应用，直接使用STT模型API
 
 // 处理模型切换
 const handleModelChange = (modelId: string) => {
@@ -2239,25 +2205,14 @@ const uploadRecording = async (audioBlob: Blob) => {
     formData.append('file', audioBlob, 'recording.mp3')
 
     // 检查STT模型是否可用
-    if (!sttModelEnabled.value) {
+    if (!sttModelEnabled.value || !selectedSTTModelId.value) {
       ElMessage.warning('语音转文字功能不可用，请检查STT模型配置')
       recorderStatus.value = 'STOP'
       return
     }
 
-    // 获取或创建临时应用ID
-    let applicationId = tempApplicationId.value
-    if (!applicationId) {
-      try {
-        applicationId = await createTempApplicationId()
-      } catch (error: any) {
-        ElMessage.error('创建临时应用失败：' + error.message)
-        recorderStatus.value = 'STOP'
-        return
-      }
-    }
-
-    const response = await applicationApi.postSpeechToText(applicationId, formData)
+    // 直接调用STT模型API，不需要创建临时应用
+    const response = await modelApi.postSTTDirect(selectedSTTModelId.value, formData)
     if (response.data) {
       const transcribedText = typeof response.data === 'string' ? response.data : ''
       currentMessage.value = transcribedText

@@ -43,6 +43,17 @@ export const postModelChatStream = (
 ) => {
   return postStream(`/api${prefix}/${model_id}/chat`, { ...data, stream: true })
 }
+
+/**
+ * 直接调用STT模型进行语音转文字
+ */
+export const postSTTDirect = (
+  model_id: string,
+  data: FormData,
+  loading?: Ref<boolean>
+) => {
+  return post(`${prefix}/${model_id}/stt`, data, undefined, loading)
+}
 const prefix_provider = '/provider'
 
 /**
@@ -236,5 +247,6 @@ export default {
   updateModelParamsForm,
   getProviderByModelType,
   postModelChat,
-  postModelChatStream
+  postModelChatStream,
+  postSTTDirect
 }
