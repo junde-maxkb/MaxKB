@@ -460,31 +460,28 @@
                 </el-select>
               </div>
 
-              <!-- STT设置面板 -->
-              <div class="stt-settings" v-if="sttModelEnabled">
-                <div class="stt-settings-header">
-                  <el-icon>
-                    <Microphone />
-                  </el-icon>
-                  <span>语音设置</span>
-                  <el-tag size="small" type="success" style="margin-left: auto;">
-                    已启用
-                  </el-tag>
-                </div>
-                <div class="stt-settings-content">
-                  <el-checkbox v-model="sttAutoSend" size="small">
-                    自动发送语音转换结果
-                  </el-checkbox>
-                </div>
-              </div>
+<!--              &lt;!&ndash; STT设置面板 &ndash;&gt;-->
+<!--              <div class="stt-settings" v-if="sttModelEnabled">-->
+<!--                <div class="stt-settings-header">-->
+<!--                  <el-icon>-->
+<!--                    <Microphone />-->
+<!--                  </el-icon>-->
+<!--                  <span>语音设置</span>-->
+<!--                </div>-->
+<!--                <div class="stt-settings-content">-->
+<!--                  <el-checkbox v-model="sttAutoSend" size="small">-->
+<!--                    自动发送语音转换结果-->
+<!--                  </el-checkbox>-->
+<!--                </div>-->
+<!--              </div>-->
 
-              <!-- STT不可用提示 -->
-              <div class="stt-disabled-tip" v-else-if="getSelectedStats().datasets > 0">
-                <el-icon>
-                  <Microphone />
-                </el-icon>
-                <span>语音功能不可用，请检查STT模型配置</span>
-              </div>
+<!--              &lt;!&ndash; STT不可用提示 &ndash;&gt;-->
+<!--              <div class="stt-disabled-tip" v-else-if="getSelectedStats().datasets > 0">-->
+<!--                <el-icon>-->
+<!--                  <Microphone />-->
+<!--                </el-icon>-->
+<!--                <span>语音功能不可用，请检查STT模型配置</span>-->
+<!--              </div>-->
 
               <!-- 输入区域 -->
               <div class="input-container">
