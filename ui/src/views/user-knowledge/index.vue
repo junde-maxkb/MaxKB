@@ -511,6 +511,28 @@
                       </el-icon>
                     </el-button>
 
+                    <!-- 音频文件上传按钮 -->
+                    <el-upload
+                        ref="audioUploadRef"
+                        class="audio-upload-btn"
+                        :show-file-list="false"
+                        :before-upload="handleAudioUpload"
+                        :disabled="isStreaming || getSelectedStats().datasets === 0 || !sttModelEnabled || isUploadingAudio"
+                        accept="audio/*"
+                        v-if="recorderStatus === 'STOP'"
+                    >
+                        <el-button
+                            text
+                            class="voice-btn"
+                            :disabled="isStreaming || getSelectedStats().datasets === 0 || !sttModelEnabled || isUploadingAudio"
+                            :loading="isUploadingAudio"
+                        >
+                          <el-icon v-if="!isUploadingAudio">
+                            <UploadFilled />
+                          </el-icon>
+                        </el-button>
+                    </el-upload>
+
                     <!-- 录音状态显示 -->
                     <div v-else class="voice-recording flex align-center">
                       <el-text type="info" class="recording-time">
@@ -683,6 +705,7 @@ import {
   Sort,
   Check,
   Upload,
+  UploadFilled,
   Download,
   Collection,
   Clock,
@@ -832,6 +855,10 @@ const expandedParagraphs = ref<Set<number>>(new Set())
 const intervalId = ref<any | null>(null)
 const recorderTime = ref(0)
 const recorderStatus = ref<'START' | 'TRANSCRIBING' | 'STOP'>('STOP')
+
+// 音频文件上传相关状态
+const audioUploadRef = ref()
+const isUploadingAudio = ref(false)
 
 // STT相关状态
 const sttModelEnabled = ref(false)
@@ -2267,6 +2294,62 @@ const stopRecording = () => {
   recorderManage.stop()
 }
 
+// 处理音频文件上传
+const handleAudioUpload = async (file: File) => {
+  // 验证文件类型
+  if (!file.type.startsWith('audio/')) {
+    ElMessage.error('请选择音频文件')
+    return false
+  }
+
+  // 验证文件大小 (限制为50MB)
+  const maxSize = 50 * 1024 * 1024 // 50MB
+  if (file.size > maxSize) {
+    ElMessage.error('音频文件大小不能超过50MB')
+    return false
+  }
+
+  try {
+    isUploadingAudio.value = true
+    ElMessage.info('正在上传音频文件...')
+
+    // 检查STT模型是否可用
+    if (!sttModelEnabled.value || !selectedSTTModelId.value) {
+      ElMessage.warning('语音转文字功能不可用，请检查STT模型配置')
+      return false
+    }
+
+    // 创建FormData
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('model_id', selectedSTTModelId.value)
+
+    // 调用STT API
+    const response = await modelApi.postSTTDirect(selectedSTTModelId.value, formData)
+
+    if (response.data) {
+      const transcribedText = typeof response.data === 'string' ? response.data : ''
+      currentMessage.value = transcribedText
+      ElMessage.success('音频文件转换完成')
+
+      // 如果启用自动发送，则自动发送消息
+      if (sttAutoSend.value && transcribedText.trim()) {
+        await nextTick()
+        sendMessage()
+      }
+    } else {
+      ElMessage.error('音频文件转换失败')
+    }
+  } catch (error: any) {
+    console.error('音频文件转换失败:', error)
+    ElMessage.error('音频文件转换失败，请重试')
+  } finally {
+    isUploadingAudio.value = false
+  }
+
+  return false // 阻止默认上传行为
+}
+
 // 处理录音计时
 const handleTimeChange = () => {
   recorderTime.value = 0
@@ -3157,6 +3240,16 @@ onUnmounted(() => {
             &:disabled {
               opacity: 0.5;
               cursor: not-allowed;
+            }
+          }
+
+          // 音频上传按钮样式
+          .audio-upload-btn {
+            display: inline-block;
+            margin-left: 4px;
+
+            .voice-btn {
+              margin-left: 0;
             }
           }
 
