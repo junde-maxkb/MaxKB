@@ -655,7 +655,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, nextTick} from 'vue'
+import {ref, computed, onMounted, onUnmounted, nextTick} from 'vue'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import useStore from '@/stores'
 import {
@@ -2157,9 +2157,17 @@ class RecorderManage {
     if (this.recorder) {
       this.recorder.stop(
         (blob: Blob, duration: number) => {
+          // 立即停止计时器
+          stopTimer()
+          // 释放媒体设备权限
+          this.close()
           this.uploadRecording(blob, duration)
         },
         (err: any) => {
+          // 出错时也要重置状态和释放设备
+          recorderStatus.value = 'STOP'
+          stopTimer()
+          this.close()
           MsgAlert('提示', err, {
             confirmButtonText: '确定',
             dangerouslyUseHTMLString: true
@@ -2200,6 +2208,7 @@ class RecorderManage {
 // 上传录音文件并转换为文字
 const uploadRecording = async (audioBlob: Blob) => {
   try {
+    // 立即设置状态为转换中
     recorderStatus.value = 'TRANSCRIBING'
     const formData = new FormData()
     formData.append('file', audioBlob, 'recording.mp3')
@@ -2230,8 +2239,8 @@ const uploadRecording = async (audioBlob: Blob) => {
     console.error('语音转换失败:', error)
     ElMessage.error('语音转换失败，请重试')
   } finally {
+    // 确保状态最终被重置
     recorderStatus.value = 'STOP'
-    stopTimer()
   }
 }
 
@@ -2336,6 +2345,18 @@ onMounted(async () => {
     loadAvailableModels(),
     loadAvailableSTTModels()
   ])
+})
+
+// 页面卸载时清理媒体设备
+onUnmounted(() => {
+  // 停止录音并释放媒体设备
+  if (recorderStatus.value !== 'STOP') {
+    stopRecording()
+  }
+  // 确保录音器被关闭
+  recorderManage.close()
+  // 清理计时器
+  stopTimer()
 })
 </script>
 
