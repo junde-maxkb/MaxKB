@@ -639,6 +639,8 @@
         :document-id="currentDocumentId"
         :dataset-id="currentParagraphDatasetId"
         :document-name="currentDocumentName"
+        :hit-paragraph-id="currentHitParagraphId"
+        :hit-paragraph-content="currentHitParagraphContent"
     />
 
     <!-- 重命名知识库对话框 -->
@@ -783,6 +785,8 @@ const currentDatasetName = ref('')
 const currentDocumentId = ref('')
 const currentParagraphDatasetId = ref('')
 const currentDocumentName = ref('')
+const currentHitParagraphId = ref('')
+const currentHitParagraphContent = ref('')
 
 // 重命名相关状态
 const showRenameDialog = ref(false)
@@ -1085,10 +1089,13 @@ const selectKnowledgeBase = (kb: TreeNode) => {
 }
 
 // 打开文档分段详情
-const openDocumentParagraphs = (paragraph: any) => {
+const openDocumentParagraphs = async (paragraph: any) => {
   console.log('点击的分段数据:', paragraph)
   console.log('document_id:', paragraph.document_id)
   console.log('dataset_id:', paragraph.dataset_id)
+  console.log('paragraph.id:', paragraph.id)
+  console.log('paragraph的所有属性:', Object.keys(paragraph))
+  console.log('paragraph的完整内容:', JSON.stringify(paragraph, null, 2))
 
   if (!paragraph.document_id || !paragraph.dataset_id) {
     console.error('缺少必要字段:', {
@@ -1103,6 +1110,13 @@ const openDocumentParagraphs = (paragraph: any) => {
   currentDocumentId.value = paragraph.document_id
   currentParagraphDatasetId.value = paragraph.dataset_id
   currentDocumentName.value = paragraph.document_name || paragraph.source || paragraph.dataset_name
+  
+  // 由于搜索结果中没有分段ID，我们需要通过内容匹配来找到对应的分段
+  // 传递搜索结果的完整内容，用于在分段详情中匹配
+  currentHitParagraphId.value = paragraph.title || '段落 1' // 使用title作为临时标识
+  currentHitParagraphContent.value = paragraph.content // 保存搜索结果的完整内容
+  console.log('设置命中分段标识:', currentHitParagraphId.value)
+  console.log('设置命中分段内容:', currentHitParagraphContent.value.substring(0, 100) + '...')
   showParagraphsDialog.value = true
 }
 

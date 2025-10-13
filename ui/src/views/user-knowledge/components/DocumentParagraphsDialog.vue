@@ -30,17 +30,19 @@
           <div class="paragraph-stats">
             总计 {{ paragraphList.length }} 个分段
           </div>
-          <div class="search-box">
-            <el-input
-              v-model="searchText"
-              placeholder="搜索分段内容..."
-              clearable
-              @input="handleSearch"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
+          <div class="header-actions">
+            <div class="search-box">
+              <el-input
+                v-model="searchText"
+                placeholder="搜索分段内容..."
+                clearable
+                @input="handleSearch"
+              >
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
+            </div>
           </div>
         </div>
         
@@ -52,6 +54,9 @@
             v-for="(paragraph, index) in filteredParagraphs"
             :key="paragraph.id"
             class="paragraph-item"
+            :class="{ 'hit-paragraph': paragraph.id === matchedParagraphId }"
+            :data-paragraph-id="paragraph.id"
+            :data-hit-id="props.hitParagraphId"
           >
             <div class="paragraph-header">
               <span class="paragraph-index">{{ index + 1 }}</span>
@@ -60,6 +65,9 @@
                 <el-tag v-else type="info" size="small">禁用</el-tag>
                 <span v-if="paragraph.hit_num" class="hit-count">
                   命中 {{ paragraph.hit_num }} 次
+                </span>
+                <span v-if="paragraph.id === matchedParagraphId" class="debug-info" style="color: red; font-size: 12px;">
+                  [命中分段]
                 </span>
               </div>
             </div>
@@ -84,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Collection, Clock } from '@element-plus/icons-vue'
 import paragraphApi from '@/api/paragraph'
@@ -105,6 +113,8 @@ interface Props {
   documentId: string
   datasetId: string
   documentName: string
+  hitParagraphId?: string
+  hitParagraphContent?: string
 }
 
 const props = defineProps<Props>()
@@ -133,22 +143,115 @@ const visible = computed({
 const loading = ref(false)
 const paragraphList = ref<Paragraph[]>([])
 const searchText = ref('')
+const matchedParagraphId = ref<string>('')
 
 // 过滤后的分段列表
 const filteredParagraphs = computed(() => {
-  if (!searchText.value) {
-    return paragraphList.value
+  let filtered = paragraphList.value
+  
+  // 搜索过滤
+  if (searchText.value) {
+    filtered = filtered.filter(paragraph => 
+      paragraph.content.toLowerCase().includes(searchText.value.toLowerCase()) ||
+      (paragraph.title && paragraph.title.toLowerCase().includes(searchText.value.toLowerCase()))
+    )
   }
-  return paragraphList.value.filter(paragraph => 
-    paragraph.content.toLowerCase().includes(searchText.value.toLowerCase()) ||
-    (paragraph.title && paragraph.title.toLowerCase().includes(searchText.value.toLowerCase()))
-  )
+  
+  // 默认按照段落数字顺序排序
+  filtered = [...filtered].sort((a, b) => {
+    // 提取段落标题中的数字进行排序
+    const getParagraphNumber = (title: string) => {
+      const match = title.match(/段落\s*(\d+)/)
+      return match ? parseInt(match[1], 10) : 0
+    }
+    
+    const numA = getParagraphNumber(a.title || '')
+    const numB = getParagraphNumber(b.title || '')
+    
+    return numA - numB
+  })
+  
+  return filtered
 })
 
 // 搜索处理
 const handleSearch = () => {
   // 搜索逻辑已在computed中处理
 }
+
+// 通过内容匹配找到分段ID
+const findParagraphByContent = (searchContent: string): string | null => {
+  if (!searchContent || !paragraphList.value.length) {
+    return null
+  }
+  
+  console.log('开始内容匹配，搜索内容长度:', searchContent.length)
+  console.log('分段数量:', paragraphList.value.length)
+  
+  // 清理搜索内容，移除多余的空白字符
+  const cleanSearchContent = searchContent.replace(/\s+/g, ' ').trim()
+  
+  // 尝试精确匹配
+  for (const paragraph of paragraphList.value) {
+    const cleanParagraphContent = paragraph.content.replace(/\s+/g, ' ').trim()
+    if (cleanParagraphContent === cleanSearchContent) {
+      console.log('精确匹配成功:', paragraph.id)
+      return paragraph.id
+    }
+  }
+  
+  // 尝试包含匹配（搜索内容包含在分段内容中）
+  for (const paragraph of paragraphList.value) {
+    const cleanParagraphContent = paragraph.content.replace(/\s+/g, ' ').trim()
+    if (cleanParagraphContent.includes(cleanSearchContent)) {
+      console.log('包含匹配成功:', paragraph.id)
+      return paragraph.id
+    }
+  }
+  
+  // 尝试部分匹配（分段内容包含在搜索内容中）
+  for (const paragraph of paragraphList.value) {
+    const cleanParagraphContent = paragraph.content.replace(/\s+/g, ' ').trim()
+    if (cleanSearchContent.includes(cleanParagraphContent)) {
+      console.log('部分匹配成功:', paragraph.id)
+      return paragraph.id
+    }
+  }
+  
+  // 尝试相似度匹配（简单的字符相似度）
+  let bestMatch = null
+  let bestSimilarity = 0
+  
+  for (const paragraph of paragraphList.value) {
+    const cleanParagraphContent = paragraph.content.replace(/\s+/g, ' ').trim()
+    const similarity = calculateSimilarity(cleanSearchContent, cleanParagraphContent)
+    
+    if (similarity > bestSimilarity && similarity > 0.7) { // 相似度阈值
+      bestSimilarity = similarity
+      bestMatch = paragraph.id
+    }
+  }
+  
+  if (bestMatch) {
+    console.log('相似度匹配成功:', bestMatch, '相似度:', bestSimilarity)
+    return bestMatch
+  }
+  
+  console.log('未找到匹配的分段')
+  return null
+}
+
+// 计算字符串相似度（简单的Jaccard相似度）
+const calculateSimilarity = (str1: string, str2: string): number => {
+  const set1 = new Set(str1.split(''))
+  const set2 = new Set(str2.split(''))
+  
+  const intersection = new Set([...set1].filter(x => set2.has(x)))
+  const union = new Set([...set1, ...set2])
+  
+  return intersection.size / union.size
+}
+
 
 // 获取分段数据
 const fetchParagraphs = async () => {
@@ -180,6 +283,33 @@ const fetchParagraphs = async () => {
     if (response.data && response.data.records) {
       paragraphList.value = response.data.records
       console.log('获取到分段数据:', paragraphList.value.length, '条')
+      console.log('当前命中分段ID:', props.hitParagraphId)
+      console.log('分段ID列表:', paragraphList.value.map(p => p.id))
+      
+      // 通过内容匹配找到正确的分段ID
+      if (props.hitParagraphContent) {
+        const matchedId = findParagraphByContent(props.hitParagraphContent)
+        if (matchedId) {
+          matchedParagraphId.value = matchedId
+          console.log('通过内容匹配找到分段ID:', matchedId)
+        } else {
+          console.log('未找到匹配的分段，搜索内容:', props.hitParagraphContent.substring(0, 100) + '...')
+        }
+      }
+      
+      // 数据加载完成后，检查并滚动到命中分段
+      if (matchedParagraphId.value) {
+        nextTick(() => {
+          const hitElement = document.querySelector('.hit-paragraph')
+          console.log('数据加载后查找命中元素:', hitElement)
+          if (hitElement) {
+            hitElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            })
+          }
+        })
+      }
     } else {
       console.log('响应数据格式异常:', response)
       paragraphList.value = []
@@ -198,12 +328,36 @@ const handleClose = () => {
   visible.value = false
   searchText.value = ''
   paragraphList.value = []
+  matchedParagraphId.value = ''
 }
 
 // 监听对话框显示状态
 watch(visible, (newVal) => {
   if (newVal) {
     fetchParagraphs()
+  }
+})
+
+// 监听命中分段内容变化，重新匹配分段
+watch(() => props.hitParagraphContent, (newContent) => {
+  console.log('hitParagraphContent changed:', newContent ? newContent.substring(0, 100) + '...' : 'null')
+  if (newContent && visible.value && paragraphList.value.length > 0) {
+    const matchedId = findParagraphByContent(newContent)
+    if (matchedId) {
+      matchedParagraphId.value = matchedId
+      console.log('重新匹配到分段ID:', matchedId)
+      
+      nextTick(() => {
+        const hitElement = document.querySelector('.hit-paragraph')
+        console.log('Found hit element:', hitElement)
+        if (hitElement) {
+          hitElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          })
+        }
+      })
+    }
   }
 })
 </script>
@@ -261,8 +415,23 @@ watch(visible, (newVal) => {
         font-weight: 500;
       }
 
-      .search-box {
-        width: 300px;
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+
+        .sort-buttons {
+          .el-button-group {
+            .el-button {
+              font-size: 12px;
+              padding: 6px 12px;
+            }
+          }
+        }
+
+        .search-box {
+          width: 300px;
+        }
       }
     }
 
@@ -287,6 +456,32 @@ watch(visible, (newVal) => {
 
         &:last-child {
           margin-bottom: 0;
+        }
+
+        &.hit-paragraph {
+          border-color: #f56c6c;
+          background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%);
+          box-shadow: 0 4px 12px rgba(245, 108, 108, 0.2);
+          position: relative;
+
+          &::before {
+            content: '命中分段';
+            position: absolute;
+            top: -1px;
+            right: -1px;
+            background: #f56c6c;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 0 8px 0 8px;
+            font-size: 10px;
+            font-weight: 600;
+            z-index: 1;
+          }
+
+          .paragraph-index {
+            background: #f56c6c;
+            color: white;
+          }
         }
 
         .paragraph-header {
