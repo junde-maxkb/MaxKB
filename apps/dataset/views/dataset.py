@@ -153,12 +153,22 @@ class Dataset(APIView):
         @has_permissions(lambda r, keywords: Permission(group=Group.DATASET, operate=Operate.USE,
                                                         dynamic_tag=keywords.get('dataset_id')))
         def get(self, request: Request, dataset_id: str):
+            # 处理文档ID列表参数
+            document_ids = request.query_params.get("document_ids")
+            document_id_list = []
+            if document_ids:
+                try:
+                    document_id_list = document_ids.split(',')
+                except:
+                    document_id_list = []
+            
             return result.success(
                 DataSetSerializers.HitTest(data={'id': dataset_id, 'user_id': request.user.id,
                                                  "query_text": request.query_params.get("query_text"),
                                                  "top_number": request.query_params.get("top_number"),
                                                  'similarity': request.query_params.get('similarity'),
-                                                 'search_mode': request.query_params.get('search_mode')}).hit_test(
+                                                 'search_mode': request.query_params.get('search_mode'),
+                                                 'document_ids': document_id_list}).hit_test(
                 ))
 
     class Embedding(APIView):

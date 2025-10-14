@@ -80,12 +80,17 @@ class PGVector(BaseVectorStore):
     def hit_test(self, query_text, dataset_id_list: list[str], exclude_document_id_list: list[str], top_number: int,
                  similarity: float,
                  search_mode: SearchMode,
-                 embedding: Embeddings):
+                 embedding: Embeddings, include_document_id_list: list[str] = None):
         if dataset_id_list is None or len(dataset_id_list) == 0:
             return []
         exclude_dict = {}
         embedding_query = embedding.embed_query(query_text)
         query_set = QuerySet(Embedding).filter(dataset_id__in=dataset_id_list, is_active=True)
+        
+        # 如果指定了包含的文档ID列表，则只检索这些文档
+        if include_document_id_list is not None and len(include_document_id_list) > 0:
+            query_set = query_set.filter(document_id__in=include_document_id_list)
+        
         if exclude_document_id_list is not None and len(exclude_document_id_list) > 0:
             exclude_dict.__setitem__('document_id__in', exclude_document_id_list)
         query_set = query_set.exclude(**exclude_dict)

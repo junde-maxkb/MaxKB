@@ -399,27 +399,56 @@
               <!-- 知识库信息提示 -->
               <div class="kb-info-container" :class="{ 'moved-down': hasMessages }">
                 <div class="kb-info-content">
-                  <div class="kb-info-text" v-if="getSelectedStats().datasets > 0">
-                    基于 {{ getSelectedStats().datasets }} 个知识库：
+                  <div class="kb-info-text" v-if="selectedInfo">
+                    <template v-if="selectedInfo.type === 'documents'">
+                      <el-icon class="info-icon"><DocumentCopy /></el-icon>
+                      基于 {{ selectedInfo.count }} 个选中文档进行问答：
+                    </template>
+                    <template v-else-if="selectedInfo.type === 'datasets'">
+                      <el-icon class="info-icon"><Collection /></el-icon>
+                      基于 {{ selectedInfo.count }} 个知识库进行问答：
+                    </template>
                   </div>
                   <div class="kb-info-text" v-else>
-                    请从左侧选择知识库开始问答
+                    <el-icon class="info-icon"><Warning /></el-icon>
+                    请从左侧选择知识库或文档开始问答
                   </div>
-                  <div v-if="getSelectedStats().datasets > 0" class="selected-datasets">
+                  
+                  <!-- 选中的文档显示 -->
+                  <div v-if="selectedInfo && selectedInfo.type === 'documents'" class="selected-items">
                     <el-tag
-                        v-for="dataset in getSelectedDatasets().slice(0, 4)"
-                        :key="dataset.id"
+                        v-for="(item, index) in selectedInfo.items.slice(0, 4)"
+                        :key="index"
                         size="small"
-                        class="dataset-tag"
+                        class="item-tag document-tag"
                     >
-                      {{ dataset.label }}
+                      {{ item }}
                     </el-tag>
                     <el-tag
-                        v-if="getSelectedDatasets().length > 4"
+                        v-if="selectedInfo.items.length > 4"
                         size="small"
-                        class="dataset-tag more-tag"
+                        class="item-tag more-tag"
                     >
-                      +{{ getSelectedDatasets().length - 4 }}
+                      +{{ selectedInfo.items.length - 4 }}
+                    </el-tag>
+                  </div>
+                  
+                  <!-- 选中的知识库显示 -->
+                  <div v-else-if="selectedInfo && selectedInfo.type === 'datasets'" class="selected-items">
+                    <el-tag
+                        v-for="item in selectedInfo.items.slice(0, 4)"
+                        :key="item"
+                        size="small"
+                        class="item-tag dataset-tag"
+                    >
+                      {{ item }}
+                    </el-tag>
+                    <el-tag
+                        v-if="selectedInfo.items.length > 4"
+                        size="small"
+                        class="item-tag more-tag"
+                    >
+                      +{{ selectedInfo.items.length - 4 }}
                     </el-tag>
                   </div>
                 </div>
@@ -495,7 +524,7 @@
                         class="chat-input"
                         @keyup.enter.exact.prevent="sendMessage"
                         @focus="handleInputFocus"
-                        :disabled="isStreaming || getSelectedStats().datasets === 0"
+                        :disabled="isStreaming || !selectedInfo"
                     />
 
                     <!-- 语音录制按钮 -->
@@ -504,7 +533,7 @@
                         class="voice-btn"
                         @click="startRecording"
                         v-if="recorderStatus === 'STOP'"
-                        :disabled="isStreaming || getSelectedStats().datasets === 0 || !sttModelEnabled"
+                        :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
                     >
                       <el-icon>
                         <Microphone />
@@ -517,14 +546,14 @@
                         class="audio-upload-btn"
                         :show-file-list="false"
                         :before-upload="handleAudioUpload"
-                        :disabled="isStreaming || getSelectedStats().datasets === 0 || !sttModelEnabled || isUploadingAudio"
+                        :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
                         accept="audio/*"
                         v-if="recorderStatus === 'STOP'"
                     >
                         <el-button
                             text
                             class="voice-btn"
-                            :disabled="isStreaming || getSelectedStats().datasets === 0 || !sttModelEnabled || isUploadingAudio"
+                            :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
                             :loading="isUploadingAudio"
                         >
                           <el-icon v-if="!isUploadingAudio">
@@ -556,7 +585,7 @@
                         class="send-btn"
                         @click="sendMessage"
                         :loading="isStreaming"
-                        :disabled="!currentMessage.trim() || isStreaming || getSelectedStats().datasets === 0"
+                        :disabled="!currentMessage.trim() || isStreaming || !selectedInfo"
                     >
                       {{ isStreaming ? '发送中...' : '发送' }}
                     </el-button>
@@ -876,6 +905,27 @@ const {user} = useStore()
 const userRole = computed(() => user.getRole())
 const isAdmin = computed(() => userRole.value === 'ADMIN')
 
+// 当前选中的文档和知识库信息
+const selectedInfo = computed(() => {
+  const selectedDocuments = getSelectedDocuments()
+  const selectedDatasets = getSelectedDatasets()
+  
+  if (selectedDocuments.length > 0) {
+    return {
+      type: 'documents',
+      count: selectedDocuments.length,
+      items: selectedDocuments.map(doc => doc.label)
+    }
+  } else if (selectedDatasets.length > 0) {
+    return {
+      type: 'datasets',
+      count: selectedDatasets.length,
+      items: selectedDatasets.map(dataset => dataset.label)
+    }
+  }
+  return null
+})
+
 // 原有的知识库数据存储
 const organizationKBs = ref<any[]>([])
 const sharedKBs = ref<any[]>([])
@@ -1042,8 +1092,8 @@ const handleInputFocus = () => {
 
 // 获取输入框占位符文本
 const getInputPlaceholder = () => {
-  if (getSelectedStats().datasets === 0) {
-    return '请先选择知识库...'
+  if (!selectedInfo.value) {
+    return '请先选择知识库或文档...'
   }
   return '请输入您的问题...'
 }
@@ -1722,51 +1772,119 @@ const updateNodeChildren = (nodeId: string, children: TreeNode[]) => {
   findAndUpdate(treeData.value)
 }
 
-// 基于选中知识库进行知识检索
+// 基于选中文档进行知识检索
 const performKnowledgeSearch = async (query: string) => {
   try {
+    const selectedDocuments = getSelectedDocuments()
     const selectedDatasets = getSelectedDatasets()
     let searchResults: any[] = []
     let hasConnectionError = false
     let hasEmbeddingError = false
 
-    // 对每个选中的知识库进行检索
-    for (const dataset of selectedDatasets) {
-      if (!dataset.datasetId) continue
-
-      try {
-        const searchData = {
-          query_text: query,
-          top_number: 3, // 每个知识库取前3条结果
-          similarity: 0.5,
-          search_mode: 'embedding'
+    // 如果选中了具体文档，优先基于文档进行检索
+    if (selectedDocuments.length > 0) {
+      console.log('基于选中的文档进行检索:', selectedDocuments)
+      
+      // 按知识库分组文档
+      const documentsByDataset = new Map<string, TreeNode[]>()
+      selectedDocuments.forEach(doc => {
+        if (doc.datasetId) {
+          if (!documentsByDataset.has(doc.datasetId)) {
+            documentsByDataset.set(doc.datasetId, [])
+          }
+          documentsByDataset.get(doc.datasetId)!.push(doc)
         }
+      })
 
-        const response = await datasetApi.getDatasetHitTest(dataset.datasetId, searchData)
-        if (response.code === 200 && response.data) {
-          const results = response.data.map((item: any) => ({
-            ...item,
-            dataset_name: dataset.label,
-            source: dataset.label
-          }))
-          searchResults.push(...results)
-        } else if (response.code === 500) {
-          // 检查是否是嵌入模型连接错误
-          if (response.message?.includes('Failed to establish a new connection') ||
-              response.message?.includes('Connection refused')) {
+      // 对每个知识库的选中文档进行检索
+      for (const [datasetId, docs] of documentsByDataset) {
+        try {
+          const searchData = {
+            query_text: query,
+            top_number: 5, // 每个知识库取前5条结果
+            similarity: 0.5,
+            search_mode: 'embedding',
+            // 添加文档ID列表，限制检索范围
+            document_ids: docs.map(doc => doc.documentId).filter(Boolean).join(',')
+          }
+
+          const response = await datasetApi.getDatasetHitTest(datasetId, searchData)
+          if (response.code === 200 && response.data) {
+            const results = response.data.map((item: any) => ({
+              ...item,
+              dataset_name: docs[0]?.label?.split(' - ')[0] || '未知知识库',
+              source: item.document_name || item.source
+            }))
+            searchResults.push(...results)
+          } else if (response.code === 500) {
+            // 检查是否是嵌入模型连接错误
+            if (response.message?.includes('Failed to establish a new connection') ||
+                response.message?.includes('Connection refused')) {
+              hasEmbeddingError = true
+            }
+          }
+        } catch (error: any) {
+          console.warn(`文档检索失败:`, error)
+
+          // 检测连接错误类型
+          if (error.message?.includes('Failed to establish a new connection') ||
+              error.message?.includes('Connection refused')) {
             hasEmbeddingError = true
+          } else {
+            hasConnectionError = true
           }
         }
-      } catch (error: any) {
-        console.warn(`知识库 ${dataset.label} 检索失败:`, error)
+      }
+    } 
+    // 如果没有选中文档但选中了知识库，则基于整个知识库进行检索
+    else if (selectedDatasets.length > 0) {
+      console.log('基于选中的知识库进行检索:', selectedDatasets)
+      
+      // 对每个选中的知识库进行检索
+      for (const dataset of selectedDatasets) {
+        if (!dataset.datasetId) continue
 
-        // 检测连接错误类型
-        if (error.message?.includes('Failed to establish a new connection') ||
-            error.message?.includes('Connection refused')) {
-          hasEmbeddingError = true
-        } else {
-          hasConnectionError = true
+        try {
+          const searchData = {
+            query_text: query,
+            top_number: 3, // 每个知识库取前3条结果
+            similarity: 0.5,
+            search_mode: 'embedding'
+          }
+
+          const response = await datasetApi.getDatasetHitTest(dataset.datasetId, searchData)
+          if (response.code === 200 && response.data) {
+            const results = response.data.map((item: any) => ({
+              ...item,
+              dataset_name: dataset.label,
+              source: dataset.label
+            }))
+            searchResults.push(...results)
+          } else if (response.code === 500) {
+            // 检查是否是嵌入模型连接错误
+            if (response.message?.includes('Failed to establish a new connection') ||
+                response.message?.includes('Connection refused')) {
+              hasEmbeddingError = true
+            }
+          }
+        } catch (error: any) {
+          console.warn(`知识库 ${dataset.label} 检索失败:`, error)
+
+          // 检测连接错误类型
+          if (error.message?.includes('Failed to establish a new connection') ||
+              error.message?.includes('Connection refused')) {
+            hasEmbeddingError = true
+          } else {
+            hasConnectionError = true
+          }
         }
+      }
+    } else {
+      console.log('未选中任何文档或知识库')
+      return {
+        results: [],
+        hasEmbeddingError: false,
+        hasConnectionError: false
       }
     }
 
@@ -1795,6 +1913,15 @@ const performKnowledgeSearch = async (query: string) => {
 // 发送消息并获得AI回答
 const sendMessage = async () => {
   if (!currentMessage.value.trim() || isStreaming.value || !selectedModelId.value) return
+
+  // 检查是否选中了文档或知识库
+  const selectedDocuments = getSelectedDocuments()
+  const selectedDatasets = getSelectedDatasets()
+  
+  if (selectedDocuments.length === 0 && selectedDatasets.length === 0) {
+    ElMessage.warning('请先选择要查询的文档或知识库')
+    return
+  }
 
   const userQuestion = currentMessage.value.trim()
 
@@ -2290,8 +2417,8 @@ const recorderManage = new RecorderManage(uploadRecording)
 
 // 开始录音
 const startRecording = () => {
-  if (getSelectedStats().datasets === 0) {
-    ElMessage.warning('请先选择知识库')
+  if (!selectedInfo.value) {
+    ElMessage.warning('请先选择知识库或文档')
     return
   }
 
@@ -2804,15 +2931,23 @@ onUnmounted(() => {
       }
     }
 
-    .selected-datasets {
+    .selected-items {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
 
-      .dataset-tag {
-        background: #e6f3ff;
-        border-color: #3370ff;
-        color: #3370ff;
+      .item-tag {
+        &.document-tag {
+          background: #e6f3ff;
+          border-color: #3370ff;
+          color: #3370ff;
+        }
+
+        &.dataset-tag {
+          background: #e6f3ff;
+          border-color: #3370ff;
+          color: #3370ff;
+        }
 
         &.more-tag {
           background: #f0f2f5;

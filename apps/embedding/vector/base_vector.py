@@ -135,7 +135,7 @@ class BaseVectorStore(ABC):
     def hit_test(self, query_text, dataset_id: list[str], exclude_document_id_list: list[str], top_number: int,
                  similarity: float,
                  search_mode: SearchMode,
-                 embedding: Embeddings):
+                 embedding: Embeddings, include_document_id_list: list[str] = None):
         pass
 
     @abstractmethod

@@ -583,6 +583,7 @@ class DataSetSerializers(serializers.ModelSerializer):
             validators.RegexValidator(regex=re.compile("^embedding|keywords|blend$"),
                                       message=_('The type only supports embedding|keywords|blend'), code=500)
         ], error_messages=ErrMessage.char(_('search mode')))
+        document_ids = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
         def is_valid(self, *, raise_exception=True):
             super().is_valid(raise_exception=True)
@@ -602,7 +603,7 @@ class DataSetSerializers(serializers.ModelSerializer):
                                        self.data.get('top_number'),
                                        self.data.get('similarity'),
                                        SearchMode(self.data.get('search_mode')),
-                                       model)
+                                       model, self.data.get('document_ids'))
             hit_dict = reduce(lambda x, y: {**x, **y}, [{hit.get('paragraph_id'): hit} for hit in hit_list], {})
             p_list = list_paragraph([h.get('paragraph_id') for h in hit_list])
             return [{**p, 'similarity': hit_dict.get(p.get('id')).get('similarity'),

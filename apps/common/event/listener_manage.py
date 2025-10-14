@@ -381,6 +381,6 @@ class ListenerManagement:
     def hit_test(query_text, dataset_id: list[str], exclude_document_id_list: list[str], top_number: int,
                  similarity: float,
                  search_mode: SearchMode,
-                 embedding: Embeddings):
+                 embedding: Embeddings, include_document_id_list: list[str] = None):
         return VectorStore.get_embedding_vector().hit_test(query_text, dataset_id, exclude_document_id_list, top_number,
-                                                           similarity, search_mode, embedding)
+                                                           similarity, search_mode, embedding, include_document_id_list)
