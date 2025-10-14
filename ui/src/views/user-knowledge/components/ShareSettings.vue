@@ -209,7 +209,7 @@ const removePermission = async (user: any) => {
     await datasetApi.putMemberPermission(props.datasetId, {
       user_id: user.id,
       permission: 'NONE',
-      type: user.type
+      share_with_type: user.type
     })
     
     ElMessage.success('权限已移除')
@@ -233,7 +233,7 @@ const onSave = async () => {
       const params = {
         user_id: member.id,
         permission: member.permission,  // 使用选择的权限
-        type: member.type
+        share_with_type: member.type
       }
       await datasetApi.putMemberPermission(props.datasetId, params)
     }
@@ -277,7 +277,7 @@ const getAvailableUsersOrTeams = async () => {
     if (res.data) {
       // 只处理团队，不处理用户
       availableMembers.value = []
-      availableTeams.value = (res.data.teams || []).map((team: any) => ({
+      availableTeams.value = (res.data || []).map((team: any) => ({
         id: team.id,
         name: team.name,
         type: 'TEAM'

@@ -128,6 +128,7 @@ import {
   View
 } from '@element-plus/icons-vue'
 import documentApi from '@/api/document'
+import paragraphApi from '@/api/paragraph'
 import Status from '@/views/document/component/Status.vue'
 import { datetimeFormat } from '@/utils/time'
 
@@ -156,10 +157,11 @@ const documentSettings = reactive({
 const loadParagraphs = async () => {
   try {
     paragraphsLoading.value = true
-    const response = await documentApi.getParagraph(
+    const response = await paragraphApi.getParagraph(
       props.datasetId,
       props.document.id,
-      { current_page: 1, page_size: 20 }
+      { current_page: 1, page_size: 20 },
+      {}
     )
     
     if (response.data) {
@@ -193,7 +195,7 @@ const openParagraphPage = () => {
 
 const updateDocumentStatus = async () => {
   try {
-    await documentApi.putDocumentStatus(props.datasetId, props.document.id, {
+    await documentApi.putDocument(props.datasetId, props.document.id, {
       is_active: documentSettings.is_active
     })
     ElMessage.success(`文档已${documentSettings.is_active ? '启用' : '禁用'}`)
