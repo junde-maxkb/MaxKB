@@ -92,11 +92,11 @@ const userTabs = ref([
     title: '知识库',
     icon: 'Document'
   },
-  {
-    path: '/user-ai-apps',
-    title: 'AI应用',
-    icon: 'ChatDotSquare'
-  }
+  // {
+  //   path: '/user-ai-apps',
+  //   title: 'AI应用',
+  //   icon: 'ChatDotSquare'
+  // }
 ])
 
 // 处理用户下拉菜单命令

@@ -33,17 +33,17 @@ const userPortalRouter: RouteRecordRaw = {
         activeMenu: '/user-knowledge'
       },
       component: () => import('@/views/user-knowledge/index.vue')
-    },
-    {
-      path: '/user-ai-apps',
-      name: 'UserAiApps',
-      meta: {
-        title: 'AI应用',
-        icon: 'app-application',
-        activeMenu: '/user-ai-apps'
-      },
-      component: () => import('@/views/user-ai-apps/index.vue')
     }
+    // {
+    //   path: '/user-ai-apps',
+    //   name: 'UserAiApps',
+    //   meta: {
+    //     title: 'AI应用',
+    //     icon: 'app-application',
+    //     activeMenu: '/user-ai-apps'
+    //   },
+    //   component: () => import('@/views/user-ai-apps/index.vue')
+    // }
   ]
 }
 
