@@ -206,7 +206,10 @@ class TeamMemberSerializer(ApiMixin, serializers.Serializer):
 
 
 class TeamSerializer(ApiMixin, serializers.Serializer):
-    team_name = serializers.CharField(max_length=100)
+    team_names = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        allow_empty=False
+    )
 
     def is_valid(self, *, raise_exception=False):
         super().is_valid(raise_exception=True)
@@ -226,36 +229,37 @@ class TeamSerializer(ApiMixin, serializers.Serializer):
     @staticmethod
     def get_request_body_api():
         return openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=['team_name'],
-            properties={
-                'team_name': openapi.Schema(type=openapi.TYPE_STRING, title=_('Team name'),
-                                            description=_('Team name'))
-            }
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Schema(type=openapi.TYPE_STRING, title=_('Team name'), description=_('Team name'))
         )
 
-    def add_team(self, user_id, team_name, with_valid=True):
+    def add_team(self, user_id, team_names, with_valid=True):
         """
-        添加一个团队
+        添加一个或多个团队
         :param with_valid: 是否校驗參數
-        :param team_name: 添加团队名称
-        :return: 成员列表
+        :param team_names: 添加团队名称列表
+        :return: 团队列表
         """
         if with_valid:
             self.is_valid(raise_exception=True)
         user = QuerySet(User).get(id=user_id)
         if user.role != "ADMIN":
             raise AppApiException(500, _('The current user not permission'))
-        team = QuerySet(Team).filter(name=self.data.get('name')).first()
-        if team:
-            raise AppApiException(500, _('The current team already exist in the team, do not add them again.'))
-        team = Team(name=self.data.get("team_name"))
-        team.save()
-        TeamMember.objects.create(
-            team=team,
-            user=user,
-            is_manager=False
-        )
+        
+        created_teams = []
+        for team_name in team_names:
+            team = QuerySet(Team).filter(name=team_name).first()
+            if team:
+                raise AppApiException(500, _('The current team already exist in the team, do not add them again.'))
+            team = Team(name=team_name)
+            team.save()
+            TeamMember.objects.create(
+                team=team,
+                user=user,
+                is_manager=True  # 创建者应该是管理员
+            )
+            created_teams.append(team)
+        
         return self.get_team_list(user_id, with_valid=False)
 
     def get_team_list(self, user_id, with_valid=True):

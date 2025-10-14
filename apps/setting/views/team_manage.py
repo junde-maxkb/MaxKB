@@ -91,11 +91,13 @@ class Team(APIView):
                          tags=[_('Team Manager')])
     @has_permissions(PermissionConstants.TEAM_CREATE)
     @log(menu='Team Manager', operate='Add Team',
-         get_operation_object=lambda r, k: {'team_name': r.data.get('team_name')})
+         get_operation_object=lambda r, k: {'team_name': r.data[0] if r.data else ''})
     def post(self, request: Request):
         user_id = request.user.id
-        serializer = TeamSerializer(data=request.data)
-        return result.success(serializer.add_team(user_id, **request.data))
+        # request.data is a list of team names
+        team_names = request.data if isinstance(request.data, list) else [request.data]
+        serializer = TeamSerializer(data={'team_names': team_names})
+        return result.success(serializer.add_team(user_id, team_names))
 
     class Operate(APIView):
         authentication_classes = [TokenAuth]
