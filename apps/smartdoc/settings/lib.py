@@ -34,6 +34,9 @@ CELERY_WORKER_REDIRECT_STDOUTS_LEVEL = "INFO"
 CELERY_TASK_SOFT_TIME_LIMIT = 3600
 CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = True
 CELERY_ACKS_LATE = True
+# New config to satisfy Celery 5+ deprecation: prefer `task_acks_late` (no CELERY_ prefix).
+# Keep `CELERY_ACKS_LATE` for backward compatibility; Celery will prefer the new name.
+task_acks_late = True
 celery_once_path = os.path.join(celery_data_dir, "celery_once")
 try:
     if os.path.exists(celery_once_path) and os.path.isdir(celery_once_path):
