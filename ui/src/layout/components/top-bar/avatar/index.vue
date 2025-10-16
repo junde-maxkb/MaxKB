@@ -112,7 +112,8 @@ const openResetPassword = () => {
 
 const logout = () => {
   user.logout().then(() => {
-    router.push({ name: 'oauth_login' })
+    // 管理员用户退出后跳转到普通登录页面，而不是OAuth登录页面
+    router.push({ name: 'login' })
   })
 }
 
