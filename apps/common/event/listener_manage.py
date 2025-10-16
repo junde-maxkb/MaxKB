@@ -120,7 +120,16 @@ class ListenerManagement:
         @param paragraph_id:    段落id
         @param embedding_model:  向量模型
         """
+        import logging
+        logger = logging.getLogger('common.event.listener_manage')
+        
         max_kb.info(_('Start--->Embedding paragraph: {paragraph_id}').format(paragraph_id=paragraph_id))
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"=== 开始向量化段落调试信息 [{timestamp}] ===")
+        logger.info(f"📄 段落ID: {paragraph_id}")
+        logger.info(f"🤖 向量模型类型: {type(embedding_model).__name__}")
+        
         # 更新到开始状态
         ListenerManagement.update_status(QuerySet(Paragraph).filter(id=paragraph_id), TaskType.EMBEDDING, State.STARTED)
         try:
@@ -130,7 +139,19 @@ class ListenerManagement:
                     'paragraph': QuerySet(Paragraph).filter(id=paragraph_id)},
                 select_string=get_file_content(
                     os.path.join(PROJECT_DIR, "apps", "common", 'sql', 'list_embedding_text.sql')))
+            
+            logger.info(f"📊 获取到段落数据，数据条数: {len(data_list) if data_list else 0}")
+            if data_list:
+                for i, data in enumerate(data_list):
+                    logger.info(f"📋 数据 {i+1}:")
+                    logger.info(f"  📄 段落ID: {data.get('paragraph_id', 'N/A')}")
+                    logger.info(f"  📁 文档ID: {data.get('document_id', 'N/A')}")
+                    logger.info(f"  🗂️ 知识库ID: {data.get('dataset_id', 'N/A')}")
+                    logger.info(f"  📏 文本内容长度: {len(data.get('text', ''))} 字符")
+                    logger.info(f"  👀 文本内容预览: {data.get('text', '')[:200]}...")
+            
             # 删除段落
+            logger.info("🗑️ 删除段落现有向量数据...")
             VectorStore.get_embedding_vector().delete_by_paragraph_id(paragraph_id)
 
             def is_the_task_interrupted():
@@ -140,11 +161,18 @@ class ListenerManagement:
                 return False
 
             # 批量向量化
+            logger.info("🚀 开始批量向量化处理...")
             VectorStore.get_embedding_vector().batch_save(data_list, embedding_model, is_the_task_interrupted)
+            logger.info("✅ 批量向量化处理完成")
+            
             # 更新到开始状态
             ListenerManagement.update_status(QuerySet(Paragraph).filter(id=paragraph_id), TaskType.EMBEDDING,
                                              State.SUCCESS)
+            logger.info("✅ 段落向量化状态更新为成功")
+            logger.info(f"=== 段落向量化调试信息结束 [{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ===")
         except Exception as e:
+            logger.error(f"段落向量化失败: {str(e)}")
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
             max_kb_error.error(_('Vectorized paragraph: {paragraph_id} error {error} {traceback}').format(
                 paragraph_id=paragraph_id, error=str(e), traceback=traceback.format_exc()))
             ListenerManagement.update_status(QuerySet(Paragraph).filter(id=paragraph_id), TaskType.EMBEDDING,

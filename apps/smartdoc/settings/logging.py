@@ -119,6 +119,21 @@ LOGGING = {
             'level': "DEBUG",
             'propagate': False,
         },
+        'dataset.serializers.document_serializers': {
+            'handlers': ['console', 'file'],
+            'level': "DEBUG",
+            'propagate': False,
+        },
+        'embedding.vector.pg_vector': {
+            'handlers': ['console', 'file'],
+            'level': "DEBUG",
+            'propagate': False,
+        },
+        'common.event.listener_manage': {
+            'handlers': ['console', 'file'],
+            'level': "DEBUG",
+            'propagate': False,
+        },
     }
 }
 

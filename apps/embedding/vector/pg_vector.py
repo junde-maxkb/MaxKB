@@ -60,8 +60,40 @@ class PGVector(BaseVectorStore):
         return True
 
     def _batch_save(self, text_list: List[Dict], embedding: Embeddings, is_the_task_interrupted):
+        import logging
+        logger = logging.getLogger('embedding.vector.pg_vector')
+        
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"=== 开始批量向量化保存调试信息 [{timestamp}] ===")
+        logger.info(f"📊 待处理文本数量: {len(text_list)}")
+        
         texts = [row.get('text') for row in text_list]
+        logger.info(f"📝 提取的文本列表长度: {len(texts)}")
+        
+        # 记录每个文本的详细信息
+        for i, text in enumerate(texts):
+            logger.info(f"📄 文本 {i+1}:")
+            logger.info(f"  📏 长度: {len(text)} 字符")
+            logger.info(f"  👀 内容预览: {text[:100]}...")
+            logger.info(f"  📄 段落ID: {text_list[i].get('paragraph_id', 'N/A')}")
+            logger.info(f"  📁 文档ID: {text_list[i].get('document_id', 'N/A')}")
+            logger.info(f"  🗂️ 知识库ID: {text_list[i].get('dataset_id', 'N/A')}")
+        
+        logger.info("🤖 开始生成向量嵌入...")
+        start_time = datetime.datetime.now()
         embeddings = embedding.embed_documents(texts)
+        end_time = datetime.datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        
+        logger.info(f"✅ 向量嵌入生成完成，向量数量: {len(embeddings)}，耗时: {duration:.2f}秒")
+        
+        # 记录向量信息
+        for i, emb in enumerate(embeddings):
+            logger.info(f"🔢 向量 {i+1}:")
+            logger.info(f"  📐 维度: {len(emb) if emb else 0}")
+            logger.info(f"  🔍 前5个值: {emb[:5] if emb and len(emb) >= 5 else emb}")
+        
         embedding_list = [Embedding(id=uuid.uuid1(),
                                     document_id=text_list[index].get('document_id'),
                                     paragraph_id=text_list[index].get('paragraph_id'),
@@ -73,8 +105,17 @@ class PGVector(BaseVectorStore):
                                     search_vector=SearchVector(Value(to_ts_vector(text_list[index]['text'])))) for
                           index in
                           range(0, len(texts))]
+        
+        logger.info(f"📦 创建嵌入对象数量: {len(embedding_list)}")
+        
         if not is_the_task_interrupted():
+            logger.info("💾 开始批量插入数据库...")
             QuerySet(Embedding).bulk_create(embedding_list) if len(embedding_list) > 0 else None
+            logger.info("✅ 批量插入数据库完成")
+        else:
+            logger.warning("⚠️ 任务被中断，跳过数据库插入")
+        
+        logger.info(f"=== 批量向量化保存调试信息结束 [{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ===")
         return True
 
     def hit_test(self, query_text, dataset_id_list: list[str], exclude_document_id_list: list[str], top_number: int,

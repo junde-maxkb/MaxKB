@@ -736,30 +736,64 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
             return self.one()
 
         def refresh(self, state_list=None, with_valid=True):
+            import logging
+            logger = logging.getLogger('dataset.serializers.document_serializers')
+
             if state_list is None:
                 state_list = [State.PENDING.value, State.STARTED.value, State.SUCCESS.value, State.FAILURE.value,
                               State.REVOKE.value,
                               State.REVOKED.value, State.IGNORED.value]
             if with_valid:
                 self.is_valid(raise_exception=True)
+
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            logger.info(f"=== 开始文档向量化刷新调试信息 [{timestamp}] ===")
+            logger.info(f"🎯 目标状态列表: {state_list}")
+
             dataset = QuerySet(DataSet).filter(id=self.data.get('dataset_id')).first()
             if dataset is None:
+                logger.error("❌ 数据集不存在")
                 raise AppApiException(500, _('Dataset does not exist'))
+
+            logger.info(f"🗂️ 数据集ID: {dataset.id}")
+            logger.info(f"📁 数据集名称: {dataset.name}")
+
             # 修复字段名错误：使用正确的字段名 embedding_mode_id (ForeignKey的id)
             embedding_model_id = dataset.embedding_mode_id
             dataset_user_id = dataset.user_id
+            logger.info(f"🤖 向量模型ID: {embedding_model_id}")
+            logger.info(f"👤 数据集用户ID: {dataset_user_id}")
+
             embedding_model = QuerySet(Model).filter(id=embedding_model_id).first()
             if embedding_model is None:
+                logger.error("❌ 向量模型不存在")
                 raise AppApiException(500, _('Model does not exist'))
+
+            logger.info(f"🏷️ 向量模型名称: {embedding_model.name}")
+            logger.info(f"🏢 向量模型提供商: {embedding_model.provider}")
+            logger.info(f"🔐 向量模型权限类型: {embedding_model.permission_type}")
+
             if embedding_model.permission_type == 'PRIVATE' and dataset_user_id != embedding_model.user_id:
+                logger.error(f"❌ 没有权限使用此模型: {embedding_model.name}")
                 raise AppApiException(500, _('No permission to use this model') + f"{embedding_model.name}")
+
             document_id = self.data.get("document_id")
+            logger.info(f"📄 文档ID: {document_id}")
+
             # 检查文档是否存在
             document = QuerySet(Document).filter(id=document_id).first()
             if document is None:
+                logger.error("❌ 文档不存在")
                 raise AppApiException(500, _('Document does not exist'))
+
+            logger.info(f"📁 文档名称: {document.name}")
+            logger.info(f"📋 文档类型: {document.type}")
+
+            logger.info("🔄 更新文档向量化状态为PENDING...")
             ListenerManagement.update_status(QuerySet(Document).filter(id=document_id), TaskType.EMBEDDING,
                                              State.PENDING)
+
             # 修复EmptyResultSet错误：只有当存在符合条件的段落时才更新状态
             paragraph_queryset = QuerySet(Paragraph).annotate(
                 reversed_status=Reverse('status'),
@@ -767,17 +801,29 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                                         1),
             ).filter(task_type_status__in=state_list, document_id=document_id)
 
+            paragraph_count = paragraph_queryset.count()
+            logger.info(f"📊 符合条件的段落数量: {paragraph_count}")
+
             if paragraph_queryset.exists():
+                logger.info("🔄 更新段落向量化状态为PENDING...")
                 ListenerManagement.update_status(paragraph_queryset.values('id'),
                                                  TaskType.EMBEDDING,
                                                  State.PENDING)
+
+            logger.info("📊 聚合文档状态...")
             ListenerManagement.get_aggregation_document_status(document_id)()
 
             try:
+                logger.info(f"🚀 提交向量化任务到Celery队列，文档ID: {document_id}, 模型ID: {embedding_model_id}")
                 embedding_by_document.delay(document_id, embedding_model_id, state_list)
+                logger.info("✅ 向量化任务提交成功")
+                logger.info(
+                    f"=== 文档向量化刷新调试信息结束 [{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ===")
             except AlreadyQueued as e:
+                logger.warning("⚠️ 任务正在执行中，请勿重复提交")
                 raise AppApiException(500, _('The task is being executed, please do not send it repeatedly.'))
             except Exception as e:
+                logger.error(f"❌ 启动向量化任务失败: {str(e)}")
                 # 添加更详细的错误处理
                 raise AppApiException(500, _('Failed to start vectorization task: ') + str(e))
 
@@ -905,13 +951,23 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
             from setting.models_provider.impl.base_stt import BaseSpeechToText
             from common.util.split_model import SplitModel
             import re
-            
+            import logging
+
+            # 获取日志记录器
+            logger = logging.getLogger('dataset.serializers.document_serializers')
+
             # 检查文件是否为音频格式
             file_name = file.name.lower()
             audio_extensions = ['.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac']
             if not any(file_name.endswith(ext) for ext in audio_extensions):
                 raise AppApiException(500, _('Unsupported audio file format'))
-            
+
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            logger.info(f"=== 开始处理音频文件调试信息 [{timestamp}] ===")
+            logger.info(f"📁 音频文件名: {file.name}")
+            logger.info(f"📊 音频文件大小: {file.size:,} bytes ({file.size / 1024 / 1024:.2f} MB)")
+
             try:
                 # 获取可用的STT模型
                 from setting.models import Model
@@ -919,27 +975,42 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                 stt_models = Model.objects.filter(
                     Q(model_type='STT') & Q(status='SUCCESS')
                 ).order_by('create_time')
-                
+
                 if not stt_models.exists():
+                    logger.error("没有找到可用的STT模型")
                     raise AppApiException(500, _('No available STT model found'))
-                
+
                 stt_model = stt_models.first()
-                
+                logger.info(f"🎯 使用的STT模型ID: {stt_model.id}")
+                logger.info(f"🏷️ STT模型名称: {stt_model.name}")
+
                 # 获取STT模型实例
                 model_instance = get_model_instance_by_model_user_id(stt_model.id, None)
-                
                 if not isinstance(model_instance, BaseSpeechToText):
+                    logger.error("STT模型实例不可用")
                     raise AppApiException(500, _('STT model is not available'))
-                
+
+                logger.info("✅ STT模型实例获取成功，开始语音转文字...")
+
                 # 语音转文字
+                start_time = datetime.datetime.now()
                 transcribed_text = model_instance.speech_to_text(file)
-                
+                end_time = datetime.datetime.now()
+                duration = (end_time - start_time).total_seconds()
+
+                logger.info(f"🎤 语音转文字完成，耗时: {duration:.2f}秒")
+                logger.info(f"📝 原始结果长度: {len(transcribed_text) if transcribed_text else 0} 字符")
+                logger.info(f"📄 语音转文字结果: {transcribed_text}")
+
                 if not transcribed_text or not transcribed_text.strip():
+                    logger.error("语音转文字失败或返回空结果")
                     raise AppApiException(500, _('Audio transcription failed or returned empty result'))
-                
+
                 # 智能分段
                 text_content = transcribed_text.strip()
-                
+                logger.info(f"🔀 开始智能分段处理，文本内容长度: {len(text_content)} 字符")
+                logger.info(f"📋 分段前文本内容: {text_content}")
+
                 # 使用默认的分段模式
                 default_pattern_list = [
                     re.compile('(?<=^)# .*|(?<=\\n)# .*'),
@@ -949,24 +1020,43 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                     re.compile("(?<=\\n)(?<!#)##### (?!#).*|(?<=^)(?<!#)##### (?!#).*"),
                     re.compile("(?<=\\n)(?<!#)###### (?!#).*|(?<=^)(?<!#)###### (?!#).*")
                 ]
-                
+
                 split_model = SplitModel(default_pattern_list, with_filter=True, limit=800)
                 segments = split_model.parse(text_content)
-                
+                logger.info(f"✅ 智能分段完成，分段数量: {len(segments) if segments else 0}")
+
+                if segments:
+                    for i, segment in enumerate(segments):
+                        logger.info(f"📑 分段 {i + 1}:")
+                        logger.info(f"  📌 标题: {segment.get('title', '无标题')}")
+                        logger.info(f"  📏 内容长度: {len(segment.get('content', ''))} 字符")
+                        logger.info(f"  👀 内容预览: {segment.get('content', '')[:200]}...")
+                else:
+                    logger.info("⚠️ 没有检测到分段，将创建默认分段")
+
                 if not segments:
                     # 如果没有分段，创建一个默认分段
                     segments = [{'title': '音频转录内容', 'content': text_content}]
-                
+                    logger.info("✅ 创建默认分段完成")
+
                 # 返回文档格式
                 import re
                 file_name_without_ext = re.sub(r'\.[^/.]+$', '', file.name)
-                return [{
+                result = [{
                     'name': file_name_without_ext + '_音频转录',
-                    'content': segments
+                    'paragraphs': segments
                 }]
-                
+
+                logger.info(f"🎉 音频文件处理完成，返回文档数量: {len(result)}")
+                logger.info(
+                    f"=== 音频文件处理调试信息结束 [{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ===")
+
+                return result
+
             except Exception as e:
                 import traceback
+                logger.error(f"音频文件处理失败: {str(e)}")
+                logger.error(f"错误堆栈: {traceback.format_exc()}")
                 traceback.print_exc()
                 raise AppApiException(500, f'Audio processing failed: {str(e)}')
 
@@ -1009,17 +1099,17 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                 "port": data_source.port,
                 "dbname": data_source.database_name,
             }
-            
+
             # 处理Oracle特有的参数
             if data_source.db_type == 'oracle':
                 extra_params = data_source.extra_params or {}
                 oracle_connect_type = extra_params.get('oracle_connect_type', 'sid')
-                
+
                 if oracle_connect_type == 'sid':
                     params['sid'] = data_source.database_name
                 else:
                     params['service_name'] = data_source.database_name
-            
+
             # 添加schema参数（如果存在）
             if data_source.extra_params and data_source.extra_params.get('schema'):
                 params['schema'] = data_source.extra_params.get('schema')
@@ -1027,7 +1117,8 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
             columns_list = DBConnector.query_columns(params, table_name, columns)
             if not columns_list:
                 raise AppApiException(500, _('The data table has no data'))
-            content_list = [{'name': table_name, 'paragraphs': [{"title": "", "content": str(item)} for item in columns_list]}]
+            content_list = [
+                {'name': table_name, 'paragraphs': [{"title": "", "content": str(item)} for item in columns_list]}]
             return DocumentSerializers.Batch(data={'dataset_id': dataset_id}).batch_save(content_list)
 
         @post(post_function=post_embedding)
