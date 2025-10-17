@@ -902,7 +902,8 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                                                 description=_('Is active')),
                     'hit_handling_method': openapi.Schema(type=openapi.TYPE_STRING, title=_('hit handling method'),
                                                           description=_(
-                                                              'ai optimization: optimization, direct return: directly_return')),
+                                                              'ai optimization: optimization, direct return: '
+                                                              'directly_return')),
                     'directly_return_similarity': openapi.Schema(type=openapi.TYPE_NUMBER,
                                                                  title=_('directly return similarity'),
                                                                  default=0.9),

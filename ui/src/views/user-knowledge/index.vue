@@ -516,6 +516,14 @@
               <div class="input-container">
                 <div class="input-wrapper">
                   <div class="input-content">
+                    <!-- AI写作模式标签 -->
+                    <div v-if="isAIWritingMode" class="ai-writing-label">
+                      <el-icon class="ai-label-icon">
+                        <Edit />
+                      </el-icon>
+                      <span class="ai-label-text">AI 写作</span>
+                    </div>
+                    
                     <el-input
                         v-model="currentMessage"
                         type="textarea"
@@ -590,6 +598,22 @@
                       {{ isStreaming ? '发送中...' : '发送' }}
                     </el-button>
                   </div>
+                </div>
+              </div>
+
+              <!-- AI功能按钮区域 -->
+              <div class="ai-buttons-container">
+                <div class="ai-button" :class="{ 'active': isAIWritingMode }" @click="handleAIWriting">
+                  <el-icon class="ai-icon">
+                    <Edit />
+                  </el-icon>
+                  <span class="ai-text">AI写作</span>
+                </div>
+                <div class="ai-button" @click="handleAIPolish">
+                  <el-icon class="ai-icon">
+                    <MagicStick />
+                  </el-icon>
+                  <span class="ai-text">AI润写</span>
                 </div>
               </div>
             </div>
@@ -741,7 +765,8 @@ import {
   Collection,
   Clock,
   Switch,
-  Microphone
+  Microphone,
+  MagicStick
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
@@ -816,6 +841,9 @@ const currentParagraphDatasetId = ref('')
 const currentDocumentName = ref('')
 const currentHitParagraphId = ref('')
 const currentHitParagraphContent = ref('')
+
+// AI写作模式状态
+const isAIWritingMode = ref(false)
 
 // 重命名相关状态
 const showRenameDialog = ref(false)
@@ -2154,6 +2182,22 @@ const formatMessageContent = (content: string) => {
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
 }
 
+// AI写作功能
+const handleAIWriting = () => {
+  isAIWritingMode.value = !isAIWritingMode.value
+  if (isAIWritingMode.value) {
+    ElMessage.success('已开启AI写作模式')
+  } else {
+    ElMessage.info('已关闭AI写作模式')
+  }
+}
+
+// AI润写功能
+const handleAIPolish = () => {
+  ElMessage.info('AI润写功能开发中，敬请期待！')
+  // TODO: 实现AI润写功能
+}
+
 const createKnowledgeBase = async () => {
   if (!newKB.value.name.trim()) {
     ElMessage.warning('请输入知识库名称')
@@ -3333,6 +3377,29 @@ onUnmounted(() => {
           align-items: center;
           gap: 12px;
 
+          .ai-writing-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%);
+            border-radius: 16px;
+            color: #2c3e50;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(135, 206, 235, 0.3);
+
+            .ai-label-icon {
+              font-size: 12px;
+            }
+
+            .ai-label-text {
+              letter-spacing: 0.5px;
+            }
+          }
+
           .chat-input {
             flex: 1;
 
@@ -3437,6 +3504,82 @@ onUnmounted(() => {
                 font-size: 12px;
               }
             }
+          }
+        }
+      }
+    }
+
+    /* AI功能按钮样式 - GPT风格 */
+    .ai-buttons-container {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 20px;
+      padding: 0 20px;
+
+      .ai-button {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 16px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+        &:hover {
+          background: #f9fafb;
+          border-color: #d1d5db;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        &:active {
+          transform: translateY(0);
+          background: #f3f4f6;
+        }
+
+        .ai-icon {
+          font-size: 14px;
+          color: #6b7280;
+          transition: color 0.2s ease;
+        }
+
+        .ai-text {
+          font-size: 13px;
+          font-weight: 500;
+          color: #374151;
+          letter-spacing: -0.01em;
+        }
+
+        &:hover .ai-icon {
+          color: #4b5563;
+        }
+
+        &:hover .ai-text {
+          color: #111827;
+        }
+
+        &.active {
+          background: linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%);
+          border-color: #87CEEB;
+          color: #2c3e50;
+
+          .ai-icon {
+            color: #2c3e50;
+          }
+
+          .ai-text {
+            color: #2c3e50;
+          }
+
+          &:hover {
+            background: linear-gradient(135deg, #7BC4E8 0%, #A8D8EA 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(135, 206, 235, 0.4);
           }
         }
       }
