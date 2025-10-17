@@ -6,13 +6,13 @@
         <div class="sidebar-header">
           <h3>知识库</h3>
           <el-button
-              type="primary"
-              size="small"
-              class="create-btn"
-              @click="showCreateDialog = true"
+            type="primary"
+            size="small"
+            class="create-btn"
+            @click="showCreateDialog = true"
           >
             <el-icon>
-              <Plus/>
+              <Plus />
             </el-icon>
             新建知识库
           </el-button>
@@ -21,10 +21,10 @@
         <div class="sidebar-content">
           <div class="knowledge-search">
             <el-input
-                v-model="searchText"
-                placeholder="搜索..."
-                prefix-icon="Search"
-                size="small"
+              v-model="searchText"
+              placeholder="搜索..."
+              prefix-icon="Search"
+              size="small"
             />
           </div>
 
@@ -38,19 +38,19 @@
           <!-- 知识库树形结构 -->
           <div class="knowledge-tree">
             <el-tree
-                ref="treeRef"
-                :data="treeData"
-                :props="treeProps"
-                node-key="id"
-                :default-expand-all="false"
-                :expand-on-click-node="false"
-                :check-on-click-node="false"
-                :show-checkbox="true"
-                :check-strictly="false"
-                @node-click="handleNodeClick"
-                @check="handleNodeCheck"
-                @node-expand="handleNodeExpand"
-                class="knowledge-tree-container"
+              ref="treeRef"
+              :data="treeData"
+              :props="treeProps"
+              node-key="id"
+              :default-expand-all="false"
+              :expand-on-click-node="false"
+              :check-on-click-node="false"
+              :show-checkbox="true"
+              :check-strictly="false"
+              @node-click="handleNodeClick"
+              @check="handleNodeCheck"
+              @node-expand="handleNodeExpand"
+              class="knowledge-tree-container"
             >
               <template #default="{ node, data }">
                 <div class="tree-node" :class="{ 
@@ -63,17 +63,17 @@
                   <div v-if="data.level === 1" class="node-content level-1-content">
                     <div class="node-left">
                       <el-icon class="node-icon">
-                        <component :is="data.icon"/>
+                        <component :is="data.icon" />
                       </el-icon>
                       <span class="node-label" :title="data.label">{{ data.label }}</span>
                     </div>
                     <el-dropdown
-                        trigger="click"
-                        @command="handleLevel1Action"
-                        @click.stop
+                      trigger="click"
+                      @command="handleLevel1Action"
+                      @click.stop
                     >
                       <el-icon class="more-actions">
-                        <MoreFilled/>
+                        <MoreFilled />
                       </el-icon>
                       <template #dropdown>
                         <el-dropdown-menu>
@@ -81,7 +81,7 @@
                           <template v-if="data.type === 'personal'">
                             <el-dropdown-item :command="{ action: 'refresh', data }">
                               <el-icon>
-                                <Refresh/>
+                                <Refresh />
                               </el-icon>
                               刷新
                             </el-dropdown-item>
@@ -90,20 +90,20 @@
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'sort-by-time', data }">
                               <el-icon>
-                                <Timer/>
+                                <Timer />
                               </el-icon>
                               按时间排序
                               <el-icon v-if="personalKBSortType === 'time'" style="margin-left: auto; color: #409eff;">
-                                <Check/>
+                                <Check />
                               </el-icon>
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'sort-by-name', data }">
                               <el-icon>
-                                <Sort/>
+                                <Sort />
                               </el-icon>
                               按名称排序
                               <el-icon v-if="personalKBSortType === 'name'" style="margin-left: auto; color: #409eff;">
-                                <Check/>
+                                <Check />
                               </el-icon>
                             </el-dropdown-item>
                           </template>
@@ -112,7 +112,7 @@
                           <template v-else-if="data.type === 'organization'">
                             <el-dropdown-item :command="{ action: 'refresh', data }">
                               <el-icon>
-                                <Refresh/>
+                                <Refresh />
                               </el-icon>
                               刷新
                             </el-dropdown-item>
@@ -121,22 +121,22 @@
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'org-sort-by-name', data }">
                               <el-icon>
-                                <Sort/>
+                                <Sort />
                               </el-icon>
                               按名称排序
                               <el-icon v-if="organizationKBSortType === 'name'"
                                        style="margin-left: auto; color: #409eff;">
-                                <Check/>
+                                <Check />
                               </el-icon>
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'org-sort-by-time', data }">
                               <el-icon>
-                                <Timer/>
+                                <Timer />
                               </el-icon>
                               按创建时间排序
                               <el-icon v-if="organizationKBSortType === 'time'"
                                        style="margin-left: auto; color: #409eff;">
-                                <Check/>
+                                <Check />
                               </el-icon>
                             </el-dropdown-item>
                           </template>
@@ -145,7 +145,7 @@
                           <template v-else-if="data.type === 'shared'">
                             <el-dropdown-item :command="{ action: 'refresh', data }">
                               <el-icon>
-                                <Refresh/>
+                                <Refresh />
                               </el-icon>
                               刷新
                             </el-dropdown-item>
@@ -154,20 +154,20 @@
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'shared-sort-by-name', data }">
                               <el-icon>
-                                <Sort/>
+                                <Sort />
                               </el-icon>
                               按名称排序
                               <el-icon v-if="sharedKBSortType === 'name'" style="margin-left: auto; color: #409eff;">
-                                <Check/>
+                                <Check />
                               </el-icon>
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'shared-sort-by-time', data }">
                               <el-icon>
-                                <Timer/>
+                                <Timer />
                               </el-icon>
                               按创建时间排序
                               <el-icon v-if="sharedKBSortType === 'time'" style="margin-left: auto; color: #409eff;">
-                                <Check/>
+                                <Check />
                               </el-icon>
                             </el-dropdown-item>
                           </template>
@@ -180,7 +180,7 @@
                   <div v-else-if="data.level === 2" class="node-content level-2-content">
                     <div class="node-left">
                       <el-icon class="node-icon">
-                        <Folder/>
+                        <Folder />
                       </el-icon>
                       <span class="node-label" :title="data.label">{{ data.label }}</span>
                       <span class="doc-count">({{ data.documentCount || 0 }})</span>
@@ -188,12 +188,12 @@
 
                     <!-- 知识库操作按钮 -->
                     <el-dropdown
-                        trigger="click"
-                        @command="handleKBAction"
-                        @click.stop
+                      trigger="click"
+                      @command="handleKBAction"
+                      @click.stop
                     >
                       <el-icon class="more-actions">
-                        <MoreFilled/>
+                        <MoreFilled />
                       </el-icon>
                       <template #dropdown>
                         <el-dropdown-menu>
@@ -201,25 +201,25 @@
                           <template v-if="getKBType(data) === 'personal'">
                             <el-dropdown-item :command="{ action: 'view', data }">
                               <el-icon>
-                                <View/>
+                                <View />
                               </el-icon>
                               查看详情
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'rename', data }">
                               <el-icon>
-                                <EditPen/>
+                                <EditPen />
                               </el-icon>
                               重命名
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'share', data }" @click.stop>
                               <el-icon>
-                                <Share/>
+                                <Share />
                               </el-icon>
                               共享设置
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'delete', data }" divided>
                               <el-icon>
-                                <Delete/>
+                                <Delete />
                               </el-icon>
                               删除
                             </el-dropdown-item>
@@ -228,16 +228,16 @@
                           <!-- 共享知识库 - 辅助管理可以查看详情 -->
                           <template v-if="getKBType(data) === 'shared'">
                             <template
-                                v-if="data.permission === 'MANAGE' || (data.shared_with_type === 'TEAM' && data.team_permission === 'MANAGE')">
+                              v-if="data.permission === 'MANAGE' || (data.shared_with_type === 'TEAM' && data.team_permission === 'MANAGE')">
                               <el-dropdown-item :command="{ action: 'view', data }">
                                 <el-icon>
-                                  <View/>
+                                  <View />
                                 </el-icon>
                                 查看详情
                               </el-dropdown-item>
                               <el-dropdown-item divided :command="{ action: 'exit-share', data }">
                                 <el-icon>
-                                  <Close/>
+                                  <Close />
                                 </el-icon>
                                 退出共享
                               </el-dropdown-item>
@@ -245,7 +245,7 @@
                             <template v-else>
                               <el-dropdown-item :command="{ action: 'exit-share', data }">
                                 <el-icon>
-                                  <Close/>
+                                  <Close />
                                 </el-icon>
                                 退出共享
                               </el-dropdown-item>
@@ -257,13 +257,13 @@
                             <template v-if="isAdmin">
                               <el-dropdown-item :command="{ action: 'edit', data }">
                                 <el-icon>
-                                  <Edit/>
+                                  <Edit />
                                 </el-icon>
                                 编辑
                               </el-dropdown-item>
                               <el-dropdown-item :command="{ action: 'remove-from-org', data }">
                                 <el-icon>
-                                  <FolderRemove/>
+                                  <FolderRemove />
                                 </el-icon>
                                 移出机构
                               </el-dropdown-item>
@@ -282,7 +282,7 @@
                   <!-- 三级目录 - 文档 -->
                   <div v-else-if="data.level === 3" class="node-content level-3-content">
                     <el-icon class="node-icon">
-                      <DocumentCopy/>
+                      <DocumentCopy />
                     </el-icon>
                     <span class="node-label" :title="data.label">{{ data.label }}</span>
                     <span class="file-size">{{ formatFileSize(data.size) }}</span>
@@ -300,11 +300,11 @@
           <!-- 服务状态提示 -->
           <div v-if="showServiceWarning" class="service-warning">
             <el-alert
-                :title="serviceWarningMessage"
-                type="warning"
-                :closable="true"
-                @close="showServiceWarning = false"
-                show-icon
+              :title="serviceWarningMessage"
+              type="warning"
+              :closable="true"
+              @close="showServiceWarning = false"
+              show-icon
             >
               <template #default>
                 <p>这可能会影响问答的准确性。如问题持续，请联系管理员。</p>
@@ -318,10 +318,10 @@
             <div class="chat-messages" ref="messagesContainer" v-if="hasMessages">
 
               <div
-                  v-for="(message, index) in chatMessages"
-                  :key="index"
-                  class="message"
-                  :class="{ 'user-message': message.role === 'user', 'ai-message': message.role === 'assistant' }"
+                v-for="(message, index) in chatMessages"
+                :key="index"
+                class="message"
+                :class="{ 'user-message': message.role === 'user', 'ai-message': message.role === 'assistant' }"
               >
                 <div class="message-content">
                   <div class="message-text" v-html="formatMessageContent(message.content)"></div>
@@ -331,26 +331,26 @@
                        class="matched-paragraphs">
                     <div class="paragraphs-header">
                       <el-button
-                          type="text"
-                          size="small"
-                          @click="toggleParagraphsVisibility(index)"
-                          class="toggle-paragraphs-btn"
+                        type="text"
+                        size="small"
+                        @click="toggleParagraphsVisibility(index)"
+                        class="toggle-paragraphs-btn"
                       >
                         <el-icon>
-                          <Document/>
+                          <Document />
                         </el-icon>
                         找到 {{ message.paragraphs.length }} 个相关分段
                         <el-icon :class="{ 'rotate': isParagraphsExpanded(index) }">
-                          <ArrowDown/>
+                          <ArrowDown />
                         </el-icon>
                       </el-button>
                     </div>
 
                     <div v-show="isParagraphsExpanded(index)" class="paragraphs-list">
                       <div
-                          v-for="(paragraph, pIndex) in message.paragraphs.slice(0, 5)"
-                          :key="pIndex"
-                          class="paragraph-item"
+                        v-for="(paragraph, pIndex) in message.paragraphs.slice(0, 5)"
+                        :key="pIndex"
+                        class="paragraph-item"
                       >
                         <div class="paragraph-header">
                           <span class="paragraph-index">{{ pIndex + 1 }}</span>
@@ -401,52 +401,58 @@
                 <div class="kb-info-content">
                   <div class="kb-info-text" v-if="selectedInfo">
                     <template v-if="selectedInfo.type === 'documents'">
-                      <el-icon class="info-icon"><DocumentCopy /></el-icon>
+                      <el-icon class="info-icon">
+                        <DocumentCopy />
+                      </el-icon>
                       基于 {{ selectedInfo.count }} 个选中文档进行问答：
                     </template>
                     <template v-else-if="selectedInfo.type === 'datasets'">
-                      <el-icon class="info-icon"><Collection /></el-icon>
+                      <el-icon class="info-icon">
+                        <Collection />
+                      </el-icon>
                       基于 {{ selectedInfo.count }} 个知识库进行问答：
                     </template>
                   </div>
                   <div class="kb-info-text" v-else>
-                    <el-icon class="info-icon"><Warning /></el-icon>
+                    <el-icon class="info-icon">
+                      <Warning />
+                    </el-icon>
                     请从左侧选择知识库或文档开始问答
                   </div>
-                  
+
                   <!-- 选中的文档显示 -->
                   <div v-if="selectedInfo && selectedInfo.type === 'documents'" class="selected-items">
                     <el-tag
-                        v-for="(item, index) in selectedInfo.items.slice(0, 4)"
-                        :key="index"
-                        size="small"
-                        class="item-tag document-tag"
+                      v-for="(item, index) in selectedInfo.items.slice(0, 4)"
+                      :key="index"
+                      size="small"
+                      class="item-tag document-tag"
                     >
                       {{ item }}
                     </el-tag>
                     <el-tag
-                        v-if="selectedInfo.items.length > 4"
-                        size="small"
-                        class="item-tag more-tag"
+                      v-if="selectedInfo.items.length > 4"
+                      size="small"
+                      class="item-tag more-tag"
                     >
                       +{{ selectedInfo.items.length - 4 }}
                     </el-tag>
                   </div>
-                  
+
                   <!-- 选中的知识库显示 -->
                   <div v-else-if="selectedInfo && selectedInfo.type === 'datasets'" class="selected-items">
                     <el-tag
-                        v-for="item in selectedInfo.items.slice(0, 4)"
-                        :key="item"
-                        size="small"
-                        class="item-tag dataset-tag"
+                      v-for="item in selectedInfo.items.slice(0, 4)"
+                      :key="item"
+                      size="small"
+                      class="item-tag dataset-tag"
                     >
                       {{ item }}
                     </el-tag>
                     <el-tag
-                        v-if="selectedInfo.items.length > 4"
-                        size="small"
-                        class="item-tag more-tag"
+                      v-if="selectedInfo.items.length > 4"
+                      size="small"
+                      class="item-tag more-tag"
                     >
                       +{{ selectedInfo.items.length - 4 }}
                     </el-tag>
@@ -458,23 +464,23 @@
               <div class="model-selector" v-show="false">
                 <div class="model-selector-label">
                   <el-icon>
-                    <Setting/>
+                    <Setting />
                   </el-icon>
                   <span>对话模型</span>
                 </div>
                 <el-select
-                    v-model="selectedModelId"
-                    placeholder="选择对话模型"
-                    @change="handleModelChange"
-                    class="model-select"
-                    :loading="modelsLoading"
-                    filterable
+                  v-model="selectedModelId"
+                  placeholder="选择对话模型"
+                  @change="handleModelChange"
+                  class="model-select"
+                  :loading="modelsLoading"
+                  filterable
                 >
                   <el-option
-                      v-for="model in availableModels"
-                      :key="model.id"
-                      :label="model.name"
-                      :value="model.id"
+                    v-for="model in availableModels"
+                    :key="model.id"
+                    :label="model.name"
+                    :value="model.id"
                   >
                     <div class="model-option">
                       <div class="model-info">
@@ -489,28 +495,28 @@
                 </el-select>
               </div>
 
-<!--              &lt;!&ndash; STT设置面板 &ndash;&gt;-->
-<!--              <div class="stt-settings" v-if="sttModelEnabled">-->
-<!--                <div class="stt-settings-header">-->
-<!--                  <el-icon>-->
-<!--                    <Microphone />-->
-<!--                  </el-icon>-->
-<!--                  <span>语音设置</span>-->
-<!--                </div>-->
-<!--                <div class="stt-settings-content">-->
-<!--                  <el-checkbox v-model="sttAutoSend" size="small">-->
-<!--                    自动发送语音转换结果-->
-<!--                  </el-checkbox>-->
-<!--                </div>-->
-<!--              </div>-->
+              <!--              &lt;!&ndash; STT设置面板 &ndash;&gt;-->
+              <!--              <div class="stt-settings" v-if="sttModelEnabled">-->
+              <!--                <div class="stt-settings-header">-->
+              <!--                  <el-icon>-->
+              <!--                    <Microphone />-->
+              <!--                  </el-icon>-->
+              <!--                  <span>语音设置</span>-->
+              <!--                </div>-->
+              <!--                <div class="stt-settings-content">-->
+              <!--                  <el-checkbox v-model="sttAutoSend" size="small">-->
+              <!--                    自动发送语音转换结果-->
+              <!--                  </el-checkbox>-->
+              <!--                </div>-->
+              <!--              </div>-->
 
-<!--              &lt;!&ndash; STT不可用提示 &ndash;&gt;-->
-<!--              <div class="stt-disabled-tip" v-else-if="getSelectedStats().datasets > 0">-->
-<!--                <el-icon>-->
-<!--                  <Microphone />-->
-<!--                </el-icon>-->
-<!--                <span>语音功能不可用，请检查STT模型配置</span>-->
-<!--              </div>-->
+              <!--              &lt;!&ndash; STT不可用提示 &ndash;&gt;-->
+              <!--              <div class="stt-disabled-tip" v-else-if="getSelectedStats().datasets > 0">-->
+              <!--                <el-icon>-->
+              <!--                  <Microphone />-->
+              <!--                </el-icon>-->
+              <!--                <span>语音功能不可用，请检查STT模型配置</span>-->
+              <!--              </div>-->
 
               <!-- 输入区域 -->
               <div class="input-container">
@@ -523,25 +529,25 @@
                       </el-icon>
                       <span class="ai-label-text">AI 写作</span>
                     </div>
-                    
+
                     <el-input
-                        v-model="currentMessage"
-                        type="textarea"
-                        :autosize="{ minRows: 1, maxRows: 3 }"
-                        :placeholder="getInputPlaceholder()"
-                        class="chat-input"
-                        @keyup.enter.exact.prevent="sendMessage"
-                        @focus="handleInputFocus"
-                        :disabled="isStreaming || !selectedInfo"
+                      v-model="currentMessage"
+                      type="textarea"
+                      :autosize="{ minRows: 1, maxRows: 3 }"
+                      :placeholder="getInputPlaceholder()"
+                      class="chat-input"
+                      @keyup.enter.exact.prevent="sendMessage"
+                      @focus="handleInputFocus"
+                      :disabled="isStreaming || !selectedInfo"
                     />
 
                     <!-- 语音录制按钮 -->
                     <el-button
-                        text
-                        class="voice-btn"
-                        @click="startRecording"
-                        v-if="recorderStatus === 'STOP'"
-                        :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
+                      text
+                      class="voice-btn"
+                      @click="startRecording"
+                      v-if="recorderStatus === 'STOP'"
+                      :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
                     >
                       <el-icon>
                         <Microphone />
@@ -550,24 +556,24 @@
 
                     <!-- 音频文件上传按钮 -->
                     <el-upload
-                        ref="audioUploadRef"
-                        class="audio-upload-btn"
-                        :show-file-list="false"
-                        :before-upload="handleAudioUpload"
-                        :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
-                        accept="audio/*"
-                        v-if="recorderStatus === 'STOP'"
+                      ref="audioUploadRef"
+                      class="audio-upload-btn"
+                      :show-file-list="false"
+                      :before-upload="handleAudioUpload"
+                      :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
+                      accept="audio/*"
+                      v-if="recorderStatus === 'STOP'"
                     >
-                        <el-button
-                            text
-                            class="voice-btn"
-                            :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
-                            :loading="isUploadingAudio"
-                        >
-                          <el-icon v-if="!isUploadingAudio">
-                            <UploadFilled />
-                          </el-icon>
-                        </el-button>
+                      <el-button
+                        text
+                        class="voice-btn"
+                        :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
+                        :loading="isUploadingAudio"
+                      >
+                        <el-icon v-if="!isUploadingAudio">
+                          <UploadFilled />
+                        </el-icon>
+                      </el-button>
                     </el-upload>
 
                     <!-- 录音状态显示 -->
@@ -576,11 +582,11 @@
                         00:{{ recorderTime < 10 ? `0${recorderTime}` : recorderTime }}
                       </el-text>
                       <el-button
-                          text
-                          type="primary"
-                          @click="stopRecording"
-                          :loading="recorderStatus === 'TRANSCRIBING'"
-                          class="stop-btn"
+                        text
+                        type="primary"
+                        @click="stopRecording"
+                        :loading="recorderStatus === 'TRANSCRIBING'"
+                        class="stop-btn"
                       >
                         <el-icon v-if="recorderStatus !== 'TRANSCRIBING'">
                           <i class="stop-icon">⏹</i>
@@ -589,11 +595,11 @@
                     </div>
 
                     <el-button
-                        type="primary"
-                        class="send-btn"
-                        @click="sendMessage"
-                        :loading="isStreaming"
-                        :disabled="!currentMessage.trim() || isStreaming || !selectedInfo"
+                      type="primary"
+                      class="send-btn"
+                      @click="sendMessage"
+                      :loading="isStreaming"
+                      :disabled="!currentMessage.trim() || isStreaming || !selectedInfo"
                     >
                       {{ isStreaming ? '发送中...' : '发送' }}
                     </el-button>
@@ -624,13 +630,13 @@
 
     <!-- 创建知识库对话框 -->
     <el-dialog
-        v-model="showCreateDialog"
-        title="创建知识库"
-        width="500px"
+      v-model="showCreateDialog"
+      title="创建知识库"
+      width="500px"
     >
       <el-form :model="newKB" label-width="80px">
         <el-form-item label="名称">
-          <el-input v-model="newKB.name" placeholder="请输入知识库名称"/>
+          <el-input v-model="newKB.name" placeholder="请输入知识库名称" />
         </el-form-item>
         <!-- 描述字段隐藏，将在提交时自动使用标题作为描述 -->
       </el-form>
@@ -643,19 +649,19 @@
 
     <!-- 文档管理弹窗 -->
     <el-dialog
-        v-model="showDocumentModal"
-        :title="`文档管理 - ${currentDatasetName}`"
-        width="90%"
-        top="5vh"
-        :close-on-click-modal="false"
-        class="document-modal"
+      v-model="showDocumentModal"
+      :title="`文档管理 - ${currentDatasetName}`"
+      width="90%"
+      top="5vh"
+      :close-on-click-modal="false"
+      class="document-modal"
     >
       <DocumentManagement
-          v-if="showDocumentModal"
-          :dataset-id="currentDatasetId"
-          :dataset-name="currentDatasetName"
-          @close="showDocumentModal = false"
-          @document-changed="handleDocumentChanged"
+        v-if="showDocumentModal"
+        :dataset-id="currentDatasetId"
+        :dataset-name="currentDatasetName"
+        @close="showDocumentModal = false"
+        @document-changed="handleDocumentChanged"
       />
       <template #footer>
         <div class="dialog-footer">
@@ -666,18 +672,18 @@
 
     <!-- 共享设置弹窗 -->
     <el-dialog
-        v-model="showShareModal"
-        :title="`共享设置 - ${currentDatasetName}`"
-        width="80%"
-        top="8vh"
-        :close-on-click-modal="false"
-        class="share-modal"
+      v-model="showShareModal"
+      :title="`共享设置 - ${currentDatasetName}`"
+      width="80%"
+      top="8vh"
+      :close-on-click-modal="false"
+      class="share-modal"
     >
       <ShareSettings
-          v-if="showShareModal"
-          :dataset-id="currentDatasetId"
-          :dataset-name="currentDatasetName"
-          @close="showShareModal = false"
+        v-if="showShareModal"
+        :dataset-id="currentDatasetId"
+        :dataset-name="currentDatasetName"
+        @close="showShareModal = false"
       />
       <template #footer>
         <div class="dialog-footer">
@@ -688,29 +694,29 @@
 
     <!-- 文档分段详情弹窗 -->
     <DocumentParagraphsDialog
-        v-model="showParagraphsDialog"
-        :document-id="currentDocumentId"
-        :dataset-id="currentParagraphDatasetId"
-        :document-name="currentDocumentName"
-        :hit-paragraph-id="currentHitParagraphId"
-        :hit-paragraph-content="currentHitParagraphContent"
+      v-model="showParagraphsDialog"
+      :document-id="currentDocumentId"
+      :dataset-id="currentParagraphDatasetId"
+      :document-name="currentDocumentName"
+      :hit-paragraph-id="currentHitParagraphId"
+      :hit-paragraph-content="currentHitParagraphContent"
     />
 
     <!-- 重命名知识库对话框 -->
     <el-dialog
-        v-model="showRenameDialog"
-        title="重命名知识库"
-        width="550px"
-        :before-close="() => showRenameDialog = false"
-        class="rename-dialog"
+      v-model="showRenameDialog"
+      title="重命名知识库"
+      width="550px"
+      :before-close="() => showRenameDialog = false"
+      class="rename-dialog"
     >
       <el-form :model="renameForm" label-width="100px">
         <el-form-item label="知识库名称" required>
           <el-input
-              v-model="renameForm.name"
-              placeholder="请输入新的知识库名称"
-              maxlength="50"
-              show-word-limit
+            v-model="renameForm.name"
+            placeholder="请输入新的知识库名称"
+            maxlength="50"
+            show-word-limit
           />
         </el-form-item>
       </el-form>
@@ -719,9 +725,9 @@
         <div class="dialog-footer">
           <el-button @click="showRenameDialog = false">取消</el-button>
           <el-button
-              type="primary"
-              @click="confirmRename"
-              :disabled="!renameForm.name.trim()"
+            type="primary"
+            @click="confirmRename"
+            :disabled="!renameForm.name.trim()"
           >
             确认重命名
           </el-button>
@@ -732,8 +738,8 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted, nextTick} from 'vue'
-import {ElMessage, ElMessageBox} from 'element-plus'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import useStore from '@/stores'
 import {
   Plus,
@@ -770,7 +776,7 @@ import {
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
-import modelApi, {postModelChatStream} from '@/api/model'
+import modelApi, { postModelChatStream } from '@/api/model'
 import applicationApi from '@/api/application'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
@@ -929,7 +935,7 @@ const selectedSTTModelId = ref('')
 // 不再需要临时应用ID
 
 // 用户权限
-const {user} = useStore()
+const { user } = useStore()
 const userRole = computed(() => user.getRole())
 const isAdmin = computed(() => userRole.value === 'ADMIN')
 
@@ -937,7 +943,7 @@ const isAdmin = computed(() => userRole.value === 'ADMIN')
 const selectedInfo = computed(() => {
   const selectedDocuments = getSelectedDocuments()
   const selectedDatasets = getSelectedDatasets()
-  
+
   if (selectedDocuments.length > 0) {
     return {
       type: 'documents',
@@ -968,7 +974,7 @@ const sharedKBSortType = ref<'time' | 'name'>('time') // 共享知识库排序�
 computed(() => {
   // 这里可以根据搜索文本过滤树形数据
   return treeData.value
-});
+})
 // 判断是否有聊天消息
 const hasMessages = computed(() => {
   return chatMessages.value.length > 0
@@ -1043,8 +1049,8 @@ const loadAvailableModels = async () => {
   try {
     const res = await modelApi.getModel()
     const list = res.data || []
-    
-    console.log("模型列表：",res)
+
+    console.log('模型列表：', res)
     // 过滤出支持对话的模型
     availableModels.value = list.filter(model => isChatModel(model))
 
@@ -1077,10 +1083,10 @@ const loadAvailableSTTModels = async () => {
     // 从全局模型列表中过滤出STT模型
     const res = await modelApi.getModel()
     const list = res.data || []
-    
+
     // 过滤出STT类型的模型
     const sttModels = list.filter(model => model.model_type === 'STT')
-    
+
     if (sttModels.length > 0) {
       availableSTTModels.value = sttModels
       sttModelEnabled.value = true
@@ -1122,6 +1128,9 @@ const handleInputFocus = () => {
 const getInputPlaceholder = () => {
   if (!selectedInfo.value) {
     return '请先选择知识库或文档...'
+  }
+  if (isAIWritingMode.value) {
+    return '请输入写作主题，AI将基于知识库内容为您创作...'
   }
   return '请输入您的问题...'
 }
@@ -1188,7 +1197,7 @@ const openDocumentParagraphs = async (paragraph: any) => {
   currentDocumentId.value = paragraph.document_id
   currentParagraphDatasetId.value = paragraph.dataset_id
   currentDocumentName.value = paragraph.document_name || paragraph.source || paragraph.dataset_name
-  
+
   // 由于搜索结果中没有分段ID，我们需要通过内容匹配来找到对应的分段
   // 传递搜索结果的完整内容，用于在分段详情中匹配
   currentHitParagraphId.value = paragraph.title || '段落 1' // 使用title作为临时标识
@@ -1273,14 +1282,14 @@ const getSelectedDocuments = (): TreeNode[] => {
 
 // 处理一级目录的三个点菜单操作
 const handleLevel1Action = (command: { action: string; data: TreeNode }) => {
-  const {action, data} = command
+  const { action, data } = command
 
   switch (action) {
     case 'refresh':
       console.log('刷新', data.label)
       refreshKnowledgeBase(data.type)
       break
-      // 个人知识库排序
+    // 个人知识库排序
     case 'sort-by-time':
       console.log('个人知识库按时间排序')
       personalKBSortType.value = 'time'
@@ -1295,7 +1304,7 @@ const handleLevel1Action = (command: { action: string; data: TreeNode }) => {
       sortPersonalKBs()
       ElMessage.success('已切换为按名称排序（A-Z）')
       break
-      // 机构知识库排序
+    // 机构知识库排序
     case 'org-sort-by-name':
       console.log('机构知识库按名称排序')
       organizationKBSortType.value = 'name'
@@ -1310,7 +1319,7 @@ const handleLevel1Action = (command: { action: string; data: TreeNode }) => {
       sortOrganizationKBs()
       ElMessage.success('机构知识库已切换为按创建时间排序（最新在前）')
       break
-      // 共享知识库排序
+    // 共享知识库排序
     case 'shared-sort-by-name':
       console.log('共享知识库按名称排序')
       sharedKBSortType.value = 'name'
@@ -1454,7 +1463,7 @@ const sortSharedKBs = async () => {
 
 // 处理知识库操作
 const handleKBAction = async (command: { action: string; data: TreeNode }) => {
-  const {action, data} = command
+  const { action, data } = command
 
   try {
     switch (action) {
@@ -1476,13 +1485,13 @@ const handleKBAction = async (command: { action: string; data: TreeNode }) => {
 
       case 'delete':
         await ElMessageBox.confirm(
-            `确定要删除知识库"${data.label}"吗？此操作不可恢复。`,
-            '删除确认',
-            {
-              confirmButtonText: '确定删除',
-              cancelButtonText: '取消',
-              type: 'warning'
-            }
+          `确定要删除知识库"${data.label}"吗？此操作不可恢复。`,
+          '删除确认',
+          {
+            confirmButtonText: '确定删除',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
         )
 
         if (data.datasetId) {
@@ -1495,13 +1504,13 @@ const handleKBAction = async (command: { action: string; data: TreeNode }) => {
 
       case 'exit-share':
         await ElMessageBox.confirm(
-            `确定要退出共享知识库"${data.label}"吗？`,
-            '退出共享确认',
-            {
-              confirmButtonText: '确定退出',
-              cancelButtonText: '取消',
-              type: 'warning'
-            }
+          `确定要退出共享知识库"${data.label}"吗？`,
+          '退出共享确认',
+          {
+            confirmButtonText: '确定退出',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
         )
 
         if (data.datasetId) {
@@ -1519,13 +1528,13 @@ const handleKBAction = async (command: { action: string; data: TreeNode }) => {
         }
 
         await ElMessageBox.confirm(
-            `确定要将知识库"${data.label}"移出机构吗？`,
-            '移出机构确认',
-            {
-              confirmButtonText: '确定移出',
-              cancelButtonText: '取消',
-              type: 'warning'
-            }
+          `确定要将知识库"${data.label}"移出机构吗？`,
+          '移出机构确认',
+          {
+            confirmButtonText: '确定移出',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
         )
 
         if (data.datasetId) {
@@ -1626,7 +1635,7 @@ const formatFileSize = (bytes: number) => {
 // 加载机构知识库
 const loadOrganizationKBs = async () => {
   try {
-    const page = {current_page: 1, page_size: 100}
+    const page = { current_page: 1, page_size: 100 }
     const response = await datasetApi.getOrganizationDataset(page, {})
 
     console.log('机构知识库API响应:', response)
@@ -1653,7 +1662,7 @@ const loadOrganizationKBs = async () => {
 // 加载共享知识库
 const loadSharedKBs = async () => {
   try {
-    const page = {current_page: 1, page_size: 100}
+    const page = { current_page: 1, page_size: 100 }
     const response = await datasetApi.getSharedToMeDataset(page, {})
 
     console.log('共享知识库API响应:', response)
@@ -1695,7 +1704,7 @@ const loadSharedKBs = async () => {
 // 加载个人知识库
 const loadPersonalKBs = async () => {
   try {
-    const page = {current_page: 1, page_size: 100}
+    const page = { current_page: 1, page_size: 100 }
     const response = await datasetApi.getDataset(page, {})
 
     if (response.data) {
@@ -1812,7 +1821,7 @@ const performKnowledgeSearch = async (query: string) => {
     // 如果选中了具体文档，优先基于文档进行检索
     if (selectedDocuments.length > 0) {
       console.log('基于选中的文档进行检索:', selectedDocuments)
-      
+
       // 按知识库分组文档
       const documentsByDataset = new Map<string, TreeNode[]>()
       selectedDocuments.forEach(doc => {
@@ -1829,8 +1838,8 @@ const performKnowledgeSearch = async (query: string) => {
         try {
           const searchData = {
             query_text: query,
-            top_number: 5, // 每个知识库取前5条结果
-            similarity: 0.5,
+            top_number: isAIWritingMode.value ? 5 : 5, // AI写作模式和普通模式都取前5条结果
+            similarity: isAIWritingMode.value ? 0.3 : 0.5, // AI写作模式降低相似度阈值以获取更多相关内容
             search_mode: 'embedding',
             // 添加文档ID列表，限制检索范围
             document_ids: docs.map(doc => doc.documentId).filter(Boolean).join(',')
@@ -1847,7 +1856,7 @@ const performKnowledgeSearch = async (query: string) => {
           } else if (response.code === 500) {
             // 检查是否是嵌入模型连接错误
             if (response.message?.includes('Failed to establish a new connection') ||
-                response.message?.includes('Connection refused')) {
+              response.message?.includes('Connection refused')) {
               hasEmbeddingError = true
             }
           }
@@ -1856,18 +1865,18 @@ const performKnowledgeSearch = async (query: string) => {
 
           // 检测连接错误类型
           if (error.message?.includes('Failed to establish a new connection') ||
-              error.message?.includes('Connection refused')) {
+            error.message?.includes('Connection refused')) {
             hasEmbeddingError = true
           } else {
             hasConnectionError = true
           }
         }
       }
-    } 
+    }
     // 如果没有选中文档但选中了知识库，则基于整个知识库进行检索
     else if (selectedDatasets.length > 0) {
       console.log('基于选中的知识库进行检索:', selectedDatasets)
-      
+
       // 对每个选中的知识库进行检索
       for (const dataset of selectedDatasets) {
         if (!dataset.datasetId) continue
@@ -1875,8 +1884,8 @@ const performKnowledgeSearch = async (query: string) => {
         try {
           const searchData = {
             query_text: query,
-            top_number: 3, // 每个知识库取前3条结果
-            similarity: 0.5,
+            top_number: isAIWritingMode.value ? 5 : 3, // AI写作模式取前5条结果，普通模式取前3条
+            similarity: isAIWritingMode.value ? 0.3 : 0.5, // AI写作模式降低相似度阈值以获取更多相关内容
             search_mode: 'embedding'
           }
 
@@ -1891,7 +1900,7 @@ const performKnowledgeSearch = async (query: string) => {
           } else if (response.code === 500) {
             // 检查是否是嵌入模型连接错误
             if (response.message?.includes('Failed to establish a new connection') ||
-                response.message?.includes('Connection refused')) {
+              response.message?.includes('Connection refused')) {
               hasEmbeddingError = true
             }
           }
@@ -1900,7 +1909,7 @@ const performKnowledgeSearch = async (query: string) => {
 
           // 检测连接错误类型
           if (error.message?.includes('Failed to establish a new connection') ||
-              error.message?.includes('Connection refused')) {
+            error.message?.includes('Connection refused')) {
             hasEmbeddingError = true
           } else {
             hasConnectionError = true
@@ -1945,7 +1954,7 @@ const sendMessage = async () => {
   // 检查是否选中了文档或知识库
   const selectedDocuments = getSelectedDocuments()
   const selectedDatasets = getSelectedDatasets()
-  
+
   if (selectedDocuments.length === 0 && selectedDatasets.length === 0) {
     ElMessage.warning('请先选择要查询的文档或知识库')
     return
@@ -1976,14 +1985,14 @@ const sendMessage = async () => {
     const modelId = selectedModelId.value || await resolveDefaultModelId()
     if (!modelId) {
       chatMessages.value.push(
-          createAssistantMessage('无法获取可用的对话模型，请联系管理员配置。')
+        createAssistantMessage('无法获取可用的对话模型，请联系管理员配置。')
       )
       return
     }
 
     // 基于选中知识库进行检索
     const searchResponse = await performKnowledgeSearch(userQuestion)
-    const {results: searchResults, hasEmbeddingError, hasConnectionError} = searchResponse
+    const { results: searchResults, hasEmbeddingError, hasConnectionError } = searchResponse
     console.log('知识检索结果:', searchResults)
     // 保存搜索结果，稍后添加到AI回答消息中
     let searchResultsForAI: any[] = []
@@ -2028,15 +2037,67 @@ const sendMessage = async () => {
       contextNote = '\n\n注意：在选中的知识库中未找到相关内容，回答将基于通用知识。'
     }
 
-    // 构建消息
-    const systemPrompt = hasEmbeddingError || hasConnectionError
-      ? `你是一个专业的知识库助手。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。`
-      : `你是一个专业的知识库助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
+    // 根据是否为AI写作模式构建不同的系统提示
+    let systemPrompt = ''
+    if (isAIWritingMode.value) {
+      // AI写作模式的系统提示
+      systemPrompt = `#AI 写作助手
+写作风格：学术研究型
+语气：正式、客观
+目标读者：教育研究人员与政策制定者
+篇幅：约1500~2000字
+逻辑层级：三层（一级标题+二级标题）
+
+角色设定：
+你是一名擅长教育研究与学术写作的智能写作助手，熟悉教育部政策文件与教育学研究语言风格。
+你的任务是基于提供的主题与知识片段，撰写一篇学术风格、逻辑严谨、结构完整的中文文章。
+
+【写作要求】
+写作风格
+学术研究型、政策导向型语体；
+用语正式、逻辑严谨、表达客观；
+避免口语化、宣传化或AI口吻；
+善用“从……来看”“综合来看”“可见”“由此可见”“具体包括”等学术连接词。
+
+内容结构
+通常包括以下逻辑层次（可根据主题灵活调整）：
+导语/引言：提出研究背景与重要性；
+一、概念界定/发展脉络：回顾核心概念的起源与演变；
+二、核心内涵/理论阐释：界定概念的核心定义与逻辑结构；
+三、构成维度/实践路径：展开层次分析；
+
+结语/总结：概括核心观点、指出实践或研究意义。
+语言规范
+使用标准书面语，不使用第一人称“我”或“我们”；
+段落开头可使用逻辑衔接语，如“从……来看”“总体而言”“在……的背景下”；
+保持句式多样性，避免重复句式；
+确保全文逻辑连贯、语义完整。
+知识利用原则
+充分融合输入的知识片段，做到内容相关、表达原创；
+若片段观点有差异，进行整合或中性表述；
+禁止添加未在知识片段中出现的事实性信息。
+
+输出格式
+输出完整文章，标题居中；
+使用 “一、二、三、（一）（二）（三）” 等规范结构标识；
+
+不包含过程性说明或AI口吻提示。
+User:
+主题：${context}
+
+知识片段：
+${contextNote}`
+    } else {
+      // 普通对话模式的系统提示
+      systemPrompt = hasEmbeddingError || hasConnectionError
+        ? `你是一个专业的知识库助手。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。`
+        : `你是一个专业的知识库助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
 
 检索到的相关内容：
 ${context}
 
 请基于上述内容回答用户问题，保持专业、准确和有帮助的态度。${contextNote}`
+    }
 
     const messages = [
       {
@@ -2044,12 +2105,12 @@ ${context}
         content: systemPrompt
       },
       ...chatMessages.value.slice(-10), // 保留最近10轮对话作为上下文
-      {role: 'user', content: userQuestion}
+      { role: 'user', content: userQuestion }
     ]
 
     // 调用模型API进行流式对话
     try {
-      const resp = await postModelChatStream(modelId, {messages})
+      const resp = await postModelChatStream(modelId, { messages })
 
       if (resp?.body && typeof resp.body.getReader === 'function') {
         const reader = resp.body.getReader()
@@ -2057,7 +2118,7 @@ ${context}
         let currentAssistantMessage = ''
 
         while (true) {
-          const {value, done} = await reader.read()
+          const { value, done } = await reader.read()
           if (done) break
 
           const chunk = decoder.decode(value)
@@ -2096,7 +2157,7 @@ ${context}
         // 如果没有接收到内容，显示默认错误消息
         if (!currentAssistantMessage) {
           chatMessages.value.push(
-              createAssistantMessage('抱歉，模型服务暂时不可用，请稍后重试。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
+            createAssistantMessage('抱歉，模型服务暂时不可用，请稍后重试。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
           )
         } else {
           // 流式输出完成后，将分段信息添加到AI消息中
@@ -2112,11 +2173,11 @@ ${context}
         const errorText = await resp?.text?.() || ''
         if (errorText.includes('该模型不支持直接对话调用')) {
           chatMessages.value.push(
-              createAssistantMessage('抱歉，当前选择的模型不支持对话功能。请联系管理员配置支持对话的模型（如：GPT、Claude、通义千问等）。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
+            createAssistantMessage('抱歉，当前选择的模型不支持对话功能。请联系管理员配置支持对话的模型（如：GPT、Claude、通义千问等）。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
           )
         } else {
           chatMessages.value.push(
-              createAssistantMessage('抱歉，模型服务暂时不可用，请稍后重试。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
+            createAssistantMessage('抱歉，模型服务暂时不可用，请稍后重试。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
           )
         }
       }
@@ -2135,13 +2196,13 @@ ${context}
       }
 
       chatMessages.value.push(
-          createAssistantMessage(errorMessage, searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
+        createAssistantMessage(errorMessage, searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
       )
     }
   } catch (error) {
     console.error('发送消息失败:', error)
     chatMessages.value.push(
-        createAssistantMessage('抱歉，处理您的问题时出现错误，请稍后重试。')
+      createAssistantMessage('抱歉，处理您的问题时出现错误，请稍后重试。')
     )
   } finally {
     isStreaming.value = false
@@ -2177,9 +2238,9 @@ const formatTime = (timestamp?: Date) => {
 // 格式化消息内容（支持简单的换行和段落）
 const formatMessageContent = (content: string) => {
   return content
-      .replace(/\n/g, '<br>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
 }
 
 // AI写作功能
@@ -2208,7 +2269,7 @@ const createKnowledgeBase = async () => {
     // 获取默认的embedding模型ID
     let embeddingModeId = ''
     try {
-      const modelRes = await modelApi.getModel({model_type: 'EMBEDDING'})
+      const modelRes = await modelApi.getModel({ model_type: 'EMBEDDING' })
       const modelList = modelRes?.data || []
       // 自动选择名为 maxkb-embedding 的模型作为默认
       const defaultModel = modelList.find((m: any) => m?.name === 'maxkb-embedding' || m?.model_name === 'maxkb-embedding')
@@ -2318,7 +2379,8 @@ const confirmRename = async () => {
 }
 
 // 取消录音控制台日志
-Recorder.CLog = function () {}
+Recorder.CLog = function() {
+}
 
 // 语音录制管理类
 class RecorderManage {
