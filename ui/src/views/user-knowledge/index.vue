@@ -2089,7 +2089,7 @@ User:
 主题：${userQuestion}
 
 知识片段：
-${contextNote}`
+${context}${contextNote}`
     } else {
       // 普通对话模式的系统提示
       systemPrompt = hasEmbeddingError || hasConnectionError
