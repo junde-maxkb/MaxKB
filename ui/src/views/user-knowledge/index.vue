@@ -2037,6 +2037,9 @@ const sendMessage = async () => {
       contextNote = '\n\n注意：在选中的知识库中未找到相关内容，回答将基于通用知识。'
     }
 
+    console.log('用户输入内容:', userQuestion)
+    console.log('知识库检索内容:', context)
+
     // 根据是否为AI写作模式构建不同的系统提示
     let systemPrompt = ''
     if (isAIWritingMode.value) {
@@ -2083,7 +2086,7 @@ const sendMessage = async () => {
 
 不包含过程性说明或AI口吻提示。
 User:
-主题：${context}
+主题：${userQuestion}
 
 知识片段：
 ${contextNote}`
