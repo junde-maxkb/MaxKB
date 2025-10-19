@@ -399,7 +399,27 @@
               <!-- 知识库信息提示 -->
               <div class="kb-info-container" :class="{ 'moved-down': hasMessages }">
                 <div class="kb-info-content">
-                  <div class="kb-info-text" v-if="selectedInfo">
+                  <!-- AI写作模式已上传文档展示 -->
+                  <div v-if="isAIWritingMode && uploadedDocumentName">
+                    <div class="kb-info-text">
+                      <el-icon class="info-icon">
+                        <Document />
+                      </el-icon>
+                      已上传参考文档：
+                    </div>
+                    <div class="selected-items">
+                      <el-tag
+                        size="small"
+                        class="item-tag document-tag"
+                        closable
+                        @close="removeUploadedDocument"
+                      >
+                        {{ uploadedDocumentName }}
+                      </el-tag>
+                    </div>
+                  </div>
+                  
+                  <div class="kb-info-text" v-else-if="selectedInfo">
                     <template v-if="selectedInfo.type === 'documents'">
                       <el-icon class="info-icon">
                         <DocumentCopy />
@@ -538,8 +558,31 @@
                       class="chat-input"
                       @keyup.enter.exact.prevent="sendMessage"
                       @focus="handleInputFocus"
-                      :disabled="isStreaming || !selectedInfo"
+                      :disabled="isStreaming || (!isAIWritingMode && !selectedInfo)"
                     />
+
+                    <!-- AI写作模式文档上传按钮 -->
+                    <el-upload
+                      v-if="isAIWritingMode"
+                      ref="documentUploadRef"
+                      class="document-upload-btn"
+                      :show-file-list="false"
+                      :before-upload="handleDocumentUpload"
+                      :disabled="isStreaming || isUploadingDocument"
+                      accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+                    >
+                      <el-button
+                        text
+                        class="voice-btn"
+                        :disabled="isStreaming || isUploadingDocument"
+                        :loading="isUploadingDocument"
+                        :title="uploadedDocumentName ? '重新上传文档' : '上传文档'"
+                      >
+                        <el-icon v-if="!isUploadingDocument">
+                          <DocumentAdd />
+                        </el-icon>
+                      </el-button>
+                    </el-upload>
 
                     <!-- 语音录制按钮 -->
                     <el-button
@@ -599,7 +642,7 @@
                       class="send-btn"
                       @click="sendMessage"
                       :loading="isStreaming"
-                      :disabled="!currentMessage.trim() || isStreaming || !selectedInfo"
+                      :disabled="!currentMessage.trim() || isStreaming || (!isAIWritingMode && !selectedInfo)"
                     >
                       {{ isStreaming ? '发送中...' : '发送' }}
                     </el-button>
@@ -772,7 +815,8 @@ import {
   Clock,
   Switch,
   Microphone,
-  MagicStick
+  MagicStick,
+  DocumentAdd
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
@@ -850,6 +894,12 @@ const currentHitParagraphContent = ref('')
 
 // AI写作模式状态
 const isAIWritingMode = ref(false)
+
+// AI写作模式文档上传相关状态
+const uploadedDocumentContent = ref('')
+const uploadedDocumentName = ref('')
+const isUploadingDocument = ref(false)
+const documentUploadRef = ref<any>(null)
 
 // 重命名相关状态
 const showRenameDialog = ref(false)
@@ -1126,11 +1176,14 @@ const handleInputFocus = () => {
 
 // 获取输入框占位符文本
 const getInputPlaceholder = () => {
+  if (isAIWritingMode.value) {
+    if (uploadedDocumentName.value) {
+      return '请输入写作主题，AI将基于上传的文档为您创作...'
+    }
+    return '请输入写作主题或上传文档，AI将为您创作...'
+  }
   if (!selectedInfo.value) {
     return '请先选择知识库或文档...'
-  }
-  if (isAIWritingMode.value) {
-    return '请输入写作主题，AI将基于知识库内容为您创作...'
   }
   return '请输入您的问题...'
 }
@@ -1951,11 +2004,11 @@ const performKnowledgeSearch = async (query: string) => {
 const sendMessage = async () => {
   if (!currentMessage.value.trim() || isStreaming.value || !selectedModelId.value) return
 
-  // 检查是否选中了文档或知识库
+  // 检查是否选中了文档或知识库（AI写作模式下可以不选择）
   const selectedDocuments = getSelectedDocuments()
   const selectedDatasets = getSelectedDatasets()
 
-  if (selectedDocuments.length === 0 && selectedDatasets.length === 0) {
+  if (!isAIWritingMode.value && selectedDocuments.length === 0 && selectedDatasets.length === 0) {
     ElMessage.warning('请先选择要查询的文档或知识库')
     return
   }
@@ -2044,6 +2097,13 @@ const sendMessage = async () => {
     let systemPrompt = ''
     if (isAIWritingMode.value) {
       // AI写作模式的系统提示
+      // 如果有上传的文档，添加到知识片段中
+      let documentContext = ''
+      if (uploadedDocumentContent.value) {
+        documentContext = `\n\n上传文档内容（${uploadedDocumentName.value}）：
+${uploadedDocumentContent.value}`
+      }
+      
       systemPrompt = `#AI 写作助手
 写作风格：学术研究型
 语气：正式、客观
@@ -2060,7 +2120,7 @@ const sendMessage = async () => {
 学术研究型、政策导向型语体；
 用语正式、逻辑严谨、表达客观；
 避免口语化、宣传化或AI口吻；
-善用“从……来看”“综合来看”“可见”“由此可见”“具体包括”等学术连接词。
+善用"从……来看""综合来看""可见""由此可见""具体包括"等学术连接词。
 
 内容结构
 通常包括以下逻辑层次（可根据主题灵活调整）：
@@ -2071,8 +2131,8 @@ const sendMessage = async () => {
 
 结语/总结：概括核心观点、指出实践或研究意义。
 语言规范
-使用标准书面语，不使用第一人称“我”或“我们”；
-段落开头可使用逻辑衔接语，如“从……来看”“总体而言”“在……的背景下”；
+使用标准书面语，不使用第一人称"我"或"我们"；
+段落开头可使用逻辑衔接语，如"从……来看""总体而言""在……的背景下"；
 保持句式多样性，避免重复句式；
 确保全文逻辑连贯、语义完整。
 知识利用原则
@@ -2082,14 +2142,14 @@ const sendMessage = async () => {
 
 输出格式
 输出完整文章，标题居中；
-使用 “一、二、三、（一）（二）（三）” 等规范结构标识；
+使用 "一、二、三、（一）（二）（三）" 等规范结构标识；
 
 不包含过程性说明或AI口吻提示。
 User:
 主题：${userQuestion}
 
 知识片段：
-${context}${contextNote}`
+${context}${documentContext}${contextNote}`
     } else {
       // 普通对话模式的系统提示
       systemPrompt = hasEmbeddingError || hasConnectionError
@@ -2249,11 +2309,110 @@ const formatMessageContent = (content: string) => {
 // AI写作功能
 const handleAIWriting = () => {
   isAIWritingMode.value = !isAIWritingMode.value
+  
+  // 切换模式时清空输入框内容，避免混淆
+  currentMessage.value = ''
+  
   if (isAIWritingMode.value) {
     ElMessage.success('已开启AI写作模式')
   } else {
     ElMessage.info('已关闭AI写作模式')
+    // 关闭AI写作模式时清空已上传的文档
+    uploadedDocumentContent.value = ''
+    uploadedDocumentName.value = ''
   }
+}
+
+// AI写作模式文档上传处理
+const handleDocumentUpload = async (file: any) => {
+  if (!isAIWritingMode.value) {
+    ElMessage.warning('请先开启AI写作模式')
+    return false
+  }
+
+  // 验证文件类型
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+
+  if (!allowedTypes.includes(file.type) && 
+      !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+    ElMessage.error('仅支持上传 PDF、Word、Excel 和 TXT 文档')
+    return false
+  }
+
+  // 验证文件大小 (10MB)
+  const maxSize = 10 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 10MB')
+    return false
+  }
+
+  try {
+    isUploadingDocument.value = true
+    
+    // 创建 FormData
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('limit', '100000') // 设置较大的字符限制
+    // 不添加 patterns 参数，或者添加默认的分段标识
+    formData.append('with_filter', 'false')
+
+    // 调用文档分段API进行文档识别
+    const response = await documentApi.postSplitDocument(formData)
+    
+    if (response.code === 200 && response.data) {
+      // 提取文档内容
+      let documentContent = ''
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        // response.data 是一个数组，每个元素包含 name 和 content
+        // content 是段落数组，每个段落包含 title 和 content
+        const allParagraphs: string[] = []
+        
+        response.data.forEach((doc: any) => {
+          if (Array.isArray(doc.content)) {
+            doc.content.forEach((paragraph: any) => {
+              if (paragraph.content && typeof paragraph.content === 'string') {
+                allParagraphs.push(paragraph.content.trim())
+              }
+            })
+          }
+        })
+        
+        documentContent = allParagraphs.filter(p => p).join('\n\n')
+        
+      }
+
+      if (documentContent.trim()) {
+        uploadedDocumentContent.value = documentContent
+        uploadedDocumentName.value = file.name
+        ElMessage.success(`文档 "${file.name}" 上传成功！`)
+      } else {
+        ElMessage.error('文档内容为空或无法识别')
+      }
+    } else {
+      ElMessage.error(response.message || '文档识别失败')
+    }
+  } catch (error: any) {
+    console.error('文档上传失败:', error)
+    ElMessage.error(error.message || '文档上传失败，请重试')
+  } finally {
+    isUploadingDocument.value = false
+  }
+
+  return false // 阻止默认上传行为
+}
+
+// 移除已上传的文档
+const removeUploadedDocument = () => {
+  uploadedDocumentContent.value = ''
+  uploadedDocumentName.value = ''
+  ElMessage.info('已移除上传的文档')
 }
 
 // AI润写功能
@@ -3389,6 +3548,9 @@ onUnmounted(() => {
           color: #666;
           margin: 0;
           white-space: nowrap;
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
 
         .selected-datasets {
@@ -3463,6 +3625,11 @@ onUnmounted(() => {
             .ai-label-text {
               letter-spacing: 0.5px;
             }
+          }
+
+          .document-upload-btn {
+            display: inline-block;
+            flex-shrink: 0;
           }
 
           .chat-input {
