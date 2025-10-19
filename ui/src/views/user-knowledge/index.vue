@@ -579,7 +579,8 @@
                         :title="uploadedDocumentName ? '重新上传文档' : '上传文档'"
                       >
                         <el-icon v-if="!isUploadingDocument">
-                          <DocumentAdd />
+                          <Document v-if="isAIWritingMode" />
+                          <DocumentAdd v-else />
                         </el-icon>
                       </el-button>
                     </el-upload>
@@ -3609,14 +3610,14 @@ onUnmounted(() => {
             align-items: center;
             gap: 6px;
             padding: 6px 12px;
-            background: linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%);
+            background: linear-gradient(135deg, #b3d8ff 0%, #c7e2ff 100%);
             border-radius: 16px;
-            color: #2c3e50;
+            color: #2c5282;
             font-size: 12px;
             font-weight: 500;
             white-space: nowrap;
             flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(135, 206, 235, 0.3);
+            box-shadow: 0 2px 8px rgba(64, 158, 255, 0.25);
 
             .ai-label-icon {
               font-size: 12px;
@@ -3796,22 +3797,22 @@ onUnmounted(() => {
         }
 
         &.active {
-          background: linear-gradient(135deg, #87CEEB 0%, #B0E0E6 100%);
-          border-color: #87CEEB;
-          color: #2c3e50;
+          background: linear-gradient(135deg, #b3d8ff 0%, #c7e2ff 100%);
+          border-color: #b3d8ff;
+          color: #2c5282;
 
           .ai-icon {
-            color: #2c3e50;
+            color: #2c5282;
           }
 
           .ai-text {
-            color: #2c3e50;
+            color: #2c5282;
           }
 
           &:hover {
-            background: linear-gradient(135deg, #7BC4E8 0%, #A8D8EA 100%);
+            background: linear-gradient(135deg, #a3ceff 0%, #b7d6ff 100%);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(135, 206, 235, 0.4);
+            box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
           }
         }
       }
