@@ -589,7 +589,7 @@
                       text
                       class="voice-btn"
                       @click="startRecording"
-                      v-if="recorderStatus === 'STOP'"
+                      v-if="recorderStatus === 'STOP' && !isAIWritingMode"
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
                     >
                       <el-icon>
@@ -605,7 +605,7 @@
                       :before-upload="handleAudioUpload"
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
                       accept="audio/*"
-                      v-if="recorderStatus === 'STOP'"
+                      v-if="recorderStatus === 'STOP' && !isAIWritingMode"
                     >
                       <el-button
                         text
@@ -620,7 +620,7 @@
                     </el-upload>
 
                     <!-- 录音状态显示 -->
-                    <div v-else class="voice-recording flex align-center">
+                    <div v-else-if="recorderStatus !== 'STOP' && !isAIWritingMode" class="voice-recording flex align-center">
                       <el-text type="info" class="recording-time">
                         00:{{ recorderTime < 10 ? `0${recorderTime}` : recorderTime }}
                       </el-text>
