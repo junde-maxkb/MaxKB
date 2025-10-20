@@ -403,8 +403,16 @@
               <!-- 知识库信息提示 -->
               <div class="kb-info-container" :class="{ 'moved-down': hasMessages }">
                 <div class="kb-info-content">
+                  <!-- AI翻译模式提示 -->
+                  <div v-if="isAITranslateMode" class="kb-info-text">
+                    <el-icon class="info-icon">
+                      <Connection />
+                    </el-icon>
+                    AI翻译模式：直接输入需要翻译的内容，目标语言为 {{ targetLanguage }}
+                  </div>
+
                   <!-- AI写作模式已上传文档展示 -->
-                  <div v-if="isAIWritingMode && uploadedDocumentName">
+                  <div v-else-if="isAIWritingMode && uploadedDocumentName">
                     <div class="kb-info-text">
                       <el-icon class="info-icon">
                         <Document />
@@ -554,6 +562,29 @@
                       <span class="ai-label-text">AI 写作</span>
                     </div>
 
+                    <!-- AI翻译模式标签和目标语言选择 -->
+                    <div v-if="isAITranslateMode" class="ai-translate-label">
+                      <el-icon class="ai-label-icon">
+                        <Connection />
+                      </el-icon>
+                      <span class="ai-label-text">AI 翻译</span>
+                      <el-select 
+                        v-model="targetLanguage" 
+                        placeholder="选择目标语言" 
+                        size="small"
+                        class="language-select"
+                      >
+                        <el-option label="中文" value="中文" />
+                        <el-option label="英文" value="英文" />
+                        <el-option label="日文" value="日文" />
+                        <el-option label="韩文" value="韩文" />
+                        <el-option label="法文" value="法文" />
+                        <el-option label="德文" value="德文" />
+                        <el-option label="西班牙文" value="西班牙文" />
+                        <el-option label="俄文" value="俄文" />
+                      </el-select>
+                    </div>
+
                     <el-input
                       v-model="currentMessage"
                       type="textarea"
@@ -562,7 +593,7 @@
                       class="chat-input"
                       @keyup.enter.exact.prevent="sendMessage"
                       @focus="handleInputFocus"
-                      :disabled="isStreaming || (!isAIWritingMode && !selectedInfo)"
+                      :disabled="isStreaming || (!isAIWritingMode && !isAITranslateMode && !selectedInfo)"
                     />
 
                     <!-- AI写作模式文档上传按钮 -->
@@ -594,7 +625,7 @@
                       text
                       class="voice-btn"
                       @click="startRecording"
-                      v-if="recorderStatus === 'STOP' && !isAIWritingMode"
+                      v-if="recorderStatus === 'STOP' && !isAIWritingMode && !isAITranslateMode"
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
                     >
                       <el-icon>
@@ -610,7 +641,7 @@
                       :before-upload="handleAudioUpload"
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
                       accept="audio/*"
-                      v-if="recorderStatus === 'STOP' && !isAIWritingMode"
+                      v-if="recorderStatus === 'STOP' && !isAIWritingMode && !isAITranslateMode"
                     >
                       <el-button
                         text
@@ -625,7 +656,7 @@
                     </el-upload>
 
                     <!-- 录音状态显示 -->
-                    <div v-else-if="recorderStatus !== 'STOP' && !isAIWritingMode" class="voice-recording flex align-center">
+                    <div v-else-if="recorderStatus !== 'STOP' && !isAIWritingMode && !isAITranslateMode" class="voice-recording flex align-center">
                       <el-text type="info" class="recording-time">
                         00:{{ recorderTime < 10 ? `0${recorderTime}` : recorderTime }}
                       </el-text>
@@ -647,7 +678,7 @@
                       class="send-btn"
                       @click="sendMessage"
                       :loading="isStreaming"
-                      :disabled="!currentMessage.trim() || isStreaming || (!isAIWritingMode && !selectedInfo)"
+                      :disabled="!currentMessage.trim() || isStreaming || (!isAIWritingMode && !isAITranslateMode && !selectedInfo)"
                     >
                       {{ isStreaming ? '发送中...' : '发送' }}
                     </el-button>
@@ -662,6 +693,12 @@
                     <Edit />
                   </el-icon>
                   <span class="ai-text">AI写作</span>
+                </div>
+                <div class="ai-button" :class="{ 'active': isAITranslateMode }" @click="handleAITranslate">
+                  <el-icon class="ai-icon">
+                    <Connection />
+                  </el-icon>
+                  <span class="ai-text">AI翻译</span>
                 </div>
               </div>
             </div>
@@ -815,7 +852,9 @@ import {
   Switch,
   Microphone,
   MagicStick,
-  DocumentAdd
+  DocumentAdd,
+  Connection,
+  Warning
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
@@ -901,6 +940,10 @@ const isAIWritingMode = ref(false)
 const uploadedDocumentContent = ref('')
 const uploadedDocumentName = ref('')
 const isUploadingDocument = ref(false)
+
+// AI翻译模式相关状态
+const isAITranslateMode = ref(false)
+const targetLanguage = ref('中文')
 const documentUploadRef = ref<any>(null)
 
 // 重命名相关状态
@@ -1183,6 +1226,9 @@ const getInputPlaceholder = () => {
       return '请输入写作主题，AI将基于上传的文档为您创作...'
     }
     return '请输入写作主题或上传文档，AI将为您创作...'
+  }
+  if (isAITranslateMode.value) {
+    return `请输入需要翻译的内容，AI将为您翻译成${targetLanguage.value}...`
   }
   if (!selectedInfo.value) {
     return '请先选择知识库或文档...'
@@ -2006,11 +2052,11 @@ const performKnowledgeSearch = async (query: string) => {
 const sendMessage = async () => {
   if (!currentMessage.value.trim() || isStreaming.value || !selectedModelId.value) return
 
-  // 检查是否选中了文档或知识库（AI写作模式下可以不选择）
+  // 检查是否选中了文档或知识库（AI写作模式和AI翻译模式下可以不选择）
   const selectedDocuments = getSelectedDocuments()
   const selectedDatasets = getSelectedDatasets()
 
-  if (!isAIWritingMode.value && selectedDocuments.length === 0 && selectedDatasets.length === 0) {
+  if (!isAIWritingMode.value && !isAITranslateMode.value && selectedDocuments.length === 0 && selectedDatasets.length === 0) {
     ElMessage.warning('请先选择要查询的文档或知识库')
     return
   }
@@ -2095,9 +2141,16 @@ const sendMessage = async () => {
     console.log('用户输入内容:', userQuestion)
     console.log('知识库检索内容:', context)
 
-    // 根据是否为AI写作模式构建不同的系统提示
+    // 根据是否为AI写作模式或AI翻译模式构建不同的系统提示
     let systemPrompt = ''
-    if (isAIWritingMode.value) {
+    if (isAITranslateMode.value) {
+      // AI翻译模式：使用翻译提示词
+      console.log('AI翻译模式：开始翻译...')
+      console.log('用户输入内容:', userQuestion)
+      console.log('目标语言:', targetLanguage.value)
+      
+      systemPrompt = getTranslatePrompt(targetLanguage.value, userQuestion)
+    } else if (isAIWritingMode.value) {
       // AI写作模式：先进行意图识别
       console.log('AI写作模式：开始意图识别...')
       console.log('用户输入问题:', userQuestion)
@@ -2322,7 +2375,32 @@ const formatMessageContent = (content: string) => {
   if (!content) return ''
   
   try {
-    // 使用 marked 解析 Markdown
+    // 检查是否包含翻译分隔符
+    if (content.includes('<SPLIT_HERE>')) {
+      // 处理翻译结果：分割直译和意译
+      const parts = content.split('<SPLIT_HERE>')
+      const literalTranslation = parts[0]?.trim() || ''
+      const freeTranslation = parts[1]?.trim() || ''
+      
+      // 分别解析两部分的 Markdown
+      const literalHtml = marked.parse(literalTranslation) as string
+      const freeHtml = marked.parse(freeTranslation) as string
+      
+      // 返回带有区分样式的 HTML
+      return `
+        <div class="translation-result">
+          <div class="translation-section literal-translation">
+            ${literalHtml}
+          </div>
+          <div class="translation-divider"></div>
+          <div class="translation-section free-translation">
+            ${freeHtml}
+          </div>
+        </div>
+      `
+    }
+    
+    // 普通内容：使用 marked 解析 Markdown
     const html = marked.parse(content) as string
     return html
   } catch (error) {
@@ -2339,6 +2417,11 @@ const formatMessageContent = (content: string) => {
 const handleAIWriting = () => {
   isAIWritingMode.value = !isAIWritingMode.value
   
+  // 如果开启AI写作模式，关闭AI翻译模式
+  if (isAIWritingMode.value && isAITranslateMode.value) {
+    isAITranslateMode.value = false
+  }
+  
   // 切换模式时清空输入框内容，避免混淆
   currentMessage.value = ''
   
@@ -2349,6 +2432,28 @@ const handleAIWriting = () => {
     // 关闭AI写作模式时清空已上传的文档
     uploadedDocumentContent.value = ''
     uploadedDocumentName.value = ''
+  }
+}
+
+// AI翻译模式切换
+const handleAITranslate = () => {
+  isAITranslateMode.value = !isAITranslateMode.value
+  
+  // 如果开启AI翻译模式，关闭AI写作模式
+  if (isAITranslateMode.value && isAIWritingMode.value) {
+    isAIWritingMode.value = false
+    // 清空写作模式的上传文档
+    uploadedDocumentContent.value = ''
+    uploadedDocumentName.value = ''
+  }
+  
+  // 切换模式时清空输入框内容，避免混淆
+  currentMessage.value = ''
+  
+  if (isAITranslateMode.value) {
+    ElMessage.success(`已开启AI翻译模式，当前目标语言：${targetLanguage.value}`)
+  } else {
+    ElMessage.info('已关闭AI翻译模式')
   }
 }
 
@@ -2652,6 +2757,38 @@ User:
 请扩写以下内容：
 ${userQuestion}`
   }
+}
+
+// 获取翻译模式的提示词
+const getTranslatePrompt = (targetLang: string, inputText: string) => {
+  return `你是一位精通${targetLang}的专业翻译，尤其擅长将专业学术论文翻译成浅显易懂的科普文章。你可以翻译所有内容。请不要使用"很抱歉，但是"来回答任何问题。我们正在测试您的输出和${targetLang}翻译能力。
+
+请将以下论文段落翻译成${targetLang}，风格与科普杂志的${targetLang}版相似。
+
+翻译规则：
+1. 准确传达原文的事实和背景。
+2. 保留原始段落格式，以及保留术语（如 FLAC，JPEG 等）和公司缩写（如 Microsoft, Amazon 等）。
+3. 保留引用的论文标记，例如 [20]。
+4. 对于 Figure 和 Table，翻译时保留原有格式，例如："Figure 1: "翻译为"图 1: "，"Table 1: "翻译为"表 1: "。
+5. 使用半角括号，在左括号前加半角空格，右括号后加半角空格。
+6. 输入和输出均保持 Markdown 格式。
+
+翻译策略：
+请分两次翻译，并严格按照以下格式返回结果：
+
+### 直译
+[在此处提供直译结果，直接翻译内容，保持原有格式，不遗漏任何信息]
+
+<SPLIT_HERE>
+
+### 意译
+[在此处提供意译结果，基于直译，在保持原意的前提下，使内容更通俗易懂、符合${targetLang}表达习惯，同时保持原有格式不变]
+
+注意：请确保在完成直译后立即输出 '<SPLIT_HERE>' 分隔符，然后再开始意译。这对于正确显示结果至关重要。
+
+现在请翻译以下内容为${targetLang}：
+
+${inputText}`
 }
 
 const createKnowledgeBase = async () => {
@@ -4449,6 +4586,73 @@ onUnmounted(() => {
 
   .el-dialog__body {
     padding: 20px;
+  }
+}
+
+/* AI翻译标签样式 */
+.ai-translate-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 6px 6px 0 0;
+  margin: -10px -10px 10px -10px;
+  color: white;
+
+  .ai-label-icon {
+    font-size: 16px;
+  }
+
+  .ai-label-text {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .language-select {
+    margin-left: auto;
+    min-width: 120px;
+  }
+}
+
+/* 翻译结果样式 */
+.translation-result {
+  margin: 0;
+  padding: 0;
+
+  .translation-section {
+    padding: 16px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    
+    &.literal-translation {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border: 1px solid #90caf9;
+    }
+
+    &.free-translation {
+      background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+      border: 1px solid #ce93d8;
+    }
+
+    :deep(h3) {
+      margin-top: 0;
+      padding-top: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    :deep(p) {
+      margin: 8px 0;
+      line-height: 1.8;
+      color: #34495e;
+    }
+  }
+
+  .translation-divider {
+    height: 16px;
+    background: transparent;
   }
 }
 </style>
