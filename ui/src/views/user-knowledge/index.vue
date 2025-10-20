@@ -828,6 +828,9 @@ import Recorder from 'recorder-core'
 import 'recorder-core/src/engine/mp3'
 import 'recorder-core/src/engine/mp3-engine'
 import { MsgAlert, MsgWarning } from '@/utils/message'
+import { marked } from 'marked'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css'
 
 // 类型定义
 interface TreeNode {
@@ -2097,15 +2100,23 @@ const sendMessage = async () => {
     if (isAIWritingMode.value) {
       // AI写作模式：先进行意图识别
       console.log('AI写作模式：开始意图识别...')
+      console.log('用户输入问题:', userQuestion)
       
       // 调用意图识别函数
       const intent = await detectWritingIntent(userQuestion, modelId)
+      
+      // 打印意图识别结果
+      console.log('=== 意图识别结果 ===')
+      console.log('识别到的意图:', intent)
+      console.log('意图说明:', intent === 'writing' ? '写作模式（从零创作）' : intent === 'polish' ? '润写模式（优化润色）' : '扩写模式（扩充内容）')
+      console.log('===================')
       
       // 如果有上传的文档，添加到知识片段中
       let documentContext = ''
       if (uploadedDocumentContent.value) {
         documentContext = `\n\n上传文档内容（${uploadedDocumentName.value}）：
 ${uploadedDocumentContent.value}`
+        console.log('检测到上传文档:', uploadedDocumentName.value)
       }
       
       // 根据识别的意图获取对应的提示词
@@ -2258,12 +2269,51 @@ const formatTime = (timestamp?: Date) => {
   }).format(timestamp)
 }
 
-// 格式化消息内容（支持简单的换行和段落）
+// 配置 marked 选项
+marked.setOptions({
+  breaks: true, // 支持 GFM 换行
+  gfm: true // 启用 GitHub Flavored Markdown
+})
+
+// 配置 marked 的渲染器以支持代码高亮
+const renderer = new marked.Renderer()
+const originalCodeRenderer = renderer.code.bind(renderer)
+renderer.code = function(code: string, language: string | undefined, isEscaped: boolean) {
+  if (language && hljs.getLanguage(language)) {
+    try {
+      const highlighted = hljs.highlight(code, { language }).value
+      return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`
+    } catch (err) {
+      console.error('代码高亮失败:', err)
+    }
+  }
+  // 自动检测语言
+  try {
+    const highlighted = hljs.highlightAuto(code).value
+    return `<pre><code class="hljs">${highlighted}</code></pre>`
+  } catch (err) {
+    return originalCodeRenderer(code, language, isEscaped)
+  }
+}
+
+marked.use({ renderer })
+
+// 格式化消息内容（支持完整的 Markdown 渲染）
 const formatMessageContent = (content: string) => {
-  return content
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+  if (!content) return ''
+  
+  try {
+    // 使用 marked 解析 Markdown
+    const html = marked.parse(content) as string
+    return html
+  } catch (error) {
+    console.error('Markdown 解析失败:', error)
+    // 降级处理：简单的格式化
+    return content
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+  }
 }
 
 // AI写作功能
@@ -2378,6 +2428,10 @@ const removeUploadedDocument = () => {
 // AI写作意图识别函数
 const detectWritingIntent = async (userInput: string, modelId: string): Promise<'writing' | 'polish' | 'expand'> => {
   try {
+    console.log('--- 开始意图识别 ---')
+    console.log('输入文本长度:', userInput.length, '字')
+    console.log('使用模型ID:', modelId)
+    
     const intentPrompt = `你是一个意图识别助手。请判断用户的输入属于以下哪一种意图：
 1. 写作（writing）：用户提供主题或大纲，需要从零开始创作一篇文章
 2. 润写（polish）：用户提供了已有的文章内容，需要优化语言、修正错误、提升表达质量
@@ -2397,28 +2451,48 @@ ${userInput}
       { role: 'user', content: intentPrompt }
     ]
 
+    console.log('发送意图识别请求到AI模型...')
+    
     // 调用模型进行意图识别
     const response = await postModelChat(modelId, { messages })
     
+    console.log('收到AI模型响应:', response)
+    
     if (response && response.data && response.data.content) {
-      const intent = response.data.content.trim().toLowerCase()
+      const rawIntent = response.data.content.trim()
+      const intent = rawIntent.toLowerCase()
+      
+      console.log('AI返回的原始意图:', rawIntent)
+      console.log('处理后的意图文本:', intent)
       
       // 解析意图结果
+      let finalIntent: 'writing' | 'polish' | 'expand'
       if (intent.includes('polish')) {
-        return 'polish'
+        finalIntent = 'polish'
+        console.log('解析结果: 润写模式 (polish)')
       } else if (intent.includes('expand')) {
-        return 'expand'
+        finalIntent = 'expand'
+        console.log('解析结果: 扩写模式 (expand)')
       } else {
-        return 'writing'
+        finalIntent = 'writing'
+        console.log('解析结果: 写作模式 (writing)')
       }
+      
+      console.log('--- 意图识别完成 ---')
+      return finalIntent
     }
     
     // 默认返回写作意图
+    console.log('AI模型未返回有效内容，使用默认意图: writing')
+    console.log('--- 意图识别完成 ---')
     return 'writing'
   } catch (error) {
     console.error('意图识别失败，使用默认意图:', error)
     // 发生错误时，根据文本长度做简单判断
-    return userInput.length > 100 ? 'polish' : 'writing'
+    const fallbackIntent = userInput.length > 100 ? 'polish' : 'writing'
+    console.log('基于文本长度判断，使用意图:', fallbackIntent)
+    console.log('--- 意图识别完成（异常处理）---')
+    return fallbackIntent
   }
 }
 
@@ -3407,7 +3481,8 @@ onUnmounted(() => {
   .chat-messages {
     flex: 1;
     padding: 20px;
-    padding-bottom: 20px; /* 调整底部内边距 */
+    padding-bottom: 50px; /* 增加底部内边距，在输出结果和输入框之间添加间隔 */
+    margin-bottom: 30px; /* 在输出框和输入框之间添加额外间距 */
     overflow-y: auto;
     background: #fafbfc;
     min-height: 0;
@@ -3491,14 +3566,166 @@ onUnmounted(() => {
       .message-text {
         line-height: 1.6;
         word-wrap: break-word;
+        overflow-wrap: break-word;
+
+        // Markdown 渲染样式
+        :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+          margin: 16px 0 8px 0;
+          font-weight: 600;
+          line-height: 1.4;
+          
+          &:first-child {
+            margin-top: 0;
+          }
+        }
+
+        :deep(h1) {
+          font-size: 1.8em;
+          border-bottom: 2px solid #e9ecef;
+          padding-bottom: 8px;
+        }
+
+        :deep(h2) {
+          font-size: 1.5em;
+          border-bottom: 1px solid #e9ecef;
+          padding-bottom: 6px;
+        }
+
+        :deep(h3) {
+          font-size: 1.3em;
+        }
+
+        :deep(h4) {
+          font-size: 1.1em;
+        }
+
+        :deep(p) {
+          margin: 8px 0;
+          
+          &:first-child {
+            margin-top: 0;
+          }
+          
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
 
         :deep(strong) {
           font-weight: 600;
+          color: inherit;
         }
 
         :deep(em) {
           font-style: italic;
+        }
+
+        :deep(ul), :deep(ol) {
+          margin: 8px 0;
+          padding-left: 24px;
+          
+          li {
+            margin: 4px 0;
+            line-height: 1.6;
+          }
+        }
+
+        :deep(ul) {
+          list-style-type: disc;
+          
+          ul {
+            list-style-type: circle;
+            
+            ul {
+              list-style-type: square;
+            }
+          }
+        }
+
+        :deep(ol) {
+          list-style-type: decimal;
+        }
+
+        :deep(blockquote) {
+          margin: 12px 0;
+          padding: 8px 16px;
+          border-left: 4px solid #3370ff;
+          background: #f8fafc;
+          color: #606266;
+          
+          p {
+            margin: 4px 0;
+          }
+        }
+
+        :deep(code) {
+          padding: 2px 6px;
+          background: #f5f7fa;
+          border-radius: 3px;
+          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+          font-size: 0.9em;
+          color: #e03e2d;
+        }
+
+        :deep(pre) {
+          margin: 12px 0;
+          padding: 12px;
+          background: #f6f8fa;
+          border-radius: 6px;
+          overflow-x: auto;
+          border: 1px solid #e9ecef;
+          
+          code {
+            padding: 0;
+            background: transparent;
+            border-radius: 0;
+            color: inherit;
+            font-size: 0.9em;
+            line-height: 1.5;
+          }
+        }
+
+        :deep(table) {
+          margin: 12px 0;
+          border-collapse: collapse;
+          width: 100%;
+          
+          th, td {
+            border: 1px solid #e9ecef;
+            padding: 8px 12px;
+            text-align: left;
+          }
+          
+          th {
+            background: #f8fafc;
+            font-weight: 600;
+          }
+          
+          tr:hover {
+            background: #fafbfc;
+          }
+        }
+
+        :deep(hr) {
+          margin: 16px 0;
+          border: none;
+          border-top: 1px solid #e9ecef;
+        }
+
+        :deep(a) {
           color: #3370ff;
+          text-decoration: none;
+          
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+
+        :deep(img) {
+          max-width: 100%;
+          height: auto;
+          border-radius: 4px;
+          margin: 8px 0;
         }
       }
 
@@ -3740,7 +3967,8 @@ onUnmounted(() => {
       }
     }
 
-    .input-container {
+    .input-container {      
+      
       .input-wrapper {
         background: #ffffff;
         border: 1px solid var(--el-border-color-light);
