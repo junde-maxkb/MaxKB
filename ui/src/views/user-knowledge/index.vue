@@ -321,7 +321,11 @@
                 v-for="(message, index) in chatMessages"
                 :key="index"
                 class="message"
-                :class="{ 'user-message': message.role === 'user', 'ai-message': message.role === 'assistant' }"
+                :class="{ 
+                  'user-message': message.role === 'user', 
+                  'ai-message': message.role === 'assistant',
+                  'system-message': message.role === 'system'
+                }"
               >
                 <div class="message-content">
                   <div class="message-text" v-html="formatMessageContent(message.content)"></div>
@@ -659,18 +663,6 @@
                   </el-icon>
                   <span class="ai-text">AI写作</span>
                 </div>
-                <div class="ai-button" :class="{ 'active': isAIPolishMode }" @click="handleAIPolish">
-                  <el-icon class="ai-icon">
-                    <MagicStick />
-                  </el-icon>
-                  <span class="ai-text">AI润写</span>
-                </div>
-                <div class="ai-button" :class="{ 'active': isAIExpandMode }" @click="handleAIExpand">
-                  <el-icon class="ai-icon">
-                    <DocumentCopy />
-                  </el-icon>
-                  <span class="ai-text">AI扩写</span>
-                </div>
               </div>
             </div>
           </div>
@@ -827,7 +819,7 @@ import {
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
-import modelApi, { postModelChatStream } from '@/api/model'
+import modelApi, { postModelChatStream, postModelChat } from '@/api/model'
 import applicationApi from '@/api/application'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
@@ -901,12 +893,6 @@ const currentHitParagraphContent = ref('')
 
 // AI写作模式状态
 const isAIWritingMode = ref(false)
-
-// AI润写模式状态
-const isAIPolishMode = ref(false)
-
-// AI扩写模式状态
-const isAIExpandMode = ref(false)
 
 // AI写作模式文档上传相关状态
 const uploadedDocumentContent = ref('')
@@ -2109,7 +2095,12 @@ const sendMessage = async () => {
     // 根据是否为AI写作模式构建不同的系统提示
     let systemPrompt = ''
     if (isAIWritingMode.value) {
-      // AI写作模式的系统提示
+      // AI写作模式：先进行意图识别
+      console.log('AI写作模式：开始意图识别...')
+      
+      // 调用意图识别函数
+      const intent = await detectWritingIntent(userQuestion, modelId)
+      
       // 如果有上传的文档，添加到知识片段中
       let documentContext = ''
       if (uploadedDocumentContent.value) {
@@ -2117,52 +2108,8 @@ const sendMessage = async () => {
 ${uploadedDocumentContent.value}`
       }
       
-      systemPrompt = `#AI 写作助手
-写作风格：学术研究型
-语气：正式、客观
-目标读者：教育研究人员与政策制定者
-篇幅：约1500~2000字
-逻辑层级：三层（一级标题+二级标题）
-
-角色设定：
-你是一名擅长教育研究与学术写作的智能写作助手，熟悉教育部政策文件与教育学研究语言风格。
-你的任务是基于提供的主题与知识片段，撰写一篇学术风格、逻辑严谨、结构完整的中文文章。
-
-【写作要求】
-写作风格
-学术研究型、政策导向型语体；
-用语正式、逻辑严谨、表达客观；
-避免口语化、宣传化或AI口吻；
-善用"从……来看""综合来看""可见""由此可见""具体包括"等学术连接词。
-
-内容结构
-通常包括以下逻辑层次（可根据主题灵活调整）：
-导语/引言：提出研究背景与重要性；
-一、概念界定/发展脉络：回顾核心概念的起源与演变；
-二、核心内涵/理论阐释：界定概念的核心定义与逻辑结构；
-三、构成维度/实践路径：展开层次分析；
-
-结语/总结：概括核心观点、指出实践或研究意义。
-语言规范
-使用标准书面语，不使用第一人称"我"或"我们"；
-段落开头可使用逻辑衔接语，如"从……来看""总体而言""在……的背景下"；
-保持句式多样性，避免重复句式；
-确保全文逻辑连贯、语义完整。
-知识利用原则
-充分融合输入的知识片段，做到内容相关、表达原创；
-若片段观点有差异，进行整合或中性表述；
-禁止添加未在知识片段中出现的事实性信息。
-
-输出格式
-输出完整文章，标题居中；
-使用 "一、二、三、（一）（二）（三）" 等规范结构标识；
-
-不包含过程性说明或AI口吻提示。
-User:
-主题：${userQuestion}
-
-知识片段：
-${context}${documentContext}${contextNote}`
+      // 根据识别的意图获取对应的提示词
+      systemPrompt = getPromptByIntent(intent, userQuestion, context, documentContext, contextNote)
     } else {
       // 普通对话模式的系统提示
       systemPrompt = hasEmbeddingError || hasConnectionError
@@ -2327,10 +2274,7 @@ const handleAIWriting = () => {
   currentMessage.value = ''
   
   if (isAIWritingMode.value) {
-    // 开启AI写作模式时，关闭其他AI模式
-    isAIPolishMode.value = false
-    isAIExpandMode.value = false
-    ElMessage.success('已开启AI写作模式')
+    ElMessage.success('已开启AI写作模式（支持写作、润写、扩写）')
   } else {
     ElMessage.info('已关闭AI写作模式')
     // 关闭AI写作模式时清空已上传的文档
@@ -2431,44 +2375,185 @@ const removeUploadedDocument = () => {
   ElMessage.info('已移除上传的文档')
 }
 
-// AI润写功能
-const handleAIPolish = () => {
-  isAIPolishMode.value = !isAIPolishMode.value
-  
-  // 切换到AI润写模式时，关闭其他模式
-  if (isAIPolishMode.value) {
-    isAIWritingMode.value = false
-    isAIExpandMode.value = false
-    uploadedDocumentContent.value = ''
-    uploadedDocumentName.value = ''
-    currentMessage.value = ''
-    ElMessage.success('已开启AI润写模式')
-  } else {
-    currentMessage.value = ''
-    ElMessage.info('已关闭AI润写模式')
+// AI写作意图识别函数
+const detectWritingIntent = async (userInput: string, modelId: string): Promise<'writing' | 'polish' | 'expand'> => {
+  try {
+    const intentPrompt = `你是一个意图识别助手。请判断用户的输入属于以下哪一种意图：
+1. 写作（writing）：用户提供主题或大纲，需要从零开始创作一篇文章
+2. 润写（polish）：用户提供了已有的文章内容，需要优化语言、修正错误、提升表达质量
+3. 扩写（expand）：用户提供了简短的内容或要点，需要在原有基础上扩充内容、增加细节
+
+判断规则：
+- 如果用户输入的是主题、标题、大纲、问题或简短描述（通常少于100字），判定为"写作"
+- 如果用户输入包含完整的文章段落或较长的文本内容（通常超过100字），且要求优化、润色、改进，判定为"润写"
+- 如果用户输入包含要点、简短内容，且明确要求扩充、展开、详细说明，判定为"扩写"
+
+用户输入：
+${userInput}
+
+请只返回一个词：writing、polish 或 expand`
+
+    const messages = [
+      { role: 'user', content: intentPrompt }
+    ]
+
+    // 调用模型进行意图识别
+    const response = await postModelChat(modelId, { messages })
+    
+    if (response && response.data && response.data.content) {
+      const intent = response.data.content.trim().toLowerCase()
+      
+      // 解析意图结果
+      if (intent.includes('polish')) {
+        return 'polish'
+      } else if (intent.includes('expand')) {
+        return 'expand'
+      } else {
+        return 'writing'
+      }
+    }
+    
+    // 默认返回写作意图
+    return 'writing'
+  } catch (error) {
+    console.error('意图识别失败，使用默认意图:', error)
+    // 发生错误时，根据文本长度做简单判断
+    return userInput.length > 100 ? 'polish' : 'writing'
   }
-  
-  // TODO: 实现AI润写功能
 }
 
-// AI扩写功能
-const handleAIExpand = () => {
-  isAIExpandMode.value = !isAIExpandMode.value
-  
-  // 切换到AI扩写模式时，关闭其他模式
-  if (isAIExpandMode.value) {
-    isAIWritingMode.value = false
-    isAIPolishMode.value = false
-    uploadedDocumentContent.value = ''
-    uploadedDocumentName.value = ''
-    currentMessage.value = ''
-    ElMessage.success('已开启AI扩写模式')
+// 获取不同意图的提示词模板
+const getPromptByIntent = (intent: 'writing' | 'polish' | 'expand', userQuestion: string, context: string, documentContext: string, contextNote: string) => {
+  if (intent === 'writing') {
+    // 写作模式的提示词
+    return `#AI 写作助手
+写作风格：学术研究型
+语气：正式、客观
+目标读者：教育研究人员与政策制定者
+篇幅：约1500~2000字
+逻辑层级：三层（一级标题+二级标题）
+
+角色设定：
+你是一名擅长教育研究与学术写作的智能写作助手，熟悉教育部政策文件与教育学研究语言风格。
+你的任务是基于提供的主题与知识片段，撰写一篇学术风格、逻辑严谨、结构完整的中文文章。
+
+【写作要求】
+写作风格
+学术研究型、政策导向型语体；
+用语正式、逻辑严谨、表达客观；
+避免口语化、宣传化或AI口吻；
+善用"从……来看""综合来看""可见""由此可见""具体包括"等学术连接词。
+
+内容结构
+通常包括以下逻辑层次（可根据主题灵活调整）：
+导语/引言：提出研究背景与重要性；
+一、概念界定/发展脉络：回顾核心概念的起源与演变；
+二、核心内涵/理论阐释：界定概念的核心定义与逻辑结构；
+三、构成维度/实践路径：展开层次分析；
+
+结语/总结：概括核心观点、指出实践或研究意义。
+语言规范
+使用标准书面语，不使用第一人称"我"或"我们"；
+段落开头可使用逻辑衔接语，如"从……来看""总体而言""在……的背景下"；
+保持句式多样性，避免重复句式；
+确保全文逻辑连贯、语义完整。
+知识利用原则
+充分融合输入的知识片段，做到内容相关、表达原创；
+若片段观点有差异，进行整合或中性表述；
+禁止添加未在知识片段中出现的事实性信息。
+
+输出格式
+输出完整文章，标题居中；
+使用 "一、二、三、（一）（二）（三）" 等规范结构标识；
+
+不包含过程性说明或AI口吻提示。
+User:
+主题：${userQuestion}
+
+知识片段：
+${context}${documentContext}${contextNote}`
+  } else if (intent === 'polish') {
+    // 润写模式的提示词
+    return `#AI 润写助手
+写作风格：学术研究型
+语气：正式、客观
+目标读者：教育研究人员与政策制定者
+
+角色设定：
+你是一名专业的文本润色助手，擅长优化学术文章的语言表达，提升文章的专业性和可读性。
+
+【润写要求】
+1. 语言优化
+   - 修正语法错误、错别字、标点符号使用不当等问题
+   - 优化句式结构，使表达更加流畅、准确
+   - 替换口语化表达，使用更加正式、学术化的用语
+   - 消除冗余表达，提高文字的简洁性
+
+2. 逻辑优化
+   - 调整段落结构，使逻辑更加清晰
+   - 添加必要的过渡语句，增强段落间的连贯性
+   - 确保论述的严谨性和完整性
+
+3. 学术规范
+   - 确保符合学术写作规范
+   - 使用标准书面语，避免第一人称"我"或"我们"
+   - 善用学术连接词，如"从……来看""综合来看""可见""由此可见"等
+
+4. 保持原意
+   - 在优化的同时，必须保持原文的核心观点和主要内容不变
+   - 不添加原文中没有的事实性信息
+   - 保持原文的整体结构和篇幅
+
+知识库参考：
+${context}${documentContext}${contextNote}
+
+User:
+请润写以下内容：
+${userQuestion}`
   } else {
-    currentMessage.value = ''
-    ElMessage.info('已关闭AI扩写模式')
+    // 扩写模式的提示词
+    return `#AI 扩写助手
+写作风格：学术研究型
+语气：正式、客观
+目标读者：教育研究人员与政策制定者
+
+角色设定：
+你是一名专业的文本扩写助手，擅长在保持原有内容的基础上，充实细节、增加论述深度。
+
+【扩写要求】
+1. 内容扩充
+   - 在原有内容的基础上，增加相关的细节描述
+   - 扩充论述的深度和广度，使内容更加充实
+   - 添加必要的例证、数据或理论支撑（需从知识片段中获取）
+   - 适当增加背景介绍、原因分析或影响阐述
+
+2. 结构完善
+   - 在保持原有结构的基础上，完善各部分的内容
+   - 确保扩充后的内容逻辑清晰、层次分明
+   - 使用适当的小标题组织内容（如需要）
+
+3. 学术规范
+   - 保持学术研究型的语言风格
+   - 用语正式、逻辑严谨、表达客观
+   - 善用学术连接词增强文章的连贯性
+   - 使用标准书面语，避免第一人称"我"或"我们"
+
+4. 知识融合
+   - 充分利用提供的知识片段，为扩写提供素材
+   - 确保新增内容与原文风格一致
+   - 不添加知识片段中没有的事实性信息
+
+5. 保持核心
+   - 保持原文的核心观点和主要论述方向
+   - 扩充篇幅的同时，避免偏离主题
+
+知识库参考：
+${context}${documentContext}${contextNote}
+
+User:
+请扩写以下内容：
+${userQuestion}`
   }
-  
-  // TODO: 实现AI扩写功能
 }
 
 const createKnowledgeBase = async () => {
@@ -3380,6 +3465,26 @@ onUnmounted(() => {
         &.streaming .message-content {
           background: #f8fafc;
           border-color: #3370ff;
+        }
+      }
+
+      &.system-message {
+        justify-content: center;
+        
+        .message-content {
+          max-width: 80%;
+          background: #f0f9ff;
+          color: #3370ff;
+          padding: 10px 16px;
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(51, 112, 255, 0.15);
+          border: 1px solid #bfdbfe;
+          text-align: center;
+          font-size: 13px;
+        }
+        
+        .message-time {
+          display: none;
         }
       }
 
