@@ -562,28 +562,23 @@
                       <span class="ai-label-text">AI 写作</span>
                     </div>
 
-                    <!-- AI翻译模式标签和目标语言选择 -->
-                    <div v-if="isAITranslateMode" class="ai-translate-label">
-                      <el-icon class="ai-label-icon">
-                        <Connection />
-                      </el-icon>
-                      <span class="ai-label-text">AI 翻译</span>
-                      <el-select 
-                        v-model="targetLanguage" 
-                        placeholder="选择目标语言" 
-                        size="small"
-                        class="language-select"
-                      >
-                        <el-option label="中文" value="中文" />
-                        <el-option label="英文" value="英文" />
-                        <el-option label="日文" value="日文" />
-                        <el-option label="韩文" value="韩文" />
-                        <el-option label="法文" value="法文" />
-                        <el-option label="德文" value="德文" />
-                        <el-option label="西班牙文" value="西班牙文" />
-                        <el-option label="俄文" value="俄文" />
-                      </el-select>
-                    </div>
+                    <!-- AI翻译模式：目标语言选择 -->
+                    <el-select 
+                      v-if="isAITranslateMode"
+                      v-model="targetLanguage" 
+                      placeholder="选择目标语言" 
+                      size="small"
+                      class="language-select-simple"
+                    >
+                      <el-option label="中文" value="中文" />
+                      <el-option label="英文" value="英文" />
+                      <el-option label="日文" value="日文" />
+                      <el-option label="韩文" value="韩文" />
+                      <el-option label="法文" value="法文" />
+                      <el-option label="德文" value="德文" />
+                      <el-option label="西班牙文" value="西班牙文" />
+                      <el-option label="俄文" value="俄文" />
+                    </el-select>
 
                     <el-input
                       v-model="currentMessage"
@@ -2205,12 +2200,13 @@ ${context}
 请基于上述内容回答用户问题，保持专业、准确和有帮助的态度。${contextNote}`
     }
 
+    // AI翻译模式不使用对话历史上下文，每次都是独立的翻译任务
     const messages = [
       {
         role: 'system',
         content: systemPrompt
       },
-      ...chatMessages.value.slice(-10), // 保留最近10轮对话作为上下文
+      ...(isAITranslateMode.value ? [] : chatMessages.value.slice(-10)), // AI翻译模式不保留对话历史
       { role: 'user', content: userQuestion }
     ]
 
@@ -4590,29 +4586,10 @@ onUnmounted(() => {
 }
 
 /* AI翻译标签样式 */
-.ai-translate-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 6px 6px 0 0;
-  margin: -10px -10px 10px -10px;
-  color: white;
-
-  .ai-label-icon {
-    font-size: 16px;
-  }
-
-  .ai-label-text {
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .language-select {
-    margin-left: auto;
-    min-width: 120px;
-  }
+/* AI翻译语言选择器（简洁版） */
+.language-select-simple {
+  margin-bottom: 10px;
+  width: 160px;
 }
 
 /* 翻译结果样式 */
