@@ -2108,19 +2108,38 @@ const sendMessage = async () => {
       // 打印意图识别结果
       console.log('=== 意图识别结果 ===')
       console.log('识别到的意图:', intent)
-      console.log('意图说明:', intent === 'writing' ? '写作模式（从零创作）' : intent === 'polish' ? '润写模式（优化润色）' : '扩写模式（扩充内容）')
+      const intentDescMap = {
+        'writing': '写作模式（从零创作）',
+        'polish': '润写模式（优化润色）',
+        'expand': '扩写模式（扩充内容）',
+        'chat': '对话模式（普通交流）'
+      }
+      console.log('意图说明:', intentDescMap[intent] || intent)
       console.log('===================')
       
-      // 如果有上传的文档，添加到知识片段中
-      let documentContext = ''
-      if (uploadedDocumentContent.value) {
-        documentContext = `\n\n上传文档内容（${uploadedDocumentName.value}）：
+      // 如果识别为对话模式，使用普通对话的提示词
+      if (intent === 'chat') {
+        console.log('检测到普通对话意图，切换为对话模式')
+        systemPrompt = hasEmbeddingError || hasConnectionError
+          ? `你是一个专业友好的AI助手。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。`
+          : `你是一个专业友好的AI助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
+
+检索到的相关内容：
+${context}
+
+请基于上述内容回答用户问题，保持专业、准确和有帮助的态度。${contextNote}`
+      } else {
+        // 如果有上传的文档，添加到知识片段中
+        let documentContext = ''
+        if (uploadedDocumentContent.value) {
+          documentContext = `\n\n上传文档内容（${uploadedDocumentName.value}）：
 ${uploadedDocumentContent.value}`
-        console.log('检测到上传文档:', uploadedDocumentName.value)
+          console.log('检测到上传文档:', uploadedDocumentName.value)
+        }
+        
+        // 根据识别的意图获取对应的提示词（writing/polish/expand）
+        systemPrompt = getPromptByIntent(intent as 'writing' | 'polish' | 'expand', userQuestion, context, documentContext, contextNote)
       }
-      
-      // 根据识别的意图获取对应的提示词
-      systemPrompt = getPromptByIntent(intent, userQuestion, context, documentContext, contextNote)
     } else {
       // 普通对话模式的系统提示
       systemPrompt = hasEmbeddingError || hasConnectionError
@@ -2426,7 +2445,7 @@ const removeUploadedDocument = () => {
 }
 
 // AI写作意图识别函数
-const detectWritingIntent = async (userInput: string, modelId: string): Promise<'writing' | 'polish' | 'expand'> => {
+const detectWritingIntent = async (userInput: string, modelId: string): Promise<'writing' | 'polish' | 'expand' | 'chat'> => {
   try {
     console.log('--- 开始意图识别 ---')
     console.log('输入文本长度:', userInput.length, '字')
@@ -2436,16 +2455,18 @@ const detectWritingIntent = async (userInput: string, modelId: string): Promise<
 1. 写作（writing）：用户提供主题或大纲，需要从零开始创作一篇文章
 2. 润写（polish）：用户提供了已有的文章内容，需要优化语言、修正错误、提升表达质量
 3. 扩写（expand）：用户提供了简短的内容或要点，需要在原有基础上扩充内容、增加细节
+4. 对话（chat）：用户只是打招呼、闲聊或者问简单的问题，不需要进行写作
 
 判断规则：
-- 如果用户输入的是主题、标题、大纲、问题或简短描述（通常少于100字），判定为"写作"
+- 如果用户输入的是打招呼（如"你好"、"hello"、"hi"）、闲聊或简单问题，判定为"对话"
+- 如果用户输入的是主题、标题、大纲、具体的写作要求或描述，判定为"写作"
 - 如果用户输入包含完整的文章段落或较长的文本内容（通常超过100字），且要求优化、润色、改进，判定为"润写"
 - 如果用户输入包含要点、简短内容，且明确要求扩充、展开、详细说明，判定为"扩写"
 
 用户输入：
 ${userInput}
 
-请只返回一个词：writing、polish 或 expand`
+请只返回一个词：writing、polish、expand 或 chat`
 
     const messages = [
       { role: 'user', content: intentPrompt }
@@ -2466,8 +2487,11 @@ ${userInput}
       console.log('处理后的意图文本:', intent)
       
       // 解析意图结果
-      let finalIntent: 'writing' | 'polish' | 'expand'
-      if (intent.includes('polish')) {
+      let finalIntent: 'writing' | 'polish' | 'expand' | 'chat'
+      if (intent.includes('chat')) {
+        finalIntent = 'chat'
+        console.log('解析结果: 对话模式 (chat)')
+      } else if (intent.includes('polish')) {
         finalIntent = 'polish'
         console.log('解析结果: 润写模式 (polish)')
       } else if (intent.includes('expand')) {
