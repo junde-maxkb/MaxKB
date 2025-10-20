@@ -659,11 +659,17 @@
                   </el-icon>
                   <span class="ai-text">AI写作</span>
                 </div>
-                <div class="ai-button" @click="handleAIPolish">
+                <div class="ai-button" :class="{ 'active': isAIPolishMode }" @click="handleAIPolish">
                   <el-icon class="ai-icon">
                     <MagicStick />
                   </el-icon>
                   <span class="ai-text">AI润写</span>
+                </div>
+                <div class="ai-button" :class="{ 'active': isAIExpandMode }" @click="handleAIExpand">
+                  <el-icon class="ai-icon">
+                    <DocumentCopy />
+                  </el-icon>
+                  <span class="ai-text">AI扩写</span>
                 </div>
               </div>
             </div>
@@ -895,6 +901,12 @@ const currentHitParagraphContent = ref('')
 
 // AI写作模式状态
 const isAIWritingMode = ref(false)
+
+// AI润写模式状态
+const isAIPolishMode = ref(false)
+
+// AI扩写模式状态
+const isAIExpandMode = ref(false)
 
 // AI写作模式文档上传相关状态
 const uploadedDocumentContent = ref('')
@@ -2315,6 +2327,9 @@ const handleAIWriting = () => {
   currentMessage.value = ''
   
   if (isAIWritingMode.value) {
+    // 开启AI写作模式时，关闭其他AI模式
+    isAIPolishMode.value = false
+    isAIExpandMode.value = false
     ElMessage.success('已开启AI写作模式')
   } else {
     ElMessage.info('已关闭AI写作模式')
@@ -2418,8 +2433,42 @@ const removeUploadedDocument = () => {
 
 // AI润写功能
 const handleAIPolish = () => {
-  ElMessage.info('AI润写功能开发中，敬请期待！')
+  isAIPolishMode.value = !isAIPolishMode.value
+  
+  // 切换到AI润写模式时，关闭其他模式
+  if (isAIPolishMode.value) {
+    isAIWritingMode.value = false
+    isAIExpandMode.value = false
+    uploadedDocumentContent.value = ''
+    uploadedDocumentName.value = ''
+    currentMessage.value = ''
+    ElMessage.success('已开启AI润写模式')
+  } else {
+    currentMessage.value = ''
+    ElMessage.info('已关闭AI润写模式')
+  }
+  
   // TODO: 实现AI润写功能
+}
+
+// AI扩写功能
+const handleAIExpand = () => {
+  isAIExpandMode.value = !isAIExpandMode.value
+  
+  // 切换到AI扩写模式时，关闭其他模式
+  if (isAIExpandMode.value) {
+    isAIWritingMode.value = false
+    isAIPolishMode.value = false
+    uploadedDocumentContent.value = ''
+    uploadedDocumentName.value = ''
+    currentMessage.value = ''
+    ElMessage.success('已开启AI扩写模式')
+  } else {
+    currentMessage.value = ''
+    ElMessage.info('已关闭AI扩写模式')
+  }
+  
+  // TODO: 实现AI扩写功能
 }
 
 const createKnowledgeBase = async () => {
