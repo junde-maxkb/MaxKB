@@ -4318,50 +4318,63 @@ onUnmounted(() => {
     .ai-buttons-container {
       display: flex;
       justify-content: center;
-      gap: 12px;
+      gap: 16px;
       margin-top: 20px;
       padding: 0 20px;
 
       .ai-button {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 10px 16px;
+        gap: 8px;
+        padding: 12px 20px;
         background: #ffffff;
         border: 1px solid #e5e7eb;
-        border-radius: 20px;
+        border-radius: 24px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         user-select: none;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        position: relative;
+        box-shadow: 
+          0 2px 8px rgba(0, 0, 0, 0.06),
+          0 1px 3px rgba(0, 0, 0, 0.04),
+          inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
         &:hover {
           background: #f9fafb;
           border-color: #d1d5db;
-          transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+          transform: translateY(-2px);
+          box-shadow: 
+            0 6px 16px rgba(0, 0, 0, 0.1),
+            0 3px 8px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         &:active {
           transform: translateY(0);
           background: #f3f4f6;
+          box-shadow: 
+            0 2px 4px rgba(0, 0, 0, 0.08),
+            inset 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
         .ai-icon {
-          font-size: 14px;
+          font-size: 16px;
           color: #6b7280;
-          transition: color 0.2s ease;
+          transition: all 0.3s ease;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
         }
 
         .ai-text {
-          font-size: 13px;
-          font-weight: 500;
+          font-size: 14px;
+          font-weight: 600;
           color: #374151;
           letter-spacing: -0.01em;
         }
 
         &:hover .ai-icon {
           color: #4b5563;
+          transform: scale(1.1);
         }
 
         &:hover .ai-text {
@@ -4369,22 +4382,29 @@ onUnmounted(() => {
         }
 
         &.active {
-          background: linear-gradient(135deg, #b3d8ff 0%, #c7e2ff 100%);
-          border-color: #b3d8ff;
-          color: #2c5282;
+          background: #e3f2fd;
+          border-color: #90caf9;
+          color: #1565c0;
+          transform: translateY(-1px);
 
           .ai-icon {
-            color: #2c5282;
+            color: #1565c0;
           }
 
           .ai-text {
-            color: #2c5282;
+            color: #1565c0;
+            font-weight: 700;
           }
 
           &:hover {
-            background: linear-gradient(135deg, #a3ceff 0%, #b7d6ff 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+            background: #d1e9fc;
+            border-color: #64b5f6;
+            transform: translateY(-2px);
+          }
+
+          &:active {
+            transform: translateY(0);
+            background: #bbdefb;
           }
         }
       }
