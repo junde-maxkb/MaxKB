@@ -939,7 +939,7 @@ const isUploadingDocument = ref(false)
 
 // AI翻译模式相关状态
 const isAITranslateMode = ref(false)
-const targetLanguage = ref('中文')
+const targetLanguage = ref('英文')
 const documentUploadRef = ref<any>(null)
 
 // 重命名相关状态
@@ -4621,8 +4621,8 @@ onUnmounted(() => {
 /* AI翻译标签样式 */
 /* AI翻译语言选择器（简洁版） */
 .language-select-simple {
-  margin-bottom: 10px;
   width: 160px;
+  margin-right: 8px;
 }
 
 /* 翻译结果样式 */
