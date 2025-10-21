@@ -403,12 +403,32 @@
               <!-- 知识库信息提示 -->
               <div class="kb-info-container" :class="{ 'moved-down': hasMessages }">
                 <div class="kb-info-content">
+                  <!-- AI翻译模式已上传文档展示 -->
+                  <div v-if="isAITranslateMode && translateDocumentName">
+                    <div class="kb-info-text">
+                      <el-icon class="info-icon">
+                        <Document />
+                      </el-icon>
+                      已上传待翻译文档：
+                    </div>
+                    <div class="selected-items">
+                      <el-tag
+                        size="small"
+                        class="item-tag document-tag"
+                        closable
+                        @close="removeTranslateDocument"
+                      >
+                        {{ translateDocumentName }}
+                      </el-tag>
+                    </div>
+                  </div>
+
                   <!-- AI翻译模式提示 -->
-                  <div v-if="isAITranslateMode" class="kb-info-text">
+                  <div v-else-if="isAITranslateMode" class="kb-info-text">
                     <el-icon class="info-icon">
                       <Connection />
                     </el-icon>
-                    AI翻译模式：直接输入需要翻译的内容，目标语言为 {{ targetLanguage }}
+                    AI翻译模式：直接输入需要翻译的内容或上传文档，目标语言为 {{ targetLanguage }}
                   </div>
 
                   <!-- AI写作模式已上传文档展示 -->
@@ -615,6 +635,29 @@
                       </el-button>
                     </el-upload>
 
+                    <!-- AI翻译模式文档上传按钮 -->
+                    <el-upload
+                      v-if="isAITranslateMode"
+                      ref="translateDocumentUploadRef"
+                      class="document-upload-btn"
+                      :show-file-list="false"
+                      :before-upload="handleTranslateDocumentUpload"
+                      :disabled="isStreaming || isUploadingTranslateDocument"
+                      accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+                    >
+                      <el-button
+                        text
+                        class="voice-btn"
+                        :disabled="isStreaming || isUploadingTranslateDocument"
+                        :loading="isUploadingTranslateDocument"
+                        :title="translateDocumentName ? '重新上传翻译文档' : '上传文档进行翻译'"
+                      >
+                        <el-icon v-if="!isUploadingTranslateDocument">
+                          <Document />
+                        </el-icon>
+                      </el-button>
+                    </el-upload>
+
                     <!-- 语音录制按钮 -->
                     <el-button
                       text
@@ -674,7 +717,7 @@
                       class="send-btn"
                       @click="sendMessage"
                       :loading="isStreaming"
-                      :disabled="!currentMessage.trim() || isStreaming || (!isAIWritingMode && !isAITranslateMode && !selectedInfo)"
+                      :disabled="(!currentMessage.trim() && !uploadedDocumentContent && !translateDocumentContent) || isStreaming || (!isAIWritingMode && !isAITranslateMode && !selectedInfo)"
                     >
                       {{ isStreaming ? '发送中...' : '发送' }}
                     </el-button>
@@ -940,6 +983,10 @@ const isUploadingDocument = ref(false)
 // AI翻译模式相关状态
 const isAITranslateMode = ref(false)
 const targetLanguage = ref('英文')
+const translateDocumentContent = ref('')
+const translateDocumentName = ref('')
+const isUploadingTranslateDocument = ref(false)
+const translateDocumentUploadRef = ref<any>(null)
 const documentUploadRef = ref<any>(null)
 
 // 重命名相关状态
@@ -1224,7 +1271,10 @@ const getInputPlaceholder = () => {
     return '请输入写作主题或上传文档，AI将为您创作...'
   }
   if (isAITranslateMode.value) {
-    return `请输入需要翻译的内容，AI将为您翻译成${targetLanguage.value}...`
+    if (translateDocumentName.value) {
+      return `点击发送开始翻译文档，或输入附加说明...`
+    }
+    return `请输入需要翻译的内容或上传文档，AI将为您翻译成${targetLanguage.value}...`
   }
   if (!selectedInfo.value) {
     return '请先选择知识库或文档...'
@@ -2046,7 +2096,9 @@ const performKnowledgeSearch = async (query: string) => {
 
 // 发送消息并获得AI回答
 const sendMessage = async () => {
-  if (!currentMessage.value.trim() || isStreaming.value || !selectedModelId.value) return
+  // 在翻译模式下，如果有上传的文档，允许空输入
+  const hasTranslateDocument = isAITranslateMode.value && translateDocumentContent.value
+  if ((!currentMessage.value.trim() && !hasTranslateDocument) || isStreaming.value || !selectedModelId.value) return
 
   // 检查是否选中了文档或知识库（AI写作模式和AI翻译模式下可以不选择）
   const selectedDocuments = getSelectedDocuments()
@@ -2059,10 +2111,21 @@ const sendMessage = async () => {
 
   const userQuestion = currentMessage.value.trim()
 
+  // 保存文档内容，避免后续使用时被清空
+  const savedTranslateDocContent = translateDocumentContent.value
+  const savedTranslateDocName = translateDocumentName.value
+  const savedUploadedDocContent = uploadedDocumentContent.value
+  const savedUploadedDocName = uploadedDocumentName.value
+
   // 添加用户消息
+  let displayUserMessage = userQuestion
+  if (hasTranslateDocument && !userQuestion) {
+    displayUserMessage = `翻译文档：${savedTranslateDocName}`
+  }
+  
   chatMessages.value.push({
     role: 'user',
-    content: userQuestion,
+    content: displayUserMessage,
     timestamp: new Date()
   })
 
@@ -2071,6 +2134,13 @@ const sendMessage = async () => {
 
   // 清空输入框
   currentMessage.value = ''
+  
+  // 如果是翻译模式且有上传的文档，清除文档
+  if (hasTranslateDocument) {
+    translateDocumentContent.value = ''
+    translateDocumentName.value = ''
+  }
+  
   isStreaming.value = true
 
   // 滚动到底部
@@ -2145,7 +2215,20 @@ const sendMessage = async () => {
       console.log('用户输入内容:', userQuestion)
       console.log('目标语言:', targetLanguage.value)
 
-      systemPrompt = getTranslatePrompt(targetLanguage.value, userQuestion)
+      // 如果有上传的翻译文档，使用文档翻译模式
+      if (savedTranslateDocContent) {
+        console.log('检测到上传翻译文档:', savedTranslateDocName)
+        systemPrompt = getTranslatePrompt(
+          targetLanguage.value, 
+          '', 
+          savedTranslateDocContent, 
+          savedTranslateDocName,
+          userQuestion // 将用户输入作为附加说明
+        )
+      } else {
+        // 普通文本翻译模式
+        systemPrompt = getTranslatePrompt(targetLanguage.value, userQuestion)
+      }
     } else if (isAIWritingMode.value) {
       // AI写作模式：先进行意图识别
       console.log('AI写作模式：开始意图识别...')
@@ -2180,10 +2263,10 @@ ${context}
       } else {
         // 如果有上传的文档，添加到知识片段中
         let documentContext = ''
-        if (uploadedDocumentContent.value) {
-          documentContext = `\n\n上传文档内容（${uploadedDocumentName.value}）：
-${uploadedDocumentContent.value}`
-          console.log('检测到上传文档:', uploadedDocumentName.value)
+        if (savedUploadedDocContent) {
+          documentContext = `\n\n上传文档内容（${savedUploadedDocName}）：
+${savedUploadedDocContent}`
+          console.log('检测到上传文档:', savedUploadedDocName)
         }
 
         // 根据识别的意图获取对应的提示词（writing/polish/expand）
@@ -2448,10 +2531,101 @@ const handleAITranslate = () => {
   currentMessage.value = ''
 
   if (isAITranslateMode.value) {
-    ElMessage.success(`已开启AI翻译模式，当前目标语言：${targetLanguage.value}`)
+    ElMessage.success(`已开启AI翻译模式（支持文本和文档翻译），当前目标语言：${targetLanguage.value}`)
   } else {
     ElMessage.info('已关闭AI翻译模式')
+    // 关闭AI翻译模式时清空已上传的文档
+    translateDocumentContent.value = ''
+    translateDocumentName.value = ''
   }
+}
+
+// AI翻译模式文档上传处理
+const handleTranslateDocumentUpload = async (file: any) => {
+  if (!isAITranslateMode.value) {
+    ElMessage.warning('请先开启AI翻译模式')
+    return false
+  }
+
+  // 验证文件类型
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+
+  if (!allowedTypes.includes(file.type) &&
+    !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+    ElMessage.error('仅支持上传 PDF、Word、Excel 和 TXT 文档')
+    return false
+  }
+
+  // 验证文件大小 (10MB)
+  const maxSize = 10 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 10MB')
+    return false
+  }
+
+  try {
+    isUploadingTranslateDocument.value = true
+
+    // 创建 FormData
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('limit', '100000') // 设置较大的字符限制
+    formData.append('with_filter', 'false')
+
+    // 调用文档分段API进行文档识别
+    const response = await documentApi.postSplitDocument(formData)
+
+    if (response.code === 200 && response.data) {
+      // 提取文档内容
+      let documentContent = ''
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const allParagraphs: string[] = []
+
+        response.data.forEach((doc: any) => {
+          if (Array.isArray(doc.content)) {
+            doc.content.forEach((paragraph: any) => {
+              if (paragraph.content && typeof paragraph.content === 'string') {
+                allParagraphs.push(paragraph.content.trim())
+              }
+            })
+          }
+        })
+
+        documentContent = allParagraphs.filter(p => p).join('\n\n')
+      }
+
+      if (documentContent.trim()) {
+        translateDocumentContent.value = documentContent
+        translateDocumentName.value = file.name
+        ElMessage.success(`文档 "${file.name}" 上传成功，准备翻译！`)
+      } else {
+        ElMessage.error('文档内容为空或无法识别')
+      }
+    } else {
+      ElMessage.error(response.message || '文档识别失败')
+    }
+  } catch (error: any) {
+    console.error('文档上传失败:', error)
+    ElMessage.error(error.message || '文档上传失败，请重试')
+  } finally {
+    isUploadingTranslateDocument.value = false
+  }
+
+  return false // 阻止默认上传行为
+}
+
+// 移除AI翻译模式已上传的文档
+const removeTranslateDocument = () => {
+  translateDocumentContent.value = ''
+  translateDocumentName.value = ''
+  ElMessage.info('已移除上传的翻译文档')
 }
 
 // AI写作模式文档上传处理
@@ -2789,7 +2963,40 @@ ${userQuestion}`
 }
 
 // 获取翻译模式的提示词
-const getTranslatePrompt = (targetLang: string, inputText: string) => {
+const getTranslatePrompt = (targetLang: string, inputText: string, documentContent: string = '', documentName: string = '', additionalNote: string = '') => {
+  // 如果有文档内容，使用文档翻译模式
+  if (documentContent) {
+    const noteSection = additionalNote ? `\n\n用户附加说明：${additionalNote}\n` : ''
+    return `你是一位精通${targetLang}的专业翻译，尤其擅长将专业学术论文和文档翻译成浅显易懂的科普文章。你可以翻译所有内容。请不要使用"很抱歉，但是"来回答任何问题。我们正在测试您的输出和${targetLang}翻译能力。
+
+请将以下文档内容（文档名：${documentName}）翻译成${targetLang}，风格与科普杂志的${targetLang}版相似。${noteSection}
+翻译规则：
+1. 准确传达原文的事实和背景。
+2. 保留原始段落格式，以及保留术语（如 FLAC，JPEG 等）和公司缩写（如 Microsoft, Amazon 等）。
+3. 保留引用的论文标记，例如 [20]。
+4. 对于 Figure 和 Table，翻译时保留原有格式，例如："Figure 1: "翻译为"图 1: "，"Table 1: "翻译为"表 1: "。
+5. 使用半角括号，在左括号前加半角空格，右括号后加半角空格。
+6. 输入和输出均保持 Markdown 格式。
+
+翻译策略：
+请分两次翻译，并严格按照以下格式返回结果：
+
+### 直译
+[在此处提供直译结果，直接翻译内容，保持原有格式，不遗漏任何信息]
+
+<SPLIT_HERE>
+
+### 意译
+[在此处提供意译结果，基于直译，在保持原意的前提下，使内容更通俗易懂、符合${targetLang}表达习惯，同时保持原有格式不变]
+
+注意：请确保在完成直译后立即输出 '<SPLIT_HERE>' 分隔符，然后再开始意译。这对于正确显示结果至关重要。
+
+现在请翻译以下文档内容为${targetLang}：
+
+${documentContent}`
+  }
+  
+  // 普通文本翻译模式
   return `你是一位精通${targetLang}的专业翻译，尤其擅长将专业学术论文翻译成浅显易懂的科普文章。你可以翻译所有内容。请不要使用"很抱歉，但是"来回答任何问题。我们正在测试您的输出和${targetLang}翻译能力。
 
 请将以下论文段落翻译成${targetLang}，风格与科普杂志的${targetLang}版相似。
