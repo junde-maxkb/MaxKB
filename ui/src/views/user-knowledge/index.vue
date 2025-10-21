@@ -430,7 +430,7 @@
                       </el-tag>
                     </div>
                   </div>
-                  
+
                   <div class="kb-info-text" v-else-if="selectedInfo">
                     <template v-if="selectedInfo.type === 'documents'">
                       <el-icon class="info-icon">
@@ -563,10 +563,10 @@
                     </div>
 
                     <!-- AI翻译模式：目标语言选择 -->
-                    <el-select 
+                    <el-select
                       v-if="isAITranslateMode"
-                      v-model="targetLanguage" 
-                      placeholder="选择目标语言" 
+                      v-model="targetLanguage"
+                      placeholder="选择目标语言"
                       size="small"
                       class="language-select-simple"
                     >
@@ -651,7 +651,8 @@
                     </el-upload>
 
                     <!-- 录音状态显示 -->
-                    <div v-else-if="recorderStatus !== 'STOP' && !isAIWritingMode && !isAITranslateMode" class="voice-recording flex align-center">
+                    <div v-else-if="recorderStatus !== 'STOP' && !isAIWritingMode && !isAITranslateMode"
+                         class="voice-recording flex align-center">
                       <el-text type="info" class="recording-time">
                         00:{{ recorderTime < 10 ? `0${recorderTime}` : recorderTime }}
                       </el-text>
@@ -2143,16 +2144,16 @@ const sendMessage = async () => {
       console.log('AI翻译模式：开始翻译...')
       console.log('用户输入内容:', userQuestion)
       console.log('目标语言:', targetLanguage.value)
-      
+
       systemPrompt = getTranslatePrompt(targetLanguage.value, userQuestion)
     } else if (isAIWritingMode.value) {
       // AI写作模式：先进行意图识别
       console.log('AI写作模式：开始意图识别...')
       console.log('用户输入问题:', userQuestion)
-      
+
       // 调用意图识别函数
       const intent = await detectWritingIntent(userQuestion, modelId)
-      
+
       // 打印意图识别结果
       console.log('=== 意图识别结果 ===')
       console.log('识别到的意图:', intent)
@@ -2164,7 +2165,7 @@ const sendMessage = async () => {
       }
       console.log('意图说明:', intentDescMap[intent] || intent)
       console.log('===================')
-      
+
       // 如果识别为对话模式，使用普通对话的提示词
       if (intent === 'chat') {
         console.log('检测到普通对话意图，切换为对话模式')
@@ -2184,7 +2185,7 @@ ${context}
 ${uploadedDocumentContent.value}`
           console.log('检测到上传文档:', uploadedDocumentName.value)
         }
-        
+
         // 根据识别的意图获取对应的提示词（writing/polish/expand）
         systemPrompt = getPromptByIntent(intent as 'writing' | 'polish' | 'expand', userQuestion, context, documentContext, contextNote)
       }
@@ -2369,7 +2370,7 @@ marked.use({ renderer })
 // 格式化消息内容（支持完整的 Markdown 渲染）
 const formatMessageContent = (content: string) => {
   if (!content) return ''
-  
+
   try {
     // 检查是否包含翻译分隔符
     if (content.includes('<SPLIT_HERE>')) {
@@ -2377,11 +2378,11 @@ const formatMessageContent = (content: string) => {
       const parts = content.split('<SPLIT_HERE>')
       const literalTranslation = parts[0]?.trim() || ''
       const freeTranslation = parts[1]?.trim() || ''
-      
+
       // 分别解析两部分的 Markdown
       const literalHtml = marked.parse(literalTranslation) as string
       const freeHtml = marked.parse(freeTranslation) as string
-      
+
       // 返回带有区分样式的 HTML
       return `
         <div class="translation-result">
@@ -2395,7 +2396,7 @@ const formatMessageContent = (content: string) => {
         </div>
       `
     }
-    
+
     // 普通内容：使用 marked 解析 Markdown
     const html = marked.parse(content) as string
     return html
@@ -2412,15 +2413,15 @@ const formatMessageContent = (content: string) => {
 // AI写作功能
 const handleAIWriting = () => {
   isAIWritingMode.value = !isAIWritingMode.value
-  
+
   // 如果开启AI写作模式，关闭AI翻译模式
   if (isAIWritingMode.value && isAITranslateMode.value) {
     isAITranslateMode.value = false
   }
-  
+
   // 切换模式时清空输入框内容，避免混淆
   currentMessage.value = ''
-  
+
   if (isAIWritingMode.value) {
     ElMessage.success('已开启AI写作模式（支持写作、润写、扩写）')
   } else {
@@ -2434,7 +2435,7 @@ const handleAIWriting = () => {
 // AI翻译模式切换
 const handleAITranslate = () => {
   isAITranslateMode.value = !isAITranslateMode.value
-  
+
   // 如果开启AI翻译模式，关闭AI写作模式
   if (isAITranslateMode.value && isAIWritingMode.value) {
     isAIWritingMode.value = false
@@ -2442,10 +2443,10 @@ const handleAITranslate = () => {
     uploadedDocumentContent.value = ''
     uploadedDocumentName.value = ''
   }
-  
+
   // 切换模式时清空输入框内容，避免混淆
   currentMessage.value = ''
-  
+
   if (isAITranslateMode.value) {
     ElMessage.success(`已开启AI翻译模式，当前目标语言：${targetLanguage.value}`)
   } else {
@@ -2470,8 +2471,8 @@ const handleDocumentUpload = async (file: any) => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   ]
 
-  if (!allowedTypes.includes(file.type) && 
-      !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+  if (!allowedTypes.includes(file.type) &&
+    !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
     ElMessage.error('仅支持上传 PDF、Word、Excel 和 TXT 文档')
     return false
   }
@@ -2485,7 +2486,7 @@ const handleDocumentUpload = async (file: any) => {
 
   try {
     isUploadingDocument.value = true
-    
+
     // 创建 FormData
     const formData = new FormData()
     formData.append('file', file)
@@ -2495,7 +2496,7 @@ const handleDocumentUpload = async (file: any) => {
 
     // 调用文档分段API进行文档识别
     const response = await documentApi.postSplitDocument(formData)
-    
+
     if (response.code === 200 && response.data) {
       // 提取文档内容
       let documentContent = ''
@@ -2503,7 +2504,7 @@ const handleDocumentUpload = async (file: any) => {
         // response.data 是一个数组，每个元素包含 name 和 content
         // content 是段落数组，每个段落包含 title 和 content
         const allParagraphs: string[] = []
-        
+
         response.data.forEach((doc: any) => {
           if (Array.isArray(doc.content)) {
             doc.content.forEach((paragraph: any) => {
@@ -2513,9 +2514,9 @@ const handleDocumentUpload = async (file: any) => {
             })
           }
         })
-        
+
         documentContent = allParagraphs.filter(p => p).join('\n\n')
-        
+
       }
 
       if (documentContent.trim()) {
@@ -2551,7 +2552,7 @@ const detectWritingIntent = async (userInput: string, modelId: string): Promise<
     console.log('--- 开始意图识别 ---')
     console.log('输入文本长度:', userInput.length, '字')
     console.log('使用模型ID:', modelId)
-    
+
     const intentPrompt = `你是一个意图识别助手。请判断用户的输入属于以下哪一种意图：
 1. 写作（writing）：用户提供主题或大纲，需要从零开始创作一篇文章
 2. 润写（polish）：用户提供了已有的文章内容，需要优化语言、修正错误、提升表达质量
@@ -2574,19 +2575,19 @@ ${userInput}
     ]
 
     console.log('发送意图识别请求到AI模型...')
-    
+
     // 调用模型进行意图识别
     const response = await postModelChat(modelId, { messages })
-    
+
     console.log('收到AI模型响应:', response)
-    
+
     if (response && response.data && response.data.content) {
       const rawIntent = response.data.content.trim()
       const intent = rawIntent.toLowerCase()
-      
+
       console.log('AI返回的原始意图:', rawIntent)
       console.log('处理后的意图文本:', intent)
-      
+
       // 解析意图结果
       let finalIntent: 'writing' | 'polish' | 'expand' | 'chat'
       if (intent.includes('chat')) {
@@ -2602,11 +2603,11 @@ ${userInput}
         finalIntent = 'writing'
         console.log('解析结果: 写作模式 (writing)')
       }
-      
+
       console.log('--- 意图识别完成 ---')
       return finalIntent
     }
-    
+
     // 默认返回写作意图
     console.log('AI模型未返回有效内容，使用默认意图: writing')
     console.log('--- 意图识别完成 ---')
@@ -2673,35 +2674,67 @@ User:
 ${context}${documentContext}${contextNote}`
   } else if (intent === 'polish') {
     // 润写模式的提示词
-    return `#AI 润写助手
-写作风格：学术研究型
-语气：正式、客观
-目标读者：教育研究人员与政策制定者
+    return `# Role: AI学术润写助手
 
-角色设定：
-你是一名专业的文本润色助手，擅长优化学术文章的语言表达，提升文章的专业性和可读性。
+## Profile
+- language: 中文
+- description: 专业的学术文本润色专家，专注于教育研究领域的学术表达优化，能够在不改变原文核心思想的前提下提升文本的学术性、逻辑性和可读性
+- background: 基于先进AI技术开发，融合了教育研究领域的学术写作规范和最佳实践
+- personality: 严谨、客观、细致、专业
+- expertise: 学术写作规范、语言优化、逻辑结构梳理、教育研究领域专业知识
+- target_audience: 教育研究人员、政策制定者、学术论文作者
 
-【润写要求】
-1. 语言优化
-   - 修正语法错误、错别字、标点符号使用不当等问题
-   - 优化句式结构，使表达更加流畅、准确
-   - 替换口语化表达，使用更加正式、学术化的用语
-   - 消除冗余表达，提高文字的简洁性
+## Skills
 
-2. 逻辑优化
-   - 调整段落结构，使逻辑更加清晰
-   - 添加必要的过渡语句，增强段落间的连贯性
-   - 确保论述的严谨性和完整性
+1. 语言优化技能
+   - 语法修正: 精准识别并修正语法、拼写与标点错误
+   - 句式优化: 重构句式结构，提升表达流畅度和精准度
+   - 词汇升级: 用正式学术词汇替换口语化或模糊表述
+   - 冗余删除: 识别并删除冗余信息，提高文本简洁度
 
-3. 学术规范
-   - 确保符合学术写作规范
-   - 使用标准书面语，避免第一人称"我"或"我们"
-   - 善用学术连接词，如"从……来看""综合来看""可见""由此可见"等
+2. 逻辑优化技能
+   - 结构重组: 调整段落与句子结构，增强论述逻辑连贯性
+   - 过渡衔接: 补充适当的过渡语句，强化段落间逻辑联系
+   - 论证完善: 确保论证过程完整清晰，符合学术写作逻辑
+   - 条理梳理: 优化文本层次结构，使论述条理更加分明
 
-4. 保持原意
-   - 在优化的同时，必须保持原文的核心观点和主要内容不变
-   - 不添加原文中没有的事实性信息
-   - 保持原文的整体结构和篇幅
+3. 学术规范技能
+   - 格式规范: 严格遵循学术写作规范和正式书面语表达
+   - 人称处理: 避免使用第一人称，保持客观中立立场
+   - 连接词运用: 熟练使用学术连接词增强逻辑性
+   - 风格统一: 确保文本风格符合学术论文和政策报告标准
+
+## Rules
+
+1. 基本原则：
+   - 忠实原意: 绝不改变原文核心观点、逻辑结构和主要内容
+   - 客观中立: 保持客观立场，不添加主观推断或个人观点
+   - 专业标准: 严格遵循教育研究领域的学术写作规范
+   - 质量优先: 确保润色后的文本达到学术发表标准
+
+2. 行为准则：
+   - 完整性保持: 保持原有篇幅和论述重点不变
+   - 信息真实: 不添加原文未涉及的事实性信息
+   - 风格一致: 确保润色前后文本风格协调统一
+   - 渐进优化: 采用渐进式优化策略，避免过度修改
+
+3. 限制条件：
+   - 内容边界: 仅对语言表达和逻辑结构进行优化，不改变实质内容
+   - 人称限制: 严格避免使用第一人称表述
+   - 专业范围: 主要服务于教育研究领域相关文本
+   - 参考约束: 仅基于提供的知识库和上下文进行优化
+
+## Workflows
+
+- 目标: 将用户提供的学术文本优化为符合教育研究领域标准的专业表达
+- 步骤 1: 全面分析原文，识别语言、逻辑和学术规范方面的问题
+- 步骤 2: 基于知识库参考，逐项进行语言优化、逻辑梳理和规范调整
+- 步骤 3: 整体审校，确保优化后的文本保持原意同时提升学术质量
+- 步骤 4: 输出格式输出完整文章，标题居中；使用 "一、二、三、（一）（二）（三）" 等规范结构标识；
+- 预期结果: 产出语言精准、逻辑清晰、符合学术规范的优化文本
+
+## Initialization
+作为AI学术润写助手，你必须遵守上述Rules，按照Workflows执行任务。
 
 知识库参考：
 ${context}${documentContext}${contextNote}
@@ -2711,43 +2744,43 @@ User:
 ${userQuestion}`
   } else {
     // 扩写模式的提示词
-    return `#AI 扩写助手
+    return `AI 学术扩写助手
+
 写作风格：学术研究型
 语气：正式、客观
-目标读者：教育研究人员与政策制定者
+目标读者：教育研究人员、学者与政策制定者
 
-角色设定：
-你是一名专业的文本扩写助手，擅长在保持原有内容的基础上，充实细节、增加论述深度。
+角色设定
+你是一名专业的学术文本扩写助手，擅长在保持原文核心内容与逻辑结构的基础上，充实论述深度、拓展研究视角，并增强文本的逻辑性与学术性。
 
-【扩写要求】
-1. 内容扩充
-   - 在原有内容的基础上，增加相关的细节描述
-   - 扩充论述的深度和广度，使内容更加充实
-   - 添加必要的例证、数据或理论支撑（需从知识片段中获取）
-   - 适当增加背景介绍、原因分析或影响阐述
+扩写任务要求
+一、内容扩充
+在不改变原意的前提下，增加细节描述与背景信息。
+深化论述逻辑，补充原因分析、理论依据与现实意义。
+适度引用学术研究、教育政策或实证数据（可来自知识片段）。
+通过增加论证层次与论据丰富度，使内容更具研究深度与说服力。
 
-2. 结构完善
-   - 在保持原有结构的基础上，完善各部分的内容
-   - 确保扩充后的内容逻辑清晰、层次分明
-   - 使用适当的小标题组织内容（如需要）
+二、结构优化
+保持原有结构与段落逻辑，必要时可添加小标题以增强条理性。
+调整句式与段落衔接，使全文逻辑更加层次分明、连贯自然。
+确保扩写后的文本在结构上完整统一。
 
-3. 学术规范
-   - 保持学术研究型的语言风格
-   - 用语正式、逻辑严谨、表达客观
-   - 善用学术连接词增强文章的连贯性
-   - 使用标准书面语，避免第一人称"我"或"我们"
+三、学术规范
+语言风格应正式、严谨、客观，避免使用第一人称（如“我”“我们”）。
+善用学术连接词（如“此外”“从而”“因此”“相较而言”等）提升连贯性。
+用语符合理论文体，符合教育学与社会科学领域的表达习惯。
 
-4. 知识融合
-   - 充分利用提供的知识片段，为扩写提供素材
-   - 确保新增内容与原文风格一致
-   - 不添加知识片段中没有的事实性信息
+四、知识融合
+合理引用并整合提供的知识片段 ${context}${documentContext}${contextNote}。
+新增内容须与原文主题、语气和逻辑保持一致。
+不虚构知识片段中未出现的事实性信息。
 
-5. 保持核心
-   - 保持原文的核心观点和主要论述方向
-   - 扩充篇幅的同时，避免偏离主题
-
-知识库参考：
-${context}${documentContext}${contextNote}
+五、保持核心
+坚持原文的核心观点与论述方向。
+在扩展篇幅的同时，确保主旨不偏移，逻辑线保持清晰。
+输出格式
+输出完整文章，标题居中；
+使用规范结构标识；
 
 User:
 请扩写以下内容：
@@ -3702,7 +3735,7 @@ onUnmounted(() => {
 
       &.system-message {
         justify-content: center;
-        
+
         .message-content {
           max-width: 80%;
           background: #f0f9ff;
@@ -3714,7 +3747,7 @@ onUnmounted(() => {
           text-align: center;
           font-size: 13px;
         }
-        
+
         .message-time {
           display: none;
         }
@@ -3730,7 +3763,7 @@ onUnmounted(() => {
           margin: 16px 0 8px 0;
           font-weight: 600;
           line-height: 1.4;
-          
+
           &:first-child {
             margin-top: 0;
           }
@@ -3758,11 +3791,11 @@ onUnmounted(() => {
 
         :deep(p) {
           margin: 8px 0;
-          
+
           &:first-child {
             margin-top: 0;
           }
-          
+
           &:last-child {
             margin-bottom: 0;
           }
@@ -3780,7 +3813,7 @@ onUnmounted(() => {
         :deep(ul), :deep(ol) {
           margin: 8px 0;
           padding-left: 24px;
-          
+
           li {
             margin: 4px 0;
             line-height: 1.6;
@@ -3789,10 +3822,10 @@ onUnmounted(() => {
 
         :deep(ul) {
           list-style-type: disc;
-          
+
           ul {
             list-style-type: circle;
-            
+
             ul {
               list-style-type: square;
             }
@@ -3809,7 +3842,7 @@ onUnmounted(() => {
           border-left: 4px solid #3370ff;
           background: #f8fafc;
           color: #606266;
-          
+
           p {
             margin: 4px 0;
           }
@@ -3831,7 +3864,7 @@ onUnmounted(() => {
           border-radius: 6px;
           overflow-x: auto;
           border: 1px solid #e9ecef;
-          
+
           code {
             padding: 0;
             background: transparent;
@@ -3846,18 +3879,18 @@ onUnmounted(() => {
           margin: 12px 0;
           border-collapse: collapse;
           width: 100%;
-          
+
           th, td {
             border: 1px solid #e9ecef;
             padding: 8px 12px;
             text-align: left;
           }
-          
+
           th {
             background: #f8fafc;
             font-weight: 600;
           }
-          
+
           tr:hover {
             background: #fafbfc;
           }
@@ -3872,7 +3905,7 @@ onUnmounted(() => {
         :deep(a) {
           color: #3370ff;
           text-decoration: none;
-          
+
           &:hover {
             text-decoration: underline;
           }
@@ -4124,8 +4157,8 @@ onUnmounted(() => {
       }
     }
 
-    .input-container {      
-      
+    .input-container {
+
       .input-wrapper {
         background: #ffffff;
         border: 1px solid var(--el-border-color-light);
@@ -4601,7 +4634,7 @@ onUnmounted(() => {
     padding: 16px;
     border-radius: 8px;
     background: #f8f9fa;
-    
+
     &.literal-translation {
       background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
       border: 1px solid #90caf9;
