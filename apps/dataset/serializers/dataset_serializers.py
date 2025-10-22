@@ -168,12 +168,29 @@ class DataSetSerializers(serializers.ModelSerializer):
             query_set = query_set.order_by("-temp.create_time", "temp.id")
             query_set_dict['default_sql'] = query_set
 
-            query_set_dict['dataset_custom_sql'] = QuerySet(model=get_dynamics_model(
-                {'dataset.user_id': models.CharField(),
-                 'dataset.is_deleted': models.BooleanField(),
-                 })).filter(
-                **{'dataset.user_id': user_id, 'dataset.is_deleted': False}
-            )
+            # 检查用户是否为管理员，如果是管理员则显示所有知识库，否则只显示自己的知识库
+            from users.models import User
+            from common.constants.permission_constants import RoleConstants
+            try:
+                current_user = User.objects.get(id=user_id)
+                is_admin = current_user.role == RoleConstants.ADMIN.name
+            except User.DoesNotExist:
+                is_admin = False
+            
+            if is_admin:
+                # 管理员可以看到所有未删除的知识库
+                query_set_dict['dataset_custom_sql'] = QuerySet(model=get_dynamics_model(
+                    {'dataset.is_deleted': models.BooleanField()})).filter(
+                    **{'dataset.is_deleted': False}
+                )
+            else:
+                # 普通用户只能看到自己的知识库
+                query_set_dict['dataset_custom_sql'] = QuerySet(model=get_dynamics_model(
+                    {'dataset.user_id': models.CharField(),
+                     'dataset.is_deleted': models.BooleanField(),
+                     })).filter(
+                    **{'dataset.user_id': user_id, 'dataset.is_deleted': False}
+                )
 
             query_set_dict['team_member_permission_custom_sql'] = QuerySet(model=get_dynamics_model(
                 {'user_id': models.CharField(),
@@ -898,12 +915,34 @@ class DataSetSerializers(serializers.ModelSerializer):
         def one(self, user_id, with_valid=True):
             if with_valid:
                 self.is_valid()
+            
+            # 检查用户是否为管理员
+            from users.models import User
+            from common.constants.permission_constants import RoleConstants
+            try:
+                current_user = User.objects.get(id=user_id)
+                is_admin = current_user.role == RoleConstants.ADMIN.name
+            except User.DoesNotExist:
+                is_admin = False
+            
+            # 根据用户角色设置查询条件
+            if is_admin:
+                # 管理员可以查看所有知识库的详情
+                dataset_custom_sql = QuerySet(model=get_dynamics_model(
+                    {'dataset.is_deleted': models.BooleanField()})).filter(
+                    **{'dataset.is_deleted': False}
+                )
+            else:
+                # 普通用户只能查看自己的知识库详情
+                dataset_custom_sql = QuerySet(model=get_dynamics_model(
+                    {'dataset.user_id': models.CharField()})).filter(
+                    **{'dataset.user_id': user_id}
+                )
+            
             query_set_dict = {'default_sql': QuerySet(model=get_dynamics_model(
                 {'temp.id': models.UUIDField()})).filter(**{'temp.id': self.data.get("id")}),
-                              'dataset_custom_sql': QuerySet(model=get_dynamics_model(
-                                  {'dataset.user_id': models.CharField()})).filter(
-                                  **{'dataset.user_id': user_id}
-                              ), 'team_member_permission_custom_sql': QuerySet(
+                              'dataset_custom_sql': dataset_custom_sql, 
+                              'team_member_permission_custom_sql': QuerySet(
                     model=get_dynamics_model({'user_id': models.CharField(),
                                               'team_member_permission.operate': ArrayField(
                                                   verbose_name=_('permission'),

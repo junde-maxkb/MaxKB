@@ -214,6 +214,24 @@ class SharedDataSetSerializers(serializers.ModelSerializer):
                 self.is_valid(raise_exception=True)
             dataset = QuerySet(DataSet).get(id=self.data.get("id"))
             
+            # 检查用户是否为管理员
+            from users.models import User
+            from common.constants.permission_constants import RoleConstants
+            try:
+                current_user = User.objects.get(id=self.data.get("user_id"))
+                is_admin = current_user.role == RoleConstants.ADMIN.name
+            except User.DoesNotExist:
+                is_admin = False
+            
+            # 管理员有查看所有应用的权限
+            if is_admin:
+                return select_list(get_file_content(
+                    os.path.join(PROJECT_DIR, "apps", "dataset", 'sql', 'list_dataset_application.sql')),
+                    [str(dataset.user_id),  # 查询数据集所有者的个人应用
+                     dataset.user_id,      # 查询数据集所有者所在团队的team_id
+                     str(dataset.user_id)])  # 查询数据集所有者的团队成员关系
+            
+            # 普通用户的权限检查逻辑
             # 获取所有匹配的共享权限记录
             dataset_share_permissions = QuerySet(DatasetShare).filter(
                 shared_with_id=self.data.get("user_id")
@@ -232,16 +250,58 @@ class SharedDataSetSerializers(serializers.ModelSerializer):
         def one(self, user_id, with_valid=True):
             if with_valid:
                 self.is_valid()
-            query_set_dict = {
-                'default_sql': QuerySet(model=get_dynamics_model(
-                    {'temp.id': models.UUIDField()})).filter(**{'temp.id': self.data.get("id")}),
-                            
-                'dataset_custom_sql': QuerySet(model=get_dynamics_model(
+            
+            # 检查用户是否为管理员
+            from users.models import User
+            from common.constants.permission_constants import RoleConstants
+            try:
+                current_user = User.objects.get(id=user_id)
+                is_admin = current_user.role == RoleConstants.ADMIN.name
+            except User.DoesNotExist:
+                is_admin = False
+            
+            # 根据用户角色设置查询条件
+            if is_admin:
+                # 管理员可以查看所有知识库的详情
+                dataset_custom_sql = QuerySet(model=get_dynamics_model(
+                    {'dataset.is_deleted': models.BooleanField()})).filter(
+                    **{'dataset.is_deleted': False}
+                )
+                
+                # 管理员查看时，为了获取完整的权限信息，需要查询目标知识库的实际所有者
+                target_dataset = QuerySet(DataSet).filter(id=self.data.get("id")).first()
+                if target_dataset:
+                    target_user_id = str(target_dataset.user_id)
+                else:
+                    target_user_id = user_id  # 如果找不到数据集，回退到当前用户
+                
+                # 为管理员设置权限查询，查询目标知识库的实际权限关系
+                team_member_permission_custom_sql = QuerySet(
+                    model=get_dynamics_model({'user_id': models.CharField(),
+                                            'team_member_permission.operate': ArrayField(
+                                                verbose_name=_('permission'),
+                                                base_field=models.CharField(max_length=256,
+                                                                            blank=True,
+                                                                            choices=AuthOperate.choices,
+                                                                            default=AuthOperate.USE)
+                                            )})).filter(
+                    **{'user_id': target_user_id, 'team_member_permission.operate__contains': ['USE']}
+                )
+                
+                datasetshare_custom_sql = QuerySet(
+                    model=get_dynamics_model({'shared_with_id': models.CharField(),
+                                            'permission': models.CharField()})).filter(
+                    **{'shared_with_id': target_user_id, 
+                    'permission__in': ['WRITE', 'READ', 'MANAGE']}
+                )
+            else:
+                # 普通用户只能查看自己的知识库详情
+                dataset_custom_sql = QuerySet(model=get_dynamics_model(
                     {'dataset.user_id': models.CharField()})).filter(
                     **{'dataset.user_id': user_id}
-                ), 
+                )
                 
-                'team_member_permission_custom_sql': QuerySet(
+                team_member_permission_custom_sql = QuerySet(
                     model=get_dynamics_model({'user_id': models.CharField(),
                                             'team_member_permission.operate': ArrayField(
                                                 verbose_name=_('permission'),
@@ -251,15 +311,22 @@ class SharedDataSetSerializers(serializers.ModelSerializer):
                                                                             default=AuthOperate.USE)
                                             )})).filter(
                     **{'user_id': user_id, 'team_member_permission.operate__contains': ['USE']}
-                ),
+                )
                 
-                # 新增的 datasetshare 权限检查
-                'datasetshare_custom_sql': QuerySet(
+                datasetshare_custom_sql = QuerySet(
                     model=get_dynamics_model({'shared_with_id': models.CharField(),
                                             'permission': models.CharField()})).filter(
                     **{'shared_with_id': user_id, 
                     'permission__in': ['WRITE', 'READ', 'MANAGE']}
                 )
+            
+            query_set_dict = {
+                'default_sql': QuerySet(model=get_dynamics_model(
+                    {'temp.id': models.UUIDField()})).filter(**{'temp.id': self.data.get("id")}),
+                            
+                'dataset_custom_sql': dataset_custom_sql, 
+                'team_member_permission_custom_sql': team_member_permission_custom_sql,
+                'datasetshare_custom_sql': datasetshare_custom_sql
             }
             
             all_application_list = [str(adm.get('id')) for adm in self.list_application(with_valid=False)]

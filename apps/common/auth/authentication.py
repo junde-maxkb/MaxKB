@@ -85,8 +85,14 @@ def get_user_dataset_permission(user, dataset_id):
     from setting.models.team_management import TeamMember
     from dataset.models import DatasetShare, DataSet
     from django.db.models import Q
+    from common.constants.permission_constants import RoleConstants
 
     print(f"正在获取用户 {user.id} 对知识库 {dataset_id} 的权限")
+
+    # 检查用户是否为管理员
+    if hasattr(user, 'role') and user.role == RoleConstants.ADMIN.name:
+        print(f"用户 {user.id} 是管理员，对知识库 {dataset_id} 有完全权限: MANAGE")
+        return 'MANAGE'
 
     # 检查个人权限
     try:
