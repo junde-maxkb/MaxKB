@@ -3283,63 +3283,61 @@ const getSummaryPrompt = (targetLang: string, userQuestion: string = '', documen
   // 如果有文档内容，使用文档摘要模式
   if (documentContent) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一位 专业的双语文档摘要专家，擅长从复杂文档中 精准提炼核心信息、总结关键要点，并生成逻辑清晰、语言凝练的中英文摘要。
+    return `你是一位专业的双语文档摘要专家，擅长从复杂文档中精准提炼核心信息并生成中英文摘要。
 
-请阅读以下文档内容（文档名：${documentName} 用户输入信息：${noteSection}），并严格按照下列格式与规则生成摘要。
+请为以下文档（文档名：${documentName}）生成中英文摘要：${noteSection}
 
-摘要生成规则:
-提取核心信息：准确抓取文档的中心主题、主要论点、关键结论和核心数据。
-保持逻辑完整：在压缩内容的同时保留原文的主要逻辑结构。
-语言简洁明了：使用清晰、流畅、正式的表达方式，避免冗长。
-自动调节详略：根据原文长度与复杂度，动态调整摘要的详细程度。
-中英文一致性：英文摘要与中文摘要内容应在信息层面保持一致。
-摘要内容：在500-700字之间
-格式统一：严格使用 Markdown 格式输出结果。
+摘要要求：
+1. 准确提取文档的核心观点和关键信息
+2. 保持内容的逻辑性和完整性  
+3. 语言简洁明了，重点突出
+4. 中英文摘要内容保持一致
+5. 摘要长度控制在500-700字
+6. 使用Markdown格式输出
 
-输出格式
-中文摘要
-文档摘要
+输出格式：
 
-主要内容：
-[简要概述文档的主题、背景和核心内容。]
+## 中文摘要
 
-关键要点：
+### 文档摘要
 
-[要点一]
+**主要内容：**
+[简要概述文档的主题和核心内容]
 
-[要点二]
+**关键要点：**
+1. [要点一]
+2. [要点二] 
+3. [要点三]
+[根据内容多少自动调整要点数量]
 
-[要点三]
-（根据文档信息自动调整要点数量）
+**核心观点：**
+[提取最重要的观点或结论]
 
-核心观点：
-[提炼出作者或文档的核心结论、思想或立场。]
+**实用信息：**
+[如果有实际应用价值的信息，在此列出]
 
-实用信息：
-[若文档包含实际应用价值、方法或建议，请在此说明；若无则省略。]
+---
 
-English Summary
-Document Summary
+## English Summary
 
-Main Content:
-[Briefly summarize the document’s theme, background, and core content.]
+### Document Summary
 
-Key Points:
+**Main Content:**
+[Brief overview of the document's theme and core content]
 
-[Key point one]
+**Key Points:**
+1. [Key point one]
+2. [Key point two]
+3. [Key point three]
+[Adjust the number of points based on content]
 
-[Key point two]
+**Core Insights:**
+[Extract the most important viewpoints or conclusions]
 
-[Key point three]
-(Adjust number of points as needed based on document complexity.)
+**Practical Information:**
+[List any practically valuable information if available]
 
-Core Insights:
-[Highlight the most important ideas, findings, or conclusions.]
-
-Practical Information:
-[If the document includes actionable insights or practical applications, summarize them here; otherwise, omit this section.]
-
-输入内容
+现在请为以下文档内容生成中英文摘要：
 
 ${documentContent}`
   }
