@@ -431,6 +431,26 @@
                     AI翻译模式：直接输入需要翻译的内容或上传文档，目标语言为 {{ targetLanguage }}
                   </div>
 
+                  <!-- AI摘要模式已上传文档展示 -->
+                  <div v-else-if="isAISummaryMode && summaryDocumentName">
+                    <div class="kb-info-text">
+                      <el-icon class="info-icon">
+                        <Document />
+                      </el-icon>
+                      已上传待摘要文档：
+                    </div>
+                    <div class="selected-items">
+                      <el-tag
+                        size="small"
+                        class="item-tag document-tag"
+                        closable
+                        @close="removeSummaryDocument"
+                      >
+                        {{ summaryDocumentName }}
+                      </el-tag>
+                    </div>
+                  </div>
+
                   <!-- AI写作模式已上传文档展示 -->
                   <div v-else-if="isAIWritingMode && uploadedDocumentName">
                     <div class="kb-info-text">
@@ -608,7 +628,7 @@
                       class="chat-input"
                       @keyup.enter.exact.prevent="sendMessage"
                       @focus="handleInputFocus"
-                      :disabled="isStreaming || (!isAIWritingMode && !isAITranslateMode && !selectedInfo)"
+                      :disabled="isStreaming || (!isAIWritingMode && !isAITranslateMode && !isAISummaryMode && !selectedInfo)"
                     />
 
                     <!-- AI写作模式文档上传按钮 -->
@@ -658,12 +678,35 @@
                       </el-button>
                     </el-upload>
 
+                    <!-- AI摘要模式文档上传按钮 -->
+                    <el-upload
+                      v-if="isAISummaryMode"
+                      ref="summaryDocumentUploadRef"
+                      class="document-upload-btn"
+                      :show-file-list="false"
+                      :before-upload="handleSummaryDocumentUpload"
+                      :disabled="isStreaming || isUploadingSummaryDocument"
+                      accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+                    >
+                      <el-button
+                        text
+                        class="voice-btn"
+                        :disabled="isStreaming || isUploadingSummaryDocument"
+                        :loading="isUploadingSummaryDocument"
+                        :title="summaryDocumentName ? '重新上传摘要文档' : '上传文档进行摘要'"
+                      >
+                        <el-icon v-if="!isUploadingSummaryDocument">
+                          <Document />
+                        </el-icon>
+                      </el-button>
+                    </el-upload>
+
                     <!-- 语音录制按钮 -->
                     <el-button
                       text
                       class="voice-btn"
                       @click="startRecording"
-                      v-if="recorderStatus === 'STOP' && !isAIWritingMode && !isAITranslateMode"
+                      v-if="recorderStatus === 'STOP' && !isAIWritingMode && !isAITranslateMode && !isAISummaryMode"
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
                     >
                       <el-icon>
@@ -679,7 +722,7 @@
                       :before-upload="handleAudioUpload"
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
                       accept="audio/*"
-                      v-if="recorderStatus === 'STOP' && !isAIWritingMode && !isAITranslateMode"
+                      v-if="recorderStatus === 'STOP' && !isAIWritingMode && !isAITranslateMode && !isAISummaryMode"
                     >
                       <el-button
                         text
@@ -694,7 +737,7 @@
                     </el-upload>
 
                     <!-- 录音状态显示 -->
-                    <div v-else-if="recorderStatus !== 'STOP' && !isAIWritingMode && !isAITranslateMode"
+                    <div v-else-if="recorderStatus !== 'STOP' && !isAIWritingMode && !isAITranslateMode && !isAISummaryMode"
                          class="voice-recording flex align-center">
                       <el-text type="info" class="recording-time">
                         00:{{ recorderTime < 10 ? `0${recorderTime}` : recorderTime }}
@@ -717,7 +760,7 @@
                       class="send-btn"
                       @click="sendMessage"
                       :loading="isStreaming"
-                      :disabled="(!currentMessage.trim() && !uploadedDocumentContent && !translateDocumentContent) || isStreaming || (!isAIWritingMode && !isAITranslateMode && !selectedInfo)"
+                      :disabled="(!currentMessage.trim() && !uploadedDocumentContent && !translateDocumentContent && !summaryDocumentContent) || isStreaming || (!isAIWritingMode && !isAITranslateMode && !isAISummaryMode && !selectedInfo)"
                     >
                       {{ isStreaming ? '发送中...' : '发送' }}
                     </el-button>
@@ -738,6 +781,12 @@
                     <Connection />
                   </el-icon>
                   <span class="ai-text">AI翻译</span>
+                </div>
+                <div class="ai-button" :class="{ 'active': isAISummaryMode }" @click="handleAISummary">
+                  <el-icon class="ai-icon">
+                    <Document />
+                  </el-icon>
+                  <span class="ai-text">AI摘要</span>
                 </div>
               </div>
             </div>
@@ -987,6 +1036,14 @@ const translateDocumentContent = ref('')
 const translateDocumentName = ref('')
 const isUploadingTranslateDocument = ref(false)
 const translateDocumentUploadRef = ref<any>(null)
+
+// AI摘要模式相关状态
+const isAISummaryMode = ref(false)
+const summaryLanguage = ref('中文')
+const summaryDocumentContent = ref('')
+const summaryDocumentName = ref('')
+const isUploadingSummaryDocument = ref(false)
+const summaryDocumentUploadRef = ref<any>(null)
 const documentUploadRef = ref<any>(null)
 
 // 重命名相关状态
@@ -1275,6 +1332,12 @@ const getInputPlaceholder = () => {
       return `点击发送开始翻译文档，或输入附加说明...`
     }
     return `请输入需要翻译的内容或上传文档，AI将为您翻译成${targetLanguage.value}...`
+  }
+  if (isAISummaryMode.value) {
+    if (summaryDocumentName.value) {
+      return '点击发送开始生成中英文摘要，或输入附加说明...'
+    }
+    return '请输入需要摘要的内容或上传文档，AI将为您生成中英文摘要...'
   }
   if (!selectedInfo.value) {
     return '请先选择知识库或文档...'
@@ -2072,7 +2135,7 @@ const performKnowledgeSearch = async (query: string) => {
       }
     }
 
-    // 按相似度排序，取前5条
+    // 按相似度排序，取前10条（AI摘要模式需要更多内容）
     searchResults.sort((a, b) => {
       const sa = (a.similarity ?? a.comprehensive_score ?? 0)
       const sb = (b.similarity ?? b.comprehensive_score ?? 0)
@@ -2080,7 +2143,7 @@ const performKnowledgeSearch = async (query: string) => {
     })
 
     return {
-      results: searchResults.slice(0, 5),
+      results: searchResults.slice(0, 10),
       hasEmbeddingError,
       hasConnectionError
     }
@@ -2096,15 +2159,16 @@ const performKnowledgeSearch = async (query: string) => {
 
 // 发送消息并获得AI回答
 const sendMessage = async () => {
-  // 在翻译模式下，如果有上传的文档，允许空输入
+  // 在翻译模式或摘要模式下，如果有上传的文档，允许空输入
   const hasTranslateDocument = isAITranslateMode.value && translateDocumentContent.value
-  if ((!currentMessage.value.trim() && !hasTranslateDocument) || isStreaming.value || !selectedModelId.value) return
+  const hasSummaryDocument = isAISummaryMode.value && summaryDocumentContent.value
+  if ((!currentMessage.value.trim() && !hasTranslateDocument && !hasSummaryDocument) || isStreaming.value || !selectedModelId.value) return
 
-  // 检查是否选中了文档或知识库（AI写作模式和AI翻译模式下可以不选择）
+  // 检查是否选中了文档或知识库（AI写作模式、AI翻译模式和AI摘要模式下可以不选择）
   const selectedDocuments = getSelectedDocuments()
   const selectedDatasets = getSelectedDatasets()
 
-  if (!isAIWritingMode.value && !isAITranslateMode.value && selectedDocuments.length === 0 && selectedDatasets.length === 0) {
+  if (!isAIWritingMode.value && !isAITranslateMode.value && !isAISummaryMode.value && selectedDocuments.length === 0 && selectedDatasets.length === 0) {
     ElMessage.warning('请先选择要查询的文档或知识库')
     return
   }
@@ -2116,11 +2180,15 @@ const sendMessage = async () => {
   const savedTranslateDocName = translateDocumentName.value
   const savedUploadedDocContent = uploadedDocumentContent.value
   const savedUploadedDocName = uploadedDocumentName.value
+  const savedSummaryDocContent = summaryDocumentContent.value
+  const savedSummaryDocName = summaryDocumentName.value
 
   // 添加用户消息
   let displayUserMessage = userQuestion
   if (hasTranslateDocument && !userQuestion) {
     displayUserMessage = `翻译文档：${savedTranslateDocName}`
+  } else if (hasSummaryDocument && !userQuestion) {
+    displayUserMessage = `摘要文档：${summaryDocumentName.value}`
   }
   
   chatMessages.value.push({
@@ -2135,10 +2203,14 @@ const sendMessage = async () => {
   // 清空输入框
   currentMessage.value = ''
   
-  // 如果是翻译模式且有上传的文档，清除文档
+  // 如果是翻译模式或摘要模式且有上传的文档，清除文档
   if (hasTranslateDocument) {
     translateDocumentContent.value = ''
     translateDocumentName.value = ''
+  }
+  if (hasSummaryDocument) {
+    summaryDocumentContent.value = ''
+    summaryDocumentName.value = ''
   }
   
   isStreaming.value = true
@@ -2272,6 +2344,31 @@ ${savedUploadedDocContent}`
         // 根据识别的意图获取对应的提示词（writing/polish/expand）
         systemPrompt = getPromptByIntent(intent as 'writing' | 'polish' | 'expand', userQuestion, context, documentContext, contextNote)
       }
+    } else if (isAISummaryMode.value) {
+      // AI摘要模式：使用摘要提示词
+      console.log('AI摘要模式：开始中英文摘要生成...')
+      console.log('用户输入内容:', userQuestion)
+
+      // 如果有上传的摘要文档，使用文档摘要模式
+      if (savedSummaryDocContent) {
+        console.log('检测到上传摘要文档:', savedSummaryDocName)
+        systemPrompt = getSummaryPrompt(
+          '中英文', // 固定为中英文摘要
+          userQuestion,
+          savedSummaryDocContent,
+          savedSummaryDocName
+        )
+      } else {
+        // 基于知识库检索结果的摘要模式
+        systemPrompt = getSummaryPrompt(
+          '中英文', // 固定为中英文摘要
+          userQuestion,
+          '',
+          '',
+          context,
+          contextNote
+        )
+      }
     } else {
       // 普通对话模式的系统提示
       systemPrompt = hasEmbeddingError || hasConnectionError
@@ -2284,13 +2381,13 @@ ${context}
 请基于上述内容回答用户问题，保持专业、准确和有帮助的态度。${contextNote}`
     }
 
-    // AI翻译模式不使用对话历史上下文，每次都是独立的翻译任务
+    // AI翻译模式和AI摘要模式不使用对话历史上下文，每次都是独立的任务
     const messages = [
       {
         role: 'system',
         content: systemPrompt
       },
-      ...(isAITranslateMode.value ? [] : chatMessages.value.slice(-10)), // AI翻译模式不保留对话历史
+      ...(isAITranslateMode.value || isAISummaryMode.value ? [] : chatMessages.value.slice(-10)), // AI翻译模式和AI摘要模式不保留对话历史
       { role: 'user', content: userQuestion }
     ]
 
@@ -2540,6 +2637,38 @@ const handleAITranslate = () => {
   }
 }
 
+const handleAISummary = () => {
+  isAISummaryMode.value = !isAISummaryMode.value
+
+  // 如果开启AI摘要模式，关闭其他AI模式
+  if (isAISummaryMode.value) {
+    if (isAIWritingMode.value) {
+      isAIWritingMode.value = false
+      // 清空写作模式的上传文档
+      uploadedDocumentContent.value = ''
+      uploadedDocumentName.value = ''
+    }
+    if (isAITranslateMode.value) {
+      isAITranslateMode.value = false
+      // 清空翻译模式的上传文档
+      translateDocumentContent.value = ''
+      translateDocumentName.value = ''
+    }
+  }
+
+  // 切换模式时清空输入框内容，避免混淆
+  currentMessage.value = ''
+
+  if (isAISummaryMode.value) {
+    ElMessage.success('已开启AI中英文摘要模式（支持文本和文档摘要）')
+  } else {
+    ElMessage.info('已关闭AI摘要模式')
+    // 关闭AI摘要模式时清空已上传的文档
+    summaryDocumentContent.value = ''
+    summaryDocumentName.value = ''
+  }
+}
+
 // AI翻译模式文档上传处理
 const handleTranslateDocumentUpload = async (file: any) => {
   if (!isAITranslateMode.value) {
@@ -2621,11 +2750,99 @@ const handleTranslateDocumentUpload = async (file: any) => {
   return false // 阻止默认上传行为
 }
 
+// AI摘要模式文档上传处理
+const handleSummaryDocumentUpload = async (file: any) => {
+  if (!isAISummaryMode.value) {
+    ElMessage.warning('请先开启AI摘要模式')
+    return false
+  }
+
+  // 验证文件类型
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+
+  if (!allowedTypes.includes(file.type) &&
+    !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+    ElMessage.error('仅支持上传 PDF、Word、Excel 和 TXT 文档')
+    return false
+  }
+
+  // 验证文件大小 (10MB)
+  const maxSize = 10 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 10MB')
+    return false
+  }
+
+  try {
+    isUploadingSummaryDocument.value = true
+
+    // 创建 FormData
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('limit', '100000') // 设置较大的字符限制
+    formData.append('with_filter', 'false')
+
+    // 调用文档分段API进行文档识别
+    const response = await documentApi.postSplitDocument(formData)
+
+    if (response.code === 200 && response.data) {
+      // 提取文档内容
+      let documentContent = ''
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const allParagraphs: string[] = []
+
+        response.data.forEach((doc: any) => {
+          if (Array.isArray(doc.content)) {
+            doc.content.forEach((paragraph: any) => {
+              if (paragraph.content && typeof paragraph.content === 'string') {
+                allParagraphs.push(paragraph.content.trim())
+              }
+            })
+          }
+        })
+
+        documentContent = allParagraphs.filter(p => p).join('\n\n')
+      }
+
+      if (documentContent.trim()) {
+        summaryDocumentContent.value = documentContent
+        summaryDocumentName.value = file.name
+        ElMessage.success(`文档 "${file.name}" 上传成功，准备生成中英文摘要！`)
+      } else {
+        ElMessage.error('文档内容为空或无法识别')
+      }
+    } else {
+      ElMessage.error(response.message || '文档识别失败')
+    }
+  } catch (error: any) {
+    console.error('文档上传失败:', error)
+    ElMessage.error(error.message || '文档上传失败，请重试')
+  } finally {
+    isUploadingSummaryDocument.value = false
+  }
+
+  return false // 阻止默认上传行为
+}
+
 // 移除AI翻译模式已上传的文档
 const removeTranslateDocument = () => {
   translateDocumentContent.value = ''
   translateDocumentName.value = ''
   ElMessage.info('已移除上传的翻译文档')
+}
+
+// 移除AI摘要模式已上传的文档
+const removeSummaryDocument = () => {
+  summaryDocumentContent.value = ''
+  summaryDocumentName.value = ''
+  ElMessage.info('已移除上传的摘要文档')
 }
 
 // AI写作模式文档上传处理
@@ -3059,6 +3276,143 @@ ${documentContent}`
 现在请翻译以下内容为${targetLang}：
 
 ${inputText}`
+}
+
+// 获取摘要模式的提示词
+const getSummaryPrompt = (targetLang: string, userQuestion: string = '', documentContent: string = '', documentName: string = '', context: string = '', contextNote: string = '') => {
+  // 如果有文档内容，使用文档摘要模式
+  if (documentContent) {
+    const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
+    return `你是一位 专业的双语文档摘要专家，擅长从复杂文档中 精准提炼核心信息、总结关键要点，并生成逻辑清晰、语言凝练的中英文摘要。
+
+请阅读以下文档内容（文档名：${documentName} 用户输入信息：${noteSection}），并严格按照下列格式与规则生成摘要。
+
+摘要生成规则:
+提取核心信息：准确抓取文档的中心主题、主要论点、关键结论和核心数据。
+保持逻辑完整：在压缩内容的同时保留原文的主要逻辑结构。
+语言简洁明了：使用清晰、流畅、正式的表达方式，避免冗长。
+自动调节详略：根据原文长度与复杂度，动态调整摘要的详细程度。
+中英文一致性：英文摘要与中文摘要内容应在信息层面保持一致。
+摘要内容：在500-700字之间
+格式统一：严格使用 Markdown 格式输出结果。
+
+输出格式
+中文摘要
+文档摘要
+
+主要内容：
+[简要概述文档的主题、背景和核心内容。]
+
+关键要点：
+
+[要点一]
+
+[要点二]
+
+[要点三]
+（根据文档信息自动调整要点数量）
+
+核心观点：
+[提炼出作者或文档的核心结论、思想或立场。]
+
+实用信息：
+[若文档包含实际应用价值、方法或建议，请在此说明；若无则省略。]
+
+English Summary
+Document Summary
+
+Main Content:
+[Briefly summarize the document’s theme, background, and core content.]
+
+Key Points:
+
+[Key point one]
+
+[Key point two]
+
+[Key point three]
+(Adjust number of points as needed based on document complexity.)
+
+Core Insights:
+[Highlight the most important ideas, findings, or conclusions.]
+
+Practical Information:
+[If the document includes actionable insights or practical applications, summarize them here; otherwise, omit this section.]
+
+输入内容
+
+${documentContent}`
+  }
+
+  // 基于知识库内容的摘要模式
+  if (context && context.trim() && !context.includes('未找到')) {
+    const noteSection = userQuestion ? `\n\n用户问题：${userQuestion}\n` : ''
+    return `你是一位专业的知识摘要助手，擅长从知识库检索结果中提取核心信息并生成高质量的中英文摘要。
+
+请基于以下知识库检索内容生成中英文摘要：${noteSection}
+
+检索到的相关内容：
+${context}
+
+摘要规则：
+1. 综合分析所有检索到的内容
+2. 提取最相关和重要的信息
+3. 保持内容的逻辑性和完整性
+4. 语言简洁明了，重点突出
+5. 输出格式为 Markdown 格式
+
+摘要策略：
+请按照以下格式生成摘要：
+
+## 中文摘要
+
+### 知识摘要
+
+**主要话题：**
+[根据检索内容确定的主要话题]
+
+**核心信息：**
+1. [核心信息一]
+2. [核心信息二]
+3. [核心信息三]
+[根据内容自动调整数量]
+
+**详细说明：**
+[对核心信息的详细阐述和补充]
+
+**信息来源：**
+[简要说明信息的主要来源]
+
+---
+
+## English Summary
+
+### Knowledge Summary
+
+**Main Topic:**
+[Determine the main topic based on the retrieved content]
+
+**Core Information:**
+1. [Core information one]
+2. [Core information two]
+3. [Core information three]
+[Adjust the number based on content]
+
+**Detailed Explanation:**
+[Detailed elaboration and supplementation of core information]
+
+**Information Sources:**
+[Briefly explain the main sources of information]
+
+请生成上述内容的中英文摘要。${contextNote}`
+  }
+
+  // 通用摘要模式（当没有具体内容时）
+  return `你是一位专业的摘要助手，请根据用户的要求生成中英文摘要。
+
+用户要求：${userQuestion || '请生成一般性摘要'}
+
+请按照专业的摘要格式，生成简洁明了、重点突出的中英文内容。如果用户要求不够明确，请友好地询问更具体的摘要需求。`
 }
 
 const createKnowledgeBase = async () => {
