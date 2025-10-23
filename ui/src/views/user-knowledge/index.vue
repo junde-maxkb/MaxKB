@@ -352,7 +352,7 @@
 
                     <div v-show="isParagraphsExpanded(index)" class="paragraphs-list">
                       <div
-                        v-for="(paragraph, pIndex) in message.paragraphs.slice(0, 5)"
+                        v-for="(paragraph, pIndex) in message.paragraphs"
                         :key="pIndex"
                         class="paragraph-item"
                       >
@@ -2594,9 +2594,20 @@ const formatMessageContent = (content: string) => {
 const handleAIWriting = () => {
   isAIWritingMode.value = !isAIWritingMode.value
 
-  // 如果开启AI写作模式，关闭AI翻译模式
-  if (isAIWritingMode.value && isAITranslateMode.value) {
-    isAITranslateMode.value = false
+  // 如果开启AI写作模式，关闭其他AI模式
+  if (isAIWritingMode.value) {
+    if (isAITranslateMode.value) {
+      isAITranslateMode.value = false
+      // 清空翻译模式的上传文档
+      translateDocumentContent.value = ''
+      translateDocumentName.value = ''
+    }
+    if (isAISummaryMode.value) {
+      isAISummaryMode.value = false
+      // 清空摘要模式的上传文档
+      summaryDocumentContent.value = ''
+      summaryDocumentName.value = ''
+    }
   }
 
   // 切换模式时清空输入框内容，避免混淆
@@ -2616,12 +2627,20 @@ const handleAIWriting = () => {
 const handleAITranslate = () => {
   isAITranslateMode.value = !isAITranslateMode.value
 
-  // 如果开启AI翻译模式，关闭AI写作模式
-  if (isAITranslateMode.value && isAIWritingMode.value) {
-    isAIWritingMode.value = false
-    // 清空写作模式的上传文档
-    uploadedDocumentContent.value = ''
-    uploadedDocumentName.value = ''
+  // 如果开启AI翻译模式，关闭其他AI模式
+  if (isAITranslateMode.value) {
+    if (isAIWritingMode.value) {
+      isAIWritingMode.value = false
+      // 清空写作模式的上传文档
+      uploadedDocumentContent.value = ''
+      uploadedDocumentName.value = ''
+    }
+    if (isAISummaryMode.value) {
+      isAISummaryMode.value = false
+      // 清空摘要模式的上传文档
+      summaryDocumentContent.value = ''
+      summaryDocumentName.value = ''
+    }
   }
 
   // 切换模式时清空输入框内容，避免混淆
@@ -3345,6 +3364,7 @@ ${documentContent}`
   // 基于知识库内容的摘要模式
   if (context && context.trim() && !context.includes('未找到')) {
     const noteSection = userQuestion ? `\n\n用户问题：${userQuestion}\n` : ''
+    console.log('userQuestion:', userQuestion)
     return `你是一位专业的知识摘要助手，擅长从知识库检索结果中提取核心信息并生成高质量的中英文摘要。
 
 请基于以下知识库检索内容生成中英文摘要：${noteSection}
