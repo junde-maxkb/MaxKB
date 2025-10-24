@@ -1955,19 +1955,28 @@ const updateTreeData = async (categoryId: string, datasets: any[]) => {
     try {
       const docResponse = await documentApi.getAllDocument(dataset.id)
       if (docResponse.data && docResponse.data.length > 0) {
-        datasetNode.children = docResponse.data.map((doc: any) => ({
-          id: `doc_${doc.id}`,
-          label: doc.name,
-          level: 3,
-          type: 'document',
-          documentId: doc.id,
-          datasetId: dataset.id,
-          size: doc.char_length || 0,
-          status: doc.status
-        }))
+        // 只显示启用状态的文档 (is_active 为 true 的文档)
+        datasetNode.children = docResponse.data
+          .filter((doc: any) => doc.is_active !== false)
+          .map((doc: any) => ({
+            id: `doc_${doc.id}`,
+            label: doc.name,
+            level: 3,
+            type: 'document',
+            documentId: doc.id,
+            datasetId: dataset.id,
+            size: doc.char_length || 0,
+            status: doc.status
+          }))
+        // 更新文档数量为实际过滤后的文档数
+        datasetNode.documentCount = datasetNode.children.length
+      } else {
+        // 如果没有文档，设置为0
+        datasetNode.documentCount = 0
       }
     } catch (error) {
       console.error(`加载知识库 ${dataset.name} 的文档失败:`, error)
+      datasetNode.documentCount = 0
     }
 
     children.push(datasetNode)
@@ -1982,16 +1991,19 @@ const loadDocuments = async (datasetId: string, parentNodeId: string) => {
     const response = await documentApi.getAllDocument(datasetId)
 
     if (response.data) {
-      const documents: TreeNode[] = response.data.map((doc: any) => ({
-        id: `doc_${doc.id}`,
-        label: doc.name,
-        level: 3,
-        type: 'document',
-        documentId: doc.id,
-        datasetId: datasetId,
-        size: doc.char_length || 0,
-        status: doc.status
-      }))
+      // 只显示启用状态的文档 (is_active 为 true 的文档)
+      const documents: TreeNode[] = response.data
+        .filter((doc: any) => doc.is_active !== false)
+        .map((doc: any) => ({
+          id: `doc_${doc.id}`,
+          label: doc.name,
+          level: 3,
+          type: 'document',
+          documentId: doc.id,
+          datasetId: datasetId,
+          size: doc.char_length || 0,
+          status: doc.status
+        }))
 
       // 更新对应节点的children
       updateNodeChildren(parentNodeId, documents)
@@ -2007,6 +2019,8 @@ const updateNodeChildren = (nodeId: string, children: TreeNode[]) => {
     for (let node of nodes) {
       if (node.id === nodeId) {
         node.children = children
+        // 同时更新文档数量统计
+        node.documentCount = children.length
         return true
       }
       if (node.children && findAndUpdate(node.children)) {

@@ -555,6 +555,8 @@ const changeState = async (row: any) => {
       is_active: !row.is_active
     })
     ElMessage.success(`文档已${!row.is_active ? '启用' : '禁用'}`)
+    // 通知父组件文档发生变化
+    emit('documentChanged')
     return true
   } catch (error) {
     console.error('切换文档状态失败:', error)
