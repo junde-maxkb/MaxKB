@@ -50,7 +50,7 @@
         :limit="50"
         :on-exceed="onExceed"
         :on-change="fileHandleChange"
-        @click.prevent="handlePreview(false)"
+        @click.prevent="handlePreview(false, $event)"
       >
         <img src="@/assets/upload-icon.svg" alt="" />
         <div class="el-upload__text">
@@ -59,7 +59,7 @@
             <em class="hover" @click.prevent="handlePreview(false)">
               点击上传
             </em>
-            <em class="hover ml-4" @click.prevent="handlePreview(true)">
+            <em class="hover ml-4" @click.prevent="handlePreview(true, $event)">
               选择文件夹
             </em>
           </p>
@@ -94,7 +94,7 @@
         :limit="10"
         :on-exceed="onExceed"
         :on-change="fileHandleChange"
-        @click.prevent="handlePreview(false)"
+        @click.prevent="handlePreview(false, $event)"
       >
         <img src="@/assets/upload-icon.svg" alt="" />
         <div class="el-upload__text">
@@ -134,7 +134,7 @@
         :limit="50"
         :on-exceed="onExceed"
         :on-change="fileHandleChange"
-        @click.prevent="handlePreview(false)"
+        @click.prevent="handlePreview(false, $event)"
       >
         <img src="@/assets/upload-icon.svg" alt="" />
         <div class="el-upload__text">
@@ -143,7 +143,7 @@
             <em class="hover" @click.prevent="handlePreview(false)">
               点击上传
             </em>
-            <em class="hover ml-4" @click.prevent="handlePreview(true)">
+            <em class="hover ml-4" @click.prevent="handlePreview(true, $event)">
               选择文件夹
             </em>
           </p>
@@ -250,12 +250,23 @@ const fileHandleChange = (file: UploadFile, fileList: UploadFiles) => {
   }
 }
 
-const handlePreview = (multiple: boolean) => {
+const handlePreview = (multiple: boolean, event?: Event) => {
   nextTick(() => {
-    const inputDom = document.querySelector('.el-upload__input') as HTMLInputElement
-    if (inputDom) {
-      inputDom.webkitdirectory = multiple
+    // 如果传入了事件，从事件目标向上查找最近的el-upload组件
+    let targetUpload: Element | null = null
+    if (event && event.target) {
+      targetUpload = (event.target as Element).closest('.el-upload')
     }
+    
+    // 如果没找到，则查找所有el-upload组件并设置webkitdirectory
+    const uploadComponents = targetUpload ? [targetUpload] : document.querySelectorAll('.el-upload')
+    
+    uploadComponents.forEach(upload => {
+      const inputDom = upload.querySelector('.el-upload__input') as HTMLInputElement
+      if (inputDom) {
+        inputDom.webkitdirectory = multiple
+      }
+    })
   })
 }
 
