@@ -1050,7 +1050,8 @@ const documentUploadRef = ref<any>(null)
 const showRenameDialog = ref(false)
 const renameForm = ref({
   id: '',
-  name: ''
+  name: '',
+  oldName: ''  // 保存原始名称，用于日志和验证
 })
 const messagesContainer = ref<HTMLElement | null>(null)
 const treeRef = ref<any>(null)
@@ -1613,8 +1614,15 @@ const sortPersonalKBs = async () => {
   try {
     if (personalKBs.value.length === 0) return
 
-    // 复制数组进行排序
-    let sortedKBs = [...personalKBs.value]
+    // 复制数组并深拷贝每个对象，确保使用最新数据
+    let sortedKBs = personalKBs.value.map(kb => ({
+      ...kb,
+      description: kb.description,
+      desc: kb.desc
+    }))
+    
+    // 调试：打印排序前的数据，确认更新是否生效
+    console.log('排序前的knowledge bases:', sortedKBs.map(kb => ({ id: kb.id, name: kb.name, desc: kb.desc, description: kb.description })))
 
     if (personalKBSortType.value === 'time') {
       // 按创建时间倒序排列（最新的在前面）
@@ -1630,8 +1638,7 @@ const sortPersonalKBs = async () => {
       })
     }
 
-    // 更新排序后的数据
-    personalKBs.value = sortedKBs
+    // 将排序后的数组直接用于更新树，不修改personalKBs的引用
     await updateTreeData('my', sortedKBs)
 
     console.log(`个人知识库已按${personalKBSortType.value === 'time' ? '时间' : '名称'}排序`)
@@ -1715,7 +1722,8 @@ const handleKBAction = async (command: { action: string; data: TreeNode }) => {
 
         renameForm.value = {
           id: targetId,
-          name: data.label
+          name: data.label,
+          oldName: data.label  // 保存原始名称
         }
         showRenameDialog.value = true
         break
@@ -1976,7 +1984,7 @@ const updateTreeData = async (categoryId: string, datasets: any[]) => {
       level: 2,
       type: 'dataset',
       datasetId: dataset.id,
-      description: dataset.description,
+      description: dataset.description || dataset.desc,
       documentCount: dataset.document_count || 0,
       permission: dataset.permission,  // 添加权限信息
       shared_with_type: dataset.shared_with_type,
@@ -3559,7 +3567,7 @@ const confirmRename = async () => {
 
     console.log('开始重命名:', {
       id: renameForm.value.id,
-      oldName: renameForm.value.name,
+      oldName: renameForm.value.oldName,
       newName: newName,
       updateData: updateData
     })
@@ -3572,19 +3580,52 @@ const confirmRename = async () => {
     console.log('API请求数据:', updateData)
     console.log('API响应:', response)
     console.log('API响应状态:', response.code, response.message)
+    console.log('API响应数据:', response.data)
 
     if (response.code === 200) {
       ElMessage.success('知识库重命名成功')
 
-      // 更新前端数据
-      const updatedKB = personalKBs.value.find(kb => kb.id === renameForm.value.id)
-      if (updatedKB) {
-        updatedKB.name = updateData.name
-        updatedKB.desc = updateData.desc
+      // 使用API返回的更新后的数据
+      if (response.data) {
+        const updatedKB = personalKBs.value.find(kb => kb.id === renameForm.value.id)
+        if (updatedKB) {
+          // 显式更新所有相关字段
+          updatedKB.name = response.data.name || updateData.name
+          updatedKB.description = response.data.desc || updateData.desc || updateData.name
+          updatedKB.desc = response.data.desc || updateData.desc || updateData.name
+          console.log('personalKBs已更新:', {
+            id: updatedKB.id,
+            name: updatedKB.name,
+            desc: updatedKB.desc,
+            description: updatedKB.description
+          })
+        }
+      } else {
+        // 如果API没有返回数据，使用updateData更新前端数据
+        const updatedKB = personalKBs.value.find(kb => kb.id === renameForm.value.id)
+        if (updatedKB) {
+          updatedKB.name = updateData.name
+          updatedKB.description = updateData.desc || updateData.name
+          updatedKB.desc = updateData.desc || updateData.name
+          console.log('personalKBs已更新（使用updateData）:', {
+            id: updatedKB.id,
+            name: updatedKB.name,
+            desc: updatedKB.desc,
+            description: updatedKB.description
+          })
+        }
       }
 
       showRenameDialog.value = false
-      loadPersonalKBs()
+      
+      // 打印更新后的完整personalKBs数组用于调试
+      const targetKB = personalKBs.value.find(kb => kb.id === renameForm.value.id)
+      console.log('更新后的完整数据:', targetKB)
+      
+      // 重新构建树以应用更新（这会从personalKBs.value读取最新数据）
+      console.log('准备重新排序，personalKBs长度:', personalKBs.value.length)
+      await sortPersonalKBs()
+      console.log('排序完成')
     } else {
       ElMessage.error(response.message || '重命名失败')
     }

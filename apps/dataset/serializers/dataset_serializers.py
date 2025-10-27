@@ -939,6 +939,14 @@ class DataSetSerializers(serializers.ModelSerializer):
                     **{'dataset.user_id': user_id}
                 )
             
+            # 添加共享知识库的查询
+            datasetshare_custom_sql = QuerySet(
+                model=get_dynamics_model({'shared_with_id': models.CharField(),
+                                        'permission': models.CharField()})).filter(
+                **{'shared_with_id': user_id, 
+                'permission__in': ['WRITE', 'READ', 'MANAGE']}
+            )
+            
             query_set_dict = {'default_sql': QuerySet(model=get_dynamics_model(
                 {'temp.id': models.UUIDField()})).filter(**{'temp.id': self.data.get("id")}),
                               'dataset_custom_sql': dataset_custom_sql, 
@@ -951,10 +959,12 @@ class DataSetSerializers(serializers.ModelSerializer):
                                                                               choices=AuthOperate.choices,
                                                                               default=AuthOperate.USE)
                                               )})).filter(
-                    **{'user_id': user_id, 'team_member_permission.operate__contains': ['USE']})}
+                    **{'user_id': user_id, 'team_member_permission.operate__contains': ['USE']}),
+                              'datasetshare_custom_sql': datasetshare_custom_sql}
             
             # 获取数据集基本信息
             dataset = QuerySet(DataSet).filter(id=self.data.get("id")).first()
+            print(f"Fetching dataset from DB: id={self.data.get('id')}, name={dataset.name if dataset else 'None'}, desc={dataset.desc if dataset else 'None'}")
             if not dataset:
                 raise AppApiException(300, _('知识库不存在'))
             # 检查知识库是否已被删除
@@ -1028,8 +1038,10 @@ class DataSetSerializers(serializers.ModelSerializer):
             if 'embedding_mode_id' in dataset:
                 _dataset.embedding_mode_id = dataset.get('embedding_mode_id')
             if "name" in dataset:
+                print(f"Updating dataset name: {_dataset.name} -> {dataset.get('name')}")
                 _dataset.name = dataset.get("name")
             if 'desc' in dataset:
+                print(f"Updating dataset desc: {_dataset.desc} -> {dataset.get('desc')}")
                 _dataset.desc = dataset.get("desc")
             if 'meta' in dataset:
                 _dataset.meta = dataset.get('meta')
@@ -1055,8 +1067,17 @@ class DataSetSerializers(serializers.ModelSerializer):
                 [ApplicationDatasetMapping(application_id=application_id, dataset_id=self.data.get('id')) for
                  application_id in application_id_list]
 
+            print(f"Saving dataset with id: {self.data.get('id')}, name: {_dataset.name}, desc: {_dataset.desc}")
             _dataset.save()
-            return self.one(with_valid=False, user_id=user_id)
+            print(f"Dataset saved successfully")
+            
+            # 从数据库重新加载对象以确保获取最新数据
+            _dataset.refresh_from_db()
+            print(f"Refreshed from DB: name={_dataset.name}, desc={_dataset.desc}")
+            
+            result = self.one(with_valid=False, user_id=user_id)
+            print(f"Returning updated dataset: name={result.get('name')}, desc={result.get('desc')}")
+            return result
 
         @staticmethod
         def get_request_body_api():
