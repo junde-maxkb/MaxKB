@@ -126,7 +126,7 @@ class Document(AppModelMixin):
     """
     id = models.UUIDField(primary_key=True, max_length=128, default=uuid.uuid1, editable=False, verbose_name="主键id")
     dataset = models.ForeignKey(DataSet, on_delete=models.DO_NOTHING)
-    name = models.CharField(max_length=150, verbose_name="文档名称")
+    name = models.CharField(max_length=255, verbose_name="文档名称")
     char_length = models.IntegerField(verbose_name="文档字符数 冗余字段")
     status = models.CharField(verbose_name='状态', max_length=20, default=Status('').__str__)
     status_meta = models.JSONField(verbose_name="状态统计数据", default=default_status_meta)

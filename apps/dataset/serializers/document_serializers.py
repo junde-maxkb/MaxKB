@@ -112,7 +112,7 @@ class CancelInstanceSerializer(serializers.Serializer):
 
 class DocumentEditInstanceSerializer(ApiMixin, serializers.Serializer):
     meta = serializers.DictField(required=False)
-    name = serializers.CharField(required=False, max_length=128, min_length=1,
+    name = serializers.CharField(required=False, max_length=255, min_length=1,
                                  error_messages=ErrMessage.char(
                                      _('document name')))
     hit_handling_method = serializers.CharField(required=False, validators=[
@@ -408,7 +408,7 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                                            error_messages=ErrMessage.char(
                                                _('dataset id')))
 
-        name = serializers.CharField(required=False, max_length=128,
+        name = serializers.CharField(required=False, max_length=255,
                                      min_length=1,
                                      error_messages=ErrMessage.char(
                                          _('document name')))
