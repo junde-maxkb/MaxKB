@@ -1547,6 +1547,48 @@ const handleLevel1Action = (command: { action: string; data: TreeNode }) => {
   }
 }
 
+// 按名称排序函数（支持中英文混合）
+const sortByName = (a: string, b: string): number => {
+  // 获取字符类型优先级：数字(0) < 英文大写(A-Z, 1) < 英文小写(a-z, 2) < 中文(3)
+  const getCharPriority = (char: string): number => {
+    const code = char.charCodeAt(0)
+    if (code >= 48 && code <= 57) return 0 // 数字 0-9
+    if (code >= 65 && code <= 90) return 1 // 大写 A-Z
+    if (code >= 97 && code <= 122) return 2 // 小写 a-z
+    if (/[\u4e00-\u9fa5]/.test(char)) return 3 // 中文
+    return 4 // 其他字符
+  }
+
+  const lenA = a.length
+  const lenB = b.length
+  const minLen = Math.min(lenA, lenB)
+
+  // 逐字符比较
+  for (let i = 0; i < minLen; i++) {
+    const charA = a[i]
+    const charB = b[i]
+    const priorityA = getCharPriority(charA)
+    const priorityB = getCharPriority(charB)
+
+    // 类型不同，按类型优先级排序
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB
+    }
+
+    // 类型相同，按字符ASCII值排序
+    if (charA !== charB) {
+      if (priorityA === 3) {
+        // 中文字符使用拼音排序
+        return charA.localeCompare(charB, 'zh-CN')
+      }
+      return charA.charCodeAt(0) - charB.charCodeAt(0)
+    }
+  }
+
+  // 前面的字符都相同，比较长度
+  return lenA - lenB
+}
+
 // 获取知识库类型
 const getKBType = (data: TreeNode): string => {
   // 通过父节点或ID前缀确定知识库类型
@@ -1584,10 +1626,7 @@ const sortPersonalKBs = async () => {
     } else if (personalKBSortType.value === 'name') {
       // 按名称正序排列（A-Z）
       sortedKBs.sort((a, b) => {
-        return (a.name || '').localeCompare(b.name || '', 'zh-CN', {
-          numeric: true,
-          sensitivity: 'base'
-        })
+        return sortByName(a.name || '', b.name || '')
       })
     }
 
@@ -1619,10 +1658,7 @@ const sortOrganizationKBs = async () => {
     } else if (organizationKBSortType.value === 'name') {
       // 按名称正序排列（A-Z）
       sortedKBs.sort((a, b) => {
-        return (a.name || '').localeCompare(b.name || '', 'zh-CN', {
-          numeric: true,
-          sensitivity: 'base'
-        })
+        return sortByName(a.name || '', b.name || '')
       })
     }
 
@@ -1654,10 +1690,7 @@ const sortSharedKBs = async () => {
     } else if (sharedKBSortType.value === 'name') {
       // 按名称正序排列（A-Z）
       sortedKBs.sort((a, b) => {
-        return (a.name || '').localeCompare(b.name || '', 'zh-CN', {
-          numeric: true,
-          sensitivity: 'base'
-        })
+        return sortByName(a.name || '', b.name || '')
       })
     }
 
@@ -1969,7 +2002,7 @@ const updateTreeData = async (categoryId: string, datasets: any[]) => {
             status: doc.status
           }))
         // 更新文档数量为实际过滤后的文档数
-        datasetNode.documentCount = datasetNode.children.length
+        datasetNode.documentCount = datasetNode.children?.length || 0
       } else {
         // 如果没有文档，设置为0
         datasetNode.documentCount = 0
