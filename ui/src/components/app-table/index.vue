@@ -74,7 +74,11 @@ const props = defineProps({
   },
   storeKey: String
 })
-const emit = defineEmits(['changePage', 'sizeChange', 'creatQuick'])
+const emit = defineEmits<{
+  changePage: []
+  sizeChange: [val: number]
+  creatQuick: [value: string]
+}>()
 
 const paginationConfig = computed(() => props.paginationConfig)
 
@@ -114,8 +118,8 @@ function quickCreateHandle() {
   })
 }
 
-function handleSizeChange() {
-  emit('sizeChange')
+function handleSizeChange(val: number) {
+  emit('sizeChange', val)
   if (props.storeKey) {
     common.savePage(props.storeKey, props.paginationConfig)
   }

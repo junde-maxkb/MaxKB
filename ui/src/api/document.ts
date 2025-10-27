@@ -43,8 +43,11 @@ const getDocument: (
   param: any,
   loading?: Ref<boolean>
 ) => Promise<Result<any>> = (dataset_id, page, param, loading) => {
+  // Ensure current_page and page_size are valid numbers
+  const current_page = page.current_page || 1
+  const page_size = page.page_size || 20
   return get(
-    `${prefix}/${dataset_id}/document/${page.current_page}/${page.page_size}`,
+    `${prefix}/${dataset_id}/document/${current_page}/${page_size}`,
     param,
     loading
   )
