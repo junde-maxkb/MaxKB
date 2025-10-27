@@ -2053,6 +2053,23 @@ const updateTreeData = async (categoryId: string, datasets: any[]) => {
   treeData.value[categoryIndex].children = children
 }
 
+// 从treeData中查找知识库节点
+const findDatasetNode = (datasetId: string): TreeNode | null => {
+  const searchInNodes = (nodes: TreeNode[]): TreeNode | null => {
+    for (const node of nodes) {
+      if (node.datasetId === datasetId && node.type === 'dataset') {
+        return node
+      }
+      if (node.children) {
+        const found = searchInNodes(node.children)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  return searchInNodes(treeData.value)
+}
+
 // 加载知识库下的文档
 const loadDocuments = async (datasetId: string, parentNodeId: string) => {
   try {
@@ -2137,11 +2154,15 @@ const performKnowledgeSearch = async (query: string) => {
             document_ids: docs.map(doc => doc.documentId).filter(Boolean).join(',')
           }
 
+          // 从treeData中查找知识库节点以获取正确的知识库名称
+          const datasetNode = findDatasetNode(datasetId)
+          const datasetName = datasetNode?.label || '未知知识库'
+
           const response = await datasetApi.getDatasetHitTest(datasetId, searchData)
           if (response.code === 200 && response.data) {
             const results = response.data.map((item: any) => ({
               ...item,
-              dataset_name: docs[0]?.label?.split(' - ')[0] || '未知知识库',
+              dataset_name: datasetName,
               source: item.document_name || item.source
             }))
             searchResults.push(...results)
