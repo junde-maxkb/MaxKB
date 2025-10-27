@@ -19,6 +19,10 @@
           <el-icon><Operation /></el-icon>
           迁移到其他知识库
         </el-button>
+        <el-button @click="batchExportZip" :disabled="multipleSelection.length === 0">
+          <el-icon><Download /></el-icon>
+          导出ZIP
+        </el-button>
         <el-button @click="deleteMulDocument" :disabled="multipleSelection.length === 0">
           <el-icon><Delete /></el-icon>
           删除
@@ -373,7 +377,8 @@ import {
   Refresh,
   Delete,
   QuestionFilled,
-  Operation
+  Operation,
+  Download
 } from '@element-plus/icons-vue'
 import documentApi from '@/api/document'
 import UploadComponent from './UploadComponent.vue'
@@ -692,6 +697,27 @@ const batchMigrateDocuments = () => {
 const migrateDocument = (row: any) => {
   // 打开知识库选择对话框，传入单个文档ID
   SelectDatasetDialogRef.value.open([row.id])
+}
+
+// 批量导出ZIP
+const batchExportZip = async () => {
+  if (multipleSelection.value.length === 0) return
+  
+  try {
+    // 遍历选中的文档，逐个导出
+    for (const doc of multipleSelection.value) {
+      try {
+        await documentApi.exportDocumentZip(doc.name, props.datasetId, doc.id)
+      } catch (error) {
+        console.error(`导出文档"${doc.name}"失败:`, error)
+        ElMessage.warning(`导出文档"${doc.name}"失败`)
+      }
+    }
+    ElMessage.success(`已开始导出 ${multipleSelection.value.length} 个文档`)
+  } catch (error) {
+    console.error('批量导出失败:', error)
+    ElMessage.error('批量导出失败')
+  }
 }
 
 const cancelTask = async (row: any, taskType: number) => {
