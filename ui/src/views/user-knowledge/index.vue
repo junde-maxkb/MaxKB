@@ -905,56 +905,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import useStore from '@/stores'
 import {
-  Plus,
-  Search,
-  Document,
-  DocumentDelete,
-  ChatDotSquare,
-  DocumentCopy,
-  MoreFilled,
   ArrowDown,
-  Refresh,
-  OfficeBuilding,
-  Share,
-  User,
-  Setting,
+  Check,
+  Close,
+  Collection,
+  Connection,
+  Delete,
+  Document,
+  DocumentAdd,
+  DocumentCopy,
   Edit,
   EditPen,
-  Delete,
-  View,
-  Close,
-  FolderRemove,
   Folder,
-  Timer,
-  Sort,
-  Check,
-  Upload,
-  UploadFilled,
-  Download,
-  Collection,
-  Clock,
-  Switch,
+  FolderRemove,
   Microphone,
-  MagicStick,
-  DocumentAdd,
-  Connection,
+  MoreFilled,
+  Plus,
+  Refresh,
+  Setting,
+  Share,
+  Sort,
+  Timer,
+  UploadFilled,
+  View,
   Warning
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
-import modelApi, { postModelChatStream, postModelChat } from '@/api/model'
-import applicationApi from '@/api/application'
+import modelApi, { postModelChat, postModelChatStream } from '@/api/model'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
 import DocumentParagraphsDialog from './components/DocumentParagraphsDialog.vue'
 import Recorder from 'recorder-core'
 import 'recorder-core/src/engine/mp3'
 import 'recorder-core/src/engine/mp3-engine'
-import { MsgAlert, MsgWarning } from '@/utils/message'
+import { MsgAlert } from '@/utils/message'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
@@ -2384,6 +2373,8 @@ const sendMessage = async () => {
 
     // 根据是否为AI写作模式或AI翻译模式构建不同的系统提示
     let systemPrompt = ''
+    let currentIntent: 'writing' | 'polish' | 'expand' | 'chat' | null = null // 用于记录当前意图
+    
     if (isAITranslateMode.value) {
       // AI翻译模式：使用翻译提示词
       console.log('AI翻译模式：开始翻译...')
@@ -2411,6 +2402,7 @@ const sendMessage = async () => {
 
       // 调用意图识别函数
       const intent = await detectWritingIntent(userQuestion, modelId)
+      currentIntent = intent // 保存意图以便后续使用
 
       // 打印意图识别结果
       console.log('=== 意图识别结果 ===')
@@ -2484,13 +2476,26 @@ ${context}
 请基于上述内容回答用户问题，保持专业、准确和有帮助的态度。${contextNote}`
     }
 
-    // AI翻译模式和AI摘要模式不使用对话历史上下文，每次都是独立的任务
+    // AI翻译模式、AI摘要模式，以及AI写作模式下的扩写/润写模式不使用对话历史上下文，每次都是独立的任务
+    // 判断是否需要保留对话历史
+    const shouldSkipHistory = isAITranslateMode.value || 
+                              isAISummaryMode.value || 
+                              (currentIntent === 'polish' || currentIntent === 'expand')
+    
+    if (shouldSkipHistory) {
+      console.log('当前模式不保留对话历史，模式:', {
+        isAITranslateMode: isAITranslateMode.value,
+        isAISummaryMode: isAISummaryMode.value,
+        currentIntent: currentIntent
+      })
+    }
+    
     const messages = [
       {
         role: 'system',
         content: systemPrompt
       },
-      ...(isAITranslateMode.value || isAISummaryMode.value ? [] : chatMessages.value.slice(-10)), // AI翻译模式和AI摘要模式不保留对话历史
+      ...(shouldSkipHistory ? [] : chatMessages.value.slice(-10)), // 根据需要决定是否保留对话历史
       { role: 'user', content: userQuestion }
     ]
 
@@ -2681,8 +2686,7 @@ const formatMessageContent = (content: string) => {
     }
 
     // 普通内容：使用 marked 解析 Markdown
-    const html = marked.parse(content) as string
-    return html
+    return marked.parse(content) as string
   } catch (error) {
     console.error('Markdown 解析失败:', error)
     // 降级处理：简单的格式化
