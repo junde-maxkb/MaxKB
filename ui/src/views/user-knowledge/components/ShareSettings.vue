@@ -277,7 +277,10 @@ const getAvailableUsersOrTeams = async () => {
     if (res.data) {
       // 只处理团队，不处理用户
       availableMembers.value = []
-      availableTeams.value = (res.data || []).map((team: any) => ({
+      // res.data 是一个对象，包含 teams 和 users 两个数组
+      const data = res.data as any
+      const teams = data.teams || []
+      availableTeams.value = teams.map((team: any) => ({
         id: team.id,
         name: team.name,
         type: 'TEAM'
