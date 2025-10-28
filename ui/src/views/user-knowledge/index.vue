@@ -742,6 +742,29 @@
                       </el-button>
                     </el-upload>
 
+                    <!-- AI综述模式文档上传按钮-->
+                    <el-upload
+                      v-if="isAIReviewMode"
+                      ref="reviewDocumentUploadRef"
+                      class="document-upload-btn"
+                      :show-file-list="false"
+                      :before-upload="handleReviewDocumentUpload"
+                      :disabled="isStreaming || isUploadingReviewDocument"
+                      accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+                    >
+                      <el-button
+                        text
+                        class="voice-btn"
+                        :disabled="isStreaming || isUploadingReviewDocument"
+                        :loading="isUploadingReviewDocument"
+                        :title="reviewDocumentName ? '重新上传综述文档' : '上传文档进行综述'"
+                      >
+                        <el-icon v-if="!isUploadingReviewDocument">
+                          <Document />
+                        </el-icon>
+                      </el-button>
+                    </el-upload>
+
                     <!-- 语音录制按钮 -->
                     <el-button
                       text
@@ -835,12 +858,16 @@
                           !selectedInfo)
                       "
                     >
-                      {{ isStreaming ? '发送中...' : '发送' }}
+                      发送
                     </el-button>
                     <el-button
-                      type="primary"
+                      type="danger"
                       class="send-btn"
-                      @click="()=> {isStreaming = false}"
+                      @click="
+                        () => {
+                          isStreaming = false
+                        }
+                      "
                       v-else
                     >
                       停止
@@ -881,11 +908,7 @@
                   </el-icon>
                   <span class="ai-text">AI摘要</span>
                 </div>
-                <div
-                  class="ai-button"
-                  :class="{ active: isAIReviewMode }"
-                  @click="handleAISummary"
-                >
+                <div class="ai-button" :class="{ active: isAIReviewMode }" @click="handleAIReview">
                   <el-icon class="ai-icon">
                     <Document />
                   </el-icon>
@@ -1131,6 +1154,9 @@ const documentUploadRef = ref<any>(null)
 
 // AI综述模式
 const isAIReviewMode = ref(false)
+const isUploadingReviewDocument = ref(false)
+const reviewDocumentContent = ref('')
+const reviewDocumentName = ref('')
 
 // 重命名相关状态
 const showRenameDialog = ref(false)
@@ -2402,6 +2428,8 @@ const sendMessage = async () => {
   const savedUploadedDocName = uploadedDocumentName.value
   const savedSummaryDocContent = summaryDocumentContent.value
   const savedSummaryDocName = summaryDocumentName.value
+  const savedReviewDocContent = reviewDocumentContent.value
+  const savedReviewDocName = reviewDocumentName.value
 
   // 添加用户消息
   let displayUserMessage = userQuestion
@@ -2594,6 +2622,26 @@ ${savedUploadedDocContent}`
         // 基于知识库检索结果的摘要模式
         systemPrompt = getSummaryPrompt(
           '中英文', // 固定为中英文摘要
+          userQuestion,
+          '',
+          '',
+          context,
+          contextNote
+        )
+      }
+    } else if (isAIReviewMode.value){
+      // AI代码审查模式的系统提示
+      console.log('AI综述模式：开始文献综述...')
+      console.log('用户输入内容:', userQuestion)
+      if (savedReviewDocContent) {
+        console.log('检测到上传综述文档:', savedReviewDocName)
+        systemPrompt = getReviewPrompt(
+          userQuestion,
+          savedReviewDocContent,
+          savedReviewDocName
+        )
+      } else {
+        systemPrompt = getReviewPrompt(
           userQuestion,
           '',
           '',
@@ -2856,29 +2904,31 @@ const formatMessageContent = (content: string) => {
   }
 }
 
-// AI写作功能
-const handleAIWriting = () => {
-  isAIWritingMode.value = !isAIWritingMode.value
+// 清除模式状态
+const switchMode = (mode: Ref<boolean, boolean>) => {
+  mode.value = !mode.value
 
-  // 如果开启AI写作模式，关闭其他AI模式
-  if (isAIWritingMode.value) {
-    if (isAITranslateMode.value) {
-      isAITranslateMode.value = false
-      // 清空翻译模式的上传文档
-      translateDocumentContent.value = ''
-      translateDocumentName.value = ''
-    }
-    if (isAISummaryMode.value) {
-      isAISummaryMode.value = false
-      // 清空摘要模式的上传文档
-      summaryDocumentContent.value = ''
-      summaryDocumentName.value = ''
-    }
-  }
+  isAIWritingMode.value = mode === isAIWritingMode ? mode.value : false
+  isAITranslateMode.value = mode === isAITranslateMode ? mode.value : false
+  isAISummaryMode.value = mode === isAISummaryMode ? mode.value : false
+  isAIReviewMode.value = mode === isAIReviewMode ? mode.value : false
 
+  // 清空所有模式的上传文档内容
+  uploadedDocumentContent.value = ''
+  uploadedDocumentName.value = ''
+  // 清空翻译模式的上传文档
+  translateDocumentContent.value = ''
+  translateDocumentName.value = ''
+  // 清空摘要模式的上传文档
+  summaryDocumentContent.value = ''
+  summaryDocumentName.value = ''
   // 切换模式时清空输入框内容，避免混淆
   currentMessage.value = ''
+}
 
+// AI写作功能
+const handleAIWriting = () => {
+  switchMode(isAIWritingMode)
   if (isAIWritingMode.value) {
     ElMessage.success('已开启AI写作模式（支持写作、润写、扩写）')
   } else {
@@ -2891,26 +2941,8 @@ const handleAIWriting = () => {
 
 // AI翻译模式切换
 const handleAITranslate = () => {
-  isAITranslateMode.value = !isAITranslateMode.value
+  switchMode(isAITranslateMode)
 
-  // 如果开启AI翻译模式，关闭其他AI模式
-  if (isAITranslateMode.value) {
-    if (isAIWritingMode.value) {
-      isAIWritingMode.value = false
-      // 清空写作模式的上传文档
-      uploadedDocumentContent.value = ''
-      uploadedDocumentName.value = ''
-    }
-    if (isAISummaryMode.value) {
-      isAISummaryMode.value = false
-      // 清空摘要模式的上传文档
-      summaryDocumentContent.value = ''
-      summaryDocumentName.value = ''
-    }
-  }
-
-  // 切换模式时清空输入框内容，避免混淆
-  currentMessage.value = ''
 
   if (isAITranslateMode.value) {
     ElMessage.success(
@@ -2925,26 +2957,7 @@ const handleAITranslate = () => {
 }
 
 const handleAISummary = () => {
-  isAISummaryMode.value = !isAISummaryMode.value
-
-  // 如果开启AI摘要模式，关闭其他AI模式
-  if (isAISummaryMode.value) {
-    if (isAIWritingMode.value) {
-      isAIWritingMode.value = false
-      // 清空写作模式的上传文档
-      uploadedDocumentContent.value = ''
-      uploadedDocumentName.value = ''
-    }
-    if (isAITranslateMode.value) {
-      isAITranslateMode.value = false
-      // 清空翻译模式的上传文档
-      translateDocumentContent.value = ''
-      translateDocumentName.value = ''
-    }
-  }
-
-  // 切换模式时清空输入框内容，避免混淆
-  currentMessage.value = ''
+  switchMode(isAISummaryMode)
 
   if (isAISummaryMode.value) {
     ElMessage.success('已开启AI中英文摘要模式（支持文本和文档摘要）')
@@ -2953,6 +2966,16 @@ const handleAISummary = () => {
     // 关闭AI摘要模式时清空已上传的文档
     summaryDocumentContent.value = ''
     summaryDocumentName.value = ''
+  }
+}
+
+const handleAIReview = () => {
+  switchMode(isAIReviewMode)
+
+  if (isAIReviewMode.value) {
+    ElMessage.success('已开启AI综述模式')
+  } else {
+    ElMessage.info('已关闭AI综述模式')
   }
 }
 
@@ -3114,6 +3137,74 @@ const handleSummaryDocumentUpload = async (file: any) => {
   }
 
   return false // 阻止默认上传行为
+}
+
+// AI综述模式文档上传处理
+const handleReviewDocumentUpload = async (file: any) => {
+  if (!isAIReviewMode.value) {
+    ElMessage.warning('请先开启AI综述模式')
+    return false
+  }
+  // 验证文件类型
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+  if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+    ElMessage.error('仅支持上传 PDF、Word、Excel 和 TXT 文档')
+    return false
+  }
+  // 验证文件大小 (10MB)
+  const maxSize = 10 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 10MB')
+    return false
+  }
+  try {
+    isUploadingReviewDocument.value = true
+    // 创建 FormData
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('limit', '100000') // 设置较大的字符限制
+    formData.append('with_filter', 'false')
+    // 调用文档分段API进行文档识别
+    const response = await documentApi.postSplitDocument(formData)
+    if (response.code === 200 && response.data) {
+      // 提取文档内容
+      let documentContent = ''
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const allParagraphs: string[] = []
+        response.data.forEach((doc: any) => {
+          if (Array.isArray(doc.content)) {
+            doc.content.forEach((paragraph: any) => {
+              if (paragraph.content && typeof paragraph.content === 'string') {
+                allParagraphs.push(paragraph.content.trim())
+              }
+            })
+          }
+        })
+        documentContent = allParagraphs.filter((p) => p).join('\n\n')
+      }
+      if (documentContent.trim()) {
+        reviewDocumentContent.value = documentContent
+        reviewDocumentName.value = file.name
+        ElMessage.success(`文档 "${file.name}" 上传成功，准备生成综述！`)
+      } else {
+        ElMessage.error('文档内容为空或无法识别')
+      }
+    } else {
+      ElMessage.error(response.message || '文档识别失败')
+    }
+  } catch (error: any) {
+    console.error('文档上传失败:', error)
+    ElMessage.error(error.message || '文档上传失败，请重试')
+  } finally {
+    isUploadingReviewDocument.value = false
+  }
 }
 
 // 移除AI翻译模式已上传的文档
@@ -3593,7 +3684,7 @@ const getSummaryPrompt = (
 
 摘要要求：
 1. 准确提取文档的核心观点和关键信息
-2. 保持内容的逻辑性和完整性  
+2. 保持内容的逻辑性和完整性
 3. 语言简洁明了，重点突出
 4. 中英文摘要内容保持一致
 5. 摘要长度控制在500-700字
@@ -3610,7 +3701,7 @@ const getSummaryPrompt = (
 
 **关键要点：**
 1. [要点一]
-2. [要点二] 
+2. [要点二]
 3. [要点三]
 [根据内容多少自动调整要点数量]
 
@@ -3716,6 +3807,322 @@ ${context}
 用户要求：${userQuestion || '请生成一般性摘要'}
 
 请按照专业的摘要格式，生成简洁明了、重点突出的中英文内容。如果用户要求不够明确，请友好地询问更具体的摘要需求。`
+}
+
+// 获取文件综述模式的提示词
+const getReviewPrompt = (
+  userQuestion: string = '',
+  documentContent: string = '',
+  documentName: string = '',
+  context: string = '',
+  contextNote: string = ''
+) => {
+  if (documentContent) {
+    const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
+    return `# 角色定位
+你是一位专业的双语文档综述专家，擅长从复杂文档中提炼核心信息，生成结构清晰、逻辑严谨的中英文综述报告。
+
+---
+
+# 输入信息
+
+## 文档基本信息
+- **文档名称**: ${documentName}
+- **综述范围**: ${noteSection}
+
+## 文档内容
+${documentContent}
+
+---
+
+# 综述要求
+
+## 质量标准
+1. **准确性**: 精准提取文档的核心观点和关键信息，不偏离原意
+2. **逻辑性**: 保持内容的逻辑连贯性和结构完整性
+3. **简洁性**: 语言精炼明了，避免冗余，突出重点
+4. **一致性**: 综述内容的语言保持和对话一样一致，语言选择其中一种即可
+5. **适度性**: 综述长度控制在 800-1000 字（中英文各自）
+6. **规范性**: 使用标准 Markdown 格式输出
+
+## 内容层次
+综述应包含以下核心要素：
+- **主题概述**: 文档的主要主题和背景
+- **核心内容**: 关键论点、数据、发现或方法
+- **重要细节**: 支撑性信息和具体案例
+- **结论要点**: 总结性观点或建议
+
+---
+
+# 输出格式
+
+## 中文综述
+
+### 📄 文档概览
+**主题**: [文档的核心主题]
+**背景**: [相关背景信息]
+
+### 🎯 核心内容
+
+#### 1. [第一个关键主题]
+[详细阐述内容，包含关键数据、论点或发现]
+
+#### 2. [第二个关键主题]
+[详细阐述内容，包含关键数据、论点或发现]
+
+#### 3. [第三个关键主题]
+[详细阐述内容，包含关键数据、论点或发现]
+
+### 💎 重要发现
+- **[发现点1]**: [具体说明]
+- **[发现点2]**: [具体说明]
+- **[发现点3]**: [具体说明]
+
+### 📊 关键数据/案例
+[如有重要数据、图表或案例，在此呈现]
+
+### ✅ 结论与启示
+[总结文档的核心结论、实践意义或未来展望]
+
+---
+
+## English Review
+
+### 📄 Document Overview
+**Topic**: [Core topic of the document]
+**Background**: [Relevant background information]
+
+### 🎯 Core Content
+
+#### 1. [First Key Theme]
+[Detailed elaboration including key data, arguments, or findings]
+
+#### 2. [Second Key Theme]
+[Detailed elaboration including key data, arguments, or findings]
+
+#### 3. [Third Key Theme]
+[Detailed elaboration including key data, arguments, or findings]
+
+### 💎 Important Findings
+- **[Finding 1]**: [Specific description]
+- **[Finding 2]**: [Specific description]
+- **[Finding 3]**: [Specific description]
+
+### 📊 Key Data/Cases
+[Present important data, charts, or cases if available]
+
+### ✅ Conclusions & Implications
+[Summarize core conclusions, practical significance, or future prospects]
+
+---
+
+# 示例模版
+
+## 中文综述示例
+
+### 📄 文档概览
+**主题**: 企业数字化转型策略研究
+**背景**: 随着云计算、大数据和人工智能技术的快速发展，传统企业面临数字化转型的迫切需求。
+
+### 🎯 核心内容
+
+#### 1. 数字化转型的必要性
+文档指出，在数字经济时代，企业数字化转型已从可选项变为生存必需。研究显示，完成数字化转型的企业运营效率平均提升 40%，客户满意度提高 35%。转型的核心驱动力包括市场竞争压力、客户需求变化和技术进步三大因素。
+
+#### 2. 转型实施框架
+文档提出了"战略-技术-组织"三维转型框架。战略层面强调顶层设计和明确目标；技术层面涵盖云平台、数据中台和智能应用；组织层面注重文化变革和人才培养。该框架已在 50+ 企业中成功应用。
+
+#### 3. 关键成功要素
+研究识别出五大关键成功要素：高层领导支持（权重 25%）、清晰的转型路线图（20%）、充足的资源投入（20%）、组织文化适配（18%）、持续的能力建设（17%）。
+
+### 💎 重要发现
+- **阶段性推进**: 成功案例普遍采用"试点-推广-深化"的渐进式路径，而非激进式全面变革
+- **生态协同**: 头部企业倾向构建数字化生态系统，与合作伙伴共同创造价值
+- **数据驱动**: 建立数据治理体系和分析能力是转型成功的关键基础设施
+
+### 📊 关键数据/案例
+- 某制造企业通过数字化转型，生产周期缩短 30%，库存成本降低 25%
+- 某零售企业构建全渠道平台后，线上销售占比从 15% 提升至 45%
+- 调研显示 73% 的企业将数字化转型列为未来三年的首要战略
+
+### ✅ 结论与启示
+企业数字化转型是系统工程，需要战略、技术和组织的协同演进。成功的关键在于：制定清晰的转型愿景、建立敏捷的实施机制、培育数字化文化、持续投入和迭代优化。未来研究可进一步探索不同行业的差异化转型路径和新兴技术的应用场景。
+
+---
+
+## English Review Example
+
+### 📄 Document Overview
+**Topic**: Research on Enterprise Digital Transformation Strategy
+**Background**: With the rapid development of cloud computing, big data, and artificial intelligence, traditional enterprises face urgent needs for digital transformation.
+
+### 🎯 Core Content
+
+#### 1. Necessity of Digital Transformation
+The document indicates that in the digital economy era, enterprise digital transformation has evolved from an option to a survival necessity. Research shows that enterprises completing digital transformation achieve an average 40% improvement in operational efficiency and 35% increase in customer satisfaction. Core driving forces include market competition pressure, changing customer demands, and technological advancement.
+
+#### 2. Transformation Implementation Framework
+The document proposes a three-dimensional "Strategy-Technology-Organization" transformation framework. The strategic level emphasizes top-level design and clear objectives; the technological level covers cloud platforms, data middle platforms, and intelligent applications; the organizational level focuses on cultural change and talent development. This framework has been successfully applied in 50+ enterprises.
+
+#### 3. Key Success Factors
+The research identifies five key success factors: top leadership support (25% weight), clear transformation roadmap (20%), adequate resource investment (20%), organizational culture alignment (18%), and continuous capability building (17%).
+
+### 💎 Important Findings
+- **Phased Advancement**: Successful cases commonly adopt a progressive "pilot-rollout-deepening" path rather than radical comprehensive change
+- **Ecosystem Collaboration**: Leading enterprises tend to build digital ecosystems and co-create value with partners
+- **Data-Driven**: Establishing data governance systems and analytical capabilities is critical infrastructure for transformation success
+
+### 📊 Key Data/Cases
+- A manufacturing enterprise reduced production cycles by 30% and inventory costs by 25% through digital transformation
+- A retail enterprise increased online sales from 15% to 45% after building an omnichannel platform
+- Survey shows 73% of enterprises list digital transformation as their top strategic priority for the next three years
+
+### ✅ Conclusions & Implications
+Enterprise digital transformation is a systematic project requiring coordinated evolution of strategy, technology, and organization. Keys to success include: formulating a clear transformation vision, establishing agile implementation mechanisms, cultivating digital culture, continuous investment, and iterative optimization. Future research can further explore differentiated transformation paths across industries and application scenarios for emerging technologies.
+
+---
+
+# 执行指令
+
+请严格按照上述格式和示例，为提供的文档生成中英文综述。确保：
+
+1. **完整覆盖**: 涵盖文档的所有核心主题（通常 2-4 个）
+2. **数据支撑**: 引用文档中的关键数据、案例或证据
+3. **层次清晰**: 区分概览、核心内容、发现和结论四个层次
+4. **字数控制**: 中英文综述各 800-1000 字
+5. **双语对应**: 中英文内容结构和信息点完全对应
+6. **格式规范**: 使用标准 Markdown 语法，包含适当的标题层级和列表
+`
+    }
+
+  // 基于知识库内容的综述模式
+  if (context && context.trim() && !context.includes('未找到')) {
+    const noteSection = userQuestion ? `\n\n用户问题：${userQuestion}\n` : ''
+    return `# 角色定位
+你是一位专业的知识综合分析专家,擅长从知识库检索结果中提取核心信息,并生成结构清晰、逻辑严谨的中英文综述报告。
+
+---
+
+# 输入内容
+## 检索范围
+${noteSection}
+
+## 检索到的相关内容
+${context}
+
+${contextNote}
+
+---
+
+# 综述要求
+
+## 核心原则
+1. **全面性**: 综合分析所有检索到的内容,不遗漏关键信息
+2. **相关性**: 提取与主题最相关和最重要的信息
+3. **逻辑性**: 保持内容的逻辑连贯性和结构完整性
+4. **简洁性**: 语言精炼明了,避免冗余,突出重点
+5. **可读性**: 使用 Markdown 格式,层次分明
+6. **一致性**: 综述内容的语言保持和对话一样一致，语言选择其中一种即可
+
+## 综述结构
+按以下层次组织内容:
+- **核心概念**: 定义和基本原理
+- **关键要点**: 主要观点和发现
+- **逻辑关系**: 各部分之间的联系
+- **重要结论**: 总结性见解
+
+---
+
+# 输出格式
+
+## 中文综述
+
+### 📌 核心概念
+[简明扼要地阐述主题的核心定义和基本概念]
+
+### 🔑 关键要点
+1. **[要点标题1]**: [具体内容说明]
+2. **[要点标题2]**: [具体内容说明]
+3. **[要点标题3]**: [具体内容说明]
+
+### 🔗 逻辑关系
+[描述各关键要点之间的内在联系、因果关系或层级结构]
+
+### 💡 重要结论
+[总结性观点和核心洞察]
+
+---
+
+## English Review
+
+### 📌 Core Concepts
+[Concisely explain the core definitions and fundamental concepts of the topic]
+
+### 🔑 Key Points
+1. **[Key Point Title 1]**: [Specific content description]
+2. **[Key Point Title 2]**: [Specific content description]
+3. **[Key Point Title 3]**: [Specific content description]
+
+### 🔗 Logical Relationships
+[Describe the intrinsic connections, causal relationships, or hierarchical structures among key points]
+
+### 💡 Important Conclusions
+[Summary insights and core takeaways]
+
+---
+
+# 示例模版
+
+## 中文综述示例
+
+### 📌 核心概念
+机器学习是人工智能的一个分支,通过算法使计算机系统能够从数据中自动学习和改进,而无需显式编程。其核心在于构建能够识别模式并做出决策的数学模型。
+
+### 🔑 关键要点
+1. **学习范式**: 包括监督学习、无监督学习和强化学习三大类别,各有不同的应用场景和数据要求
+2. **算法模型**: 常见算法包括决策树、神经网络、支持向量机等,需根据具体问题选择合适模型
+3. **评估指标**: 通过准确率、召回率、F1分数等指标评估模型性能,确保模型的可靠性
+
+### 🔗 逻辑关系
+学习范式决定了数据标注需求 → 数据特征影响算法选择 → 算法性能通过评估指标量化 → 评估结果指导模型优化迭代
+
+### 💡 重要结论
+机器学习的成功应用需要合理选择学习范式、精心设计特征工程、科学评估模型性能,并持续迭代优化。数据质量和数量是影响模型效果的关键因素。
+
+---
+
+## English Review Example
+
+### 📌 Core Concepts
+Machine learning is a branch of artificial intelligence that enables computer systems to automatically learn and improve from data through algorithms, without explicit programming. Its core lies in building mathematical models capable of recognizing patterns and making decisions.
+
+### 🔑 Key Points
+1. **Learning Paradigms**: Includes three main categories - supervised learning, unsupervised learning, and reinforcement learning, each with different application scenarios and data requirements
+2. **Algorithm Models**: Common algorithms include decision trees, neural networks, support vector machines, etc., requiring appropriate model selection based on specific problems
+3. **Evaluation Metrics**: Model performance is assessed through accuracy, recall, F1-score and other metrics to ensure model reliability
+
+### 🔗 Logical Relationships
+Learning paradigm determines data labeling requirements → Data features influence algorithm selection → Algorithm performance is quantified through evaluation metrics → Evaluation results guide model optimization iteration
+
+### 💡 Important Conclusions
+Successful application of machine learning requires reasonable selection of learning paradigms, careful design of feature engineering, scientific evaluation of model performance, and continuous iterative optimization. Data quality and quantity are key factors affecting model effectiveness.
+
+---
+
+# 执行指令
+请严格按照上述格式和示例模版,基于检索到的内容生成中英文综述。确保:
+1. 提取最核心的概念定义
+2. 列出3-5个关键要点
+3. 阐明要点之间的逻辑关系
+4. 给出具有洞察力的结论
+5. 中英文内容保持一致性和对应性
+`
+}
+
+  // 通用综述模式（当没有具体内容时）
+  return `你是一位专业的综述助手，请根据用户的要求生成中英文综述报告。
+用户要求：${userQuestion || '请生成一般性综述'}
+请按照专业的综述格式，生成结构清晰、逻辑严谨的中英文内容。如果用户要求不够明确，请友好地询问更具体的综述需求。`
 }
 
 const createKnowledgeBase = async () => {
