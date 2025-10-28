@@ -774,7 +774,8 @@
                         recorderStatus === 'STOP' &&
                         !isAIWritingMode &&
                         !isAITranslateMode &&
-                        !isAISummaryMode
+                        !isAISummaryMode &&
+                        !isAIReviewMode
                       "
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
                     >
@@ -797,7 +798,8 @@
                         recorderStatus === 'STOP' &&
                         !isAIWritingMode &&
                         !isAITranslateMode &&
-                        !isAISummaryMode
+                        !isAISummaryMode &&
+                        !isAIReviewMode
                       "
                     >
                       <el-button
@@ -1481,6 +1483,12 @@ const getInputPlaceholder = () => {
       return '点击发送开始生成中英文摘要，或输入附加说明...'
     }
     return '请输入需要摘要的内容或上传文档，AI将为您生成中英文摘要...'
+  }
+  if (isAIReviewMode.value) {
+    if (reviewDocumentName.value) {
+      return '点击发送开始生成文档综述，或输入附加说明...'
+    }
+    return '请输入需要综述的内容或上传文档，AI将为您生成文档综述...'
   }
   if (!selectedInfo.value) {
     return '请先选择知识库或文档...'
