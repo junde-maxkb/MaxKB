@@ -80,6 +80,7 @@ import datasetApi from '@/api/dataset'
 import teamApi from '@/api/team'
 import { MsgSuccess, MsgConfirm } from '@/utils/message'
 import useStore from '@/stores'
+import {ElMessageBox} from 'element-plus'
 
 // Props
 interface Props {
@@ -226,24 +227,31 @@ const onCancel = () => {
   getMemberList()
 }
 
-const onSave = async () => {
-  try {
-    loading.value = true
-    for (const member of memberList.value) {
-      const params = {
-        user_id: member.id,
-        permission: member.permission,  // 使用选择的权限
-        share_with_type: member.type
+const onSave = () => {
+  ElMessageBox.confirm('是否确定该内容不涉密，且是公开可用的知识语料?')
+    .then(async () => {
+      try {
+        loading.value = true
+        for (const member of memberList.value) {
+          const params = {
+            user_id: member.id,
+            permission: member.permission,  // 使用选择的权限
+            share_with_type: member.type
+          }
+          await datasetApi.putMemberPermission(props.datasetId, params)
+        }
+        ElMessage.success('权限设置已保存')
+      } catch (error) {
+        console.error('保存权限失败:', error)
+        ElMessage.error('保存失败')
+      } finally {
+        loading.value = false
       }
-      await datasetApi.putMemberPermission(props.datasetId, params)
-    }
-    ElMessage.success('权限设置已保存')
-  } catch (error) {
-    console.error('保存权限失败:', error)
-    ElMessage.error('保存失败')
-  } finally {
-    loading.value = false
-  }
+    })
+    .catch(() => {
+      // catch error
+    })
+
 }
 
 // 获取成员列表

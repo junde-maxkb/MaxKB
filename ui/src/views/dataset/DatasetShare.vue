@@ -173,6 +173,7 @@ async function getAvailableUsersOrTeams() {
   }
 }
 import useStore from '@/stores'
+import { ElMessageBox } from 'element-plus'
 const { dataset } = useStore()
 
 // 获取用户对当前知识库的权限
@@ -264,23 +265,27 @@ function onCancel() {
   getMemberList()
 }
 
-async function onSave() {
-  try {
-    loading.value = true
-    for (const member of memberList.value) {
-      const params = {
-        user_id: member.id,
-        permission: member.permission,
-        share_with_type: member.type === 'TEAM' ? 'TEAM' : 'USER'
+function onSave() {
+  ElMessageBox.confirm('是否确定该内容不涉密，且是公开可用的知识语料?')
+    .then(async () => {
+      try {
+        loading.value = true
+        for (const member of memberList.value) {
+          const params = {
+            user_id: member.id,
+            permission: member.permission,
+            share_with_type: member.type === 'TEAM' ? 'TEAM' : 'USER'
+          }
+          await datasetApi.putMemberPermission(id.value, params)
+        }
+        MsgSuccess(t('common.saveSuccess'))
+      } catch (error) {
+        console.error('保存权限失败:', error)
+      } finally {
+        loading.value = false
       }
-      await datasetApi.putMemberPermission(id.value, params)
-    }
-    MsgSuccess(t('common.saveSuccess'))
-  } catch (error) {
-    console.error('保存权限失败:', error)
-  } finally {
-    loading.value = false
-  }
+    })
+
 }
 
 // 监听路由参数变化

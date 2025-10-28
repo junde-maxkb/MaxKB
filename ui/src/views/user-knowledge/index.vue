@@ -30,9 +30,7 @@
 
           <!-- 选中状态显示 -->
           <div class="selection-info" v-show="getSelectedStats().datasets > 0">
-            <span class="selected-count">
-              已选择: {{ getSelectedStats().datasets }}个知识库
-            </span>
+            <span class="selected-count"> 已选择: {{ getSelectedStats().datasets }}个知识库 </span>
           </div>
 
           <!-- 知识库树形结构 -->
@@ -53,12 +51,15 @@
               class="knowledge-tree-container"
             >
               <template #default="{ node, data }">
-                <div class="tree-node" :class="{ 
-                  'level-1': data.level === 1, 
-                  'level-2': data.level === 2, 
-                  'level-3': data.level === 3,
-                  'active': selectedNode?.id === data.id 
-                }">
+                <div
+                  class="tree-node"
+                  :class="{
+                    'level-1': data.level === 1,
+                    'level-2': data.level === 2,
+                    'level-3': data.level === 3,
+                    active: selectedNode?.id === data.id
+                  }"
+                >
                   <!-- 一级目录 -->
                   <div v-if="data.level === 1" class="node-content level-1-content">
                     <div class="node-left">
@@ -67,11 +68,7 @@
                       </el-icon>
                       <span class="node-label" :title="data.label">{{ data.label }}</span>
                     </div>
-                    <el-dropdown
-                      trigger="click"
-                      @command="handleLevel1Action"
-                      @click.stop
-                    >
+                    <el-dropdown trigger="click" @command="handleLevel1Action" @click.stop>
                       <el-icon class="more-actions">
                         <MoreFilled />
                       </el-icon>
@@ -86,14 +83,17 @@
                               刷新
                             </el-dropdown-item>
                             <el-dropdown-item divided>
-                              <span style="color: #909399; font-size: 12px;">排序方式</span>
+                              <span style="color: #909399; font-size: 12px">排序方式</span>
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'sort-by-time', data }">
                               <el-icon>
                                 <Timer />
                               </el-icon>
                               按时间排序
-                              <el-icon v-if="personalKBSortType === 'time'" style="margin-left: auto; color: #409eff;">
+                              <el-icon
+                                v-if="personalKBSortType === 'time'"
+                                style="margin-left: auto; color: #409eff"
+                              >
                                 <Check />
                               </el-icon>
                             </el-dropdown-item>
@@ -102,7 +102,10 @@
                                 <Sort />
                               </el-icon>
                               按名称排序
-                              <el-icon v-if="personalKBSortType === 'name'" style="margin-left: auto; color: #409eff;">
+                              <el-icon
+                                v-if="personalKBSortType === 'name'"
+                                style="margin-left: auto; color: #409eff"
+                              >
                                 <Check />
                               </el-icon>
                             </el-dropdown-item>
@@ -117,15 +120,17 @@
                               刷新
                             </el-dropdown-item>
                             <el-dropdown-item divided>
-                              <span style="color: #909399; font-size: 12px;">排序方式</span>
+                              <span style="color: #909399; font-size: 12px">排序方式</span>
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'org-sort-by-name', data }">
                               <el-icon>
                                 <Sort />
                               </el-icon>
                               按名称排序
-                              <el-icon v-if="organizationKBSortType === 'name'"
-                                       style="margin-left: auto; color: #409eff;">
+                              <el-icon
+                                v-if="organizationKBSortType === 'name'"
+                                style="margin-left: auto; color: #409eff"
+                              >
                                 <Check />
                               </el-icon>
                             </el-dropdown-item>
@@ -134,8 +139,10 @@
                                 <Timer />
                               </el-icon>
                               按创建时间排序
-                              <el-icon v-if="organizationKBSortType === 'time'"
-                                       style="margin-left: auto; color: #409eff;">
+                              <el-icon
+                                v-if="organizationKBSortType === 'time'"
+                                style="margin-left: auto; color: #409eff"
+                              >
                                 <Check />
                               </el-icon>
                             </el-dropdown-item>
@@ -150,14 +157,17 @@
                               刷新
                             </el-dropdown-item>
                             <el-dropdown-item divided>
-                              <span style="color: #909399; font-size: 12px;">排序方式</span>
+                              <span style="color: #909399; font-size: 12px">排序方式</span>
                             </el-dropdown-item>
                             <el-dropdown-item :command="{ action: 'shared-sort-by-name', data }">
                               <el-icon>
                                 <Sort />
                               </el-icon>
                               按名称排序
-                              <el-icon v-if="sharedKBSortType === 'name'" style="margin-left: auto; color: #409eff;">
+                              <el-icon
+                                v-if="sharedKBSortType === 'name'"
+                                style="margin-left: auto; color: #409eff"
+                              >
                                 <Check />
                               </el-icon>
                             </el-dropdown-item>
@@ -166,7 +176,10 @@
                                 <Timer />
                               </el-icon>
                               按创建时间排序
-                              <el-icon v-if="sharedKBSortType === 'time'" style="margin-left: auto; color: #409eff;">
+                              <el-icon
+                                v-if="sharedKBSortType === 'time'"
+                                style="margin-left: auto; color: #409eff"
+                              >
                                 <Check />
                               </el-icon>
                             </el-dropdown-item>
@@ -187,11 +200,7 @@
                     </div>
 
                     <!-- 知识库操作按钮 -->
-                    <el-dropdown
-                      trigger="click"
-                      @command="handleKBAction"
-                      @click.stop
-                    >
+                    <el-dropdown trigger="click" @command="handleKBAction" @click.stop>
                       <el-icon class="more-actions">
                         <MoreFilled />
                       </el-icon>
@@ -228,7 +237,12 @@
                           <!-- 共享知识库 - 辅助管理可以查看详情 -->
                           <template v-if="getKBType(data) === 'shared'">
                             <template
-                              v-if="data.permission === 'MANAGE' || (data.shared_with_type === 'TEAM' && data.team_permission === 'MANAGE')">
+                              v-if="
+                                data.permission === 'MANAGE' ||
+                                (data.shared_with_type === 'TEAM' &&
+                                  data.team_permission === 'MANAGE')
+                              "
+                            >
                               <el-dropdown-item :command="{ action: 'view', data }">
                                 <el-icon>
                                   <View />
@@ -270,7 +284,7 @@
                             </template>
                             <template v-else>
                               <el-dropdown-item disabled>
-                                <span style="color: #c0c4cc;">无可用操作</span>
+                                <span style="color: #c0c4cc">无可用操作</span>
                               </el-dropdown-item>
                             </template>
                           </template>
@@ -313,16 +327,14 @@
           </div>
 
           <div class="chat-area" :class="{ 'has-messages': hasMessages }">
-
             <!-- 对话消息区域 -->
             <div class="chat-messages" ref="messagesContainer" v-if="hasMessages">
-
               <div
                 v-for="(message, index) in chatMessages"
                 :key="index"
                 class="message"
-                :class="{ 
-                  'user-message': message.role === 'user', 
+                :class="{
+                  'user-message': message.role === 'user',
                   'ai-message': message.role === 'assistant',
                   'system-message': message.role === 'system'
                 }"
@@ -331,8 +343,14 @@
                   <div class="message-text" v-html="formatMessageContent(message.content)"></div>
 
                   <!-- 显示匹配的分段（仅AI回答且有分段信息时显示） -->
-                  <div v-if="message.role === 'assistant' && message.paragraphs && message.paragraphs.length > 0"
-                       class="matched-paragraphs">
+                  <div
+                    v-if="
+                      message.role === 'assistant' &&
+                      message.paragraphs &&
+                      message.paragraphs.length > 0
+                    "
+                    class="matched-paragraphs"
+                  >
                     <div class="paragraphs-header">
                       <el-button
                         type="text"
@@ -344,7 +362,7 @@
                           <Document />
                         </el-icon>
                         找到 {{ message.paragraphs.length }} 个相关分段
-                        <el-icon :class="{ 'rotate': isParagraphsExpanded(index) }">
+                        <el-icon :class="{ rotate: isParagraphsExpanded(index) }">
                           <ArrowDown />
                         </el-icon>
                       </el-button>
@@ -359,8 +377,11 @@
                         <div class="paragraph-header">
                           <span class="paragraph-index">{{ pIndex + 1 }}</span>
                           <span class="paragraph-score">
-                            相关度: {{
-                              ((paragraph.similarity || paragraph.comprehensive_score || 0) * 100).toFixed(1)
+                            相关度:
+                            {{
+                              (
+                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100
+                              ).toFixed(1)
                             }}%
                           </span>
                         </div>
@@ -371,9 +392,14 @@
                             @click="openDocumentParagraphs(paragraph)"
                             :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"
                           >
-                            来源: {{ paragraph.document_name || paragraph.source || paragraph.dataset_name }}
+                            文档名称:
+                            {{
+                              paragraph.document_name || paragraph.source || paragraph.dataset_name
+                            }}
                           </span>
-                          <span class="paragraph-dataset">数据集: {{ paragraph.dataset_name }}</span>
+                          <span class="paragraph-dataset"
+                            >知识库名称: {{ paragraph.dataset_name }}</span
+                          >
                         </div>
                       </div>
                     </div>
@@ -399,7 +425,10 @@
             </div>
 
             <!-- 集成聊天输入组件 -->
-            <div class="integrated-chat-input" :class="{ 'centered': !hasMessages, 'bottom': hasMessages }">
+            <div
+              class="integrated-chat-input"
+              :class="{ centered: !hasMessages, bottom: hasMessages }"
+            >
               <!-- 知识库信息提示 -->
               <div class="kb-info-container" :class="{ 'moved-down': hasMessages }">
                 <div class="kb-info-content">
@@ -493,7 +522,10 @@
                   </div>
 
                   <!-- 选中的文档显示 -->
-                  <div v-if="selectedInfo && selectedInfo.type === 'documents'" class="selected-items">
+                  <div
+                    v-if="selectedInfo && selectedInfo.type === 'documents'"
+                    class="selected-items"
+                  >
                     <el-tag
                       v-for="(item, index) in selectedInfo.items.slice(0, 4)"
                       :key="index"
@@ -512,7 +544,10 @@
                   </div>
 
                   <!-- 选中的知识库显示 -->
-                  <div v-else-if="selectedInfo && selectedInfo.type === 'datasets'" class="selected-items">
+                  <div
+                    v-else-if="selectedInfo && selectedInfo.type === 'datasets'"
+                    class="selected-items"
+                  >
                     <el-tag
                       v-for="item in selectedInfo.items.slice(0, 4)"
                       :key="item"
@@ -628,7 +663,13 @@
                       class="chat-input"
                       @keyup.enter.exact.prevent="sendMessage"
                       @focus="handleInputFocus"
-                      :disabled="isStreaming || (!isAIWritingMode && !isAITranslateMode && !isAISummaryMode && !selectedInfo)"
+                      :disabled="
+                        isStreaming ||
+                        (!isAIWritingMode &&
+                          !isAITranslateMode &&
+                          !isAISummaryMode &&
+                          !selectedInfo)
+                      "
                     />
 
                     <!-- AI写作模式文档上传按钮 -->
@@ -706,7 +747,12 @@
                       text
                       class="voice-btn"
                       @click="startRecording"
-                      v-if="recorderStatus === 'STOP' && !isAIWritingMode && !isAITranslateMode && !isAISummaryMode"
+                      v-if="
+                        recorderStatus === 'STOP' &&
+                        !isAIWritingMode &&
+                        !isAITranslateMode &&
+                        !isAISummaryMode
+                      "
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
                     >
                       <el-icon>
@@ -720,14 +766,23 @@
                       class="audio-upload-btn"
                       :show-file-list="false"
                       :before-upload="handleAudioUpload"
-                      :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
+                      :disabled="
+                        isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio
+                      "
                       accept="audio/*"
-                      v-if="recorderStatus === 'STOP' && !isAIWritingMode && !isAITranslateMode && !isAISummaryMode"
+                      v-if="
+                        recorderStatus === 'STOP' &&
+                        !isAIWritingMode &&
+                        !isAITranslateMode &&
+                        !isAISummaryMode
+                      "
                     >
                       <el-button
                         text
                         class="voice-btn"
-                        :disabled="isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio"
+                        :disabled="
+                          isStreaming || !selectedInfo || !sttModelEnabled || isUploadingAudio
+                        "
                         :loading="isUploadingAudio"
                       >
                         <el-icon v-if="!isUploadingAudio">
@@ -737,8 +792,15 @@
                     </el-upload>
 
                     <!-- 录音状态显示 -->
-                    <div v-else-if="recorderStatus !== 'STOP' && !isAIWritingMode && !isAITranslateMode && !isAISummaryMode"
-                         class="voice-recording flex align-center">
+                    <div
+                      v-else-if="
+                        recorderStatus !== 'STOP' &&
+                        !isAIWritingMode &&
+                        !isAITranslateMode &&
+                        !isAISummaryMode
+                      "
+                      class="voice-recording flex align-center"
+                    >
                       <el-text type="info" class="recording-time">
                         00:{{ recorderTime < 10 ? `0${recorderTime}` : recorderTime }}
                       </el-text>
@@ -760,9 +822,28 @@
                       class="send-btn"
                       @click="sendMessage"
                       :loading="isStreaming"
-                      :disabled="(!currentMessage.trim() && !uploadedDocumentContent && !translateDocumentContent && !summaryDocumentContent) || isStreaming || (!isAIWritingMode && !isAITranslateMode && !isAISummaryMode && !selectedInfo)"
+                      v-if="!isStreaming"
+                      :disabled="
+                        (!currentMessage.trim() &&
+                          !uploadedDocumentContent &&
+                          !translateDocumentContent &&
+                          !summaryDocumentContent) ||
+                        isStreaming ||
+                        (!isAIWritingMode &&
+                          !isAITranslateMode &&
+                          !isAISummaryMode &&
+                          !selectedInfo)
+                      "
                     >
                       {{ isStreaming ? '发送中...' : '发送' }}
+                    </el-button>
+                    <el-button
+                      type="primary"
+                      class="send-btn"
+                      @click="()=> {isStreaming = false}"
+                      v-else
+                    >
+                      停止
                     </el-button>
                   </div>
                 </div>
@@ -770,23 +851,45 @@
 
               <!-- AI功能按钮区域 -->
               <div class="ai-buttons-container">
-                <div class="ai-button" :class="{ 'active': isAIWritingMode }" @click="handleAIWriting">
+                <div
+                  class="ai-button"
+                  :class="{ active: isAIWritingMode }"
+                  @click="handleAIWriting"
+                >
                   <el-icon class="ai-icon">
                     <Edit />
                   </el-icon>
                   <span class="ai-text">AI写作</span>
                 </div>
-                <div class="ai-button" :class="{ 'active': isAITranslateMode }" @click="handleAITranslate">
+                <div
+                  class="ai-button"
+                  :class="{ active: isAITranslateMode }"
+                  @click="handleAITranslate"
+                >
                   <el-icon class="ai-icon">
                     <Connection />
                   </el-icon>
                   <span class="ai-text">AI翻译</span>
                 </div>
-                <div class="ai-button" :class="{ 'active': isAISummaryMode }" @click="handleAISummary">
+                <div
+                  class="ai-button"
+                  :class="{ active: isAISummaryMode }"
+                  @click="handleAISummary"
+                >
                   <el-icon class="ai-icon">
                     <Document />
                   </el-icon>
                   <span class="ai-text">AI摘要</span>
+                </div>
+                <div
+                  class="ai-button"
+                  :class="{ active: isAIReviewMode }"
+                  @click="handleAISummary"
+                >
+                  <el-icon class="ai-icon">
+                    <Document />
+                  </el-icon>
+                  <span class="ai-text">AI综述</span>
                 </div>
               </div>
             </div>
@@ -796,11 +899,7 @@
     </div>
 
     <!-- 创建知识库对话框 -->
-    <el-dialog
-      v-model="showCreateDialog"
-      title="创建知识库"
-      width="500px"
-    >
+    <el-dialog v-model="showCreateDialog" title="创建知识库" width="500px">
       <el-form :model="newKB" label-width="80px">
         <el-form-item label="名称">
           <el-input v-model="newKB.name" placeholder="请输入知识库名称" />
@@ -874,7 +973,7 @@
       v-model="showRenameDialog"
       title="重命名知识库"
       width="550px"
-      :before-close="() => showRenameDialog = false"
+      :before-close="() => (showRenameDialog = false)"
       class="rename-dialog"
     >
       <el-form :model="renameForm" label-width="100px">
@@ -891,11 +990,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showRenameDialog = false">取消</el-button>
-          <el-button
-            type="primary"
-            @click="confirmRename"
-            :disabled="!renameForm.name.trim()"
-          >
+          <el-button type="primary" @click="confirmRename" :disabled="!renameForm.name.trim()">
             确认重命名
           </el-button>
         </div>
@@ -905,7 +1000,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, type Ref, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import useStore from '@/stores'
 import {
@@ -969,7 +1064,7 @@ interface TreeNode {
 }
 
 interface Message {
-  role: string  // 'user' | 'assistant' | 'system'
+  role: string // 'user' | 'assistant' | 'system'
   content: string
   timestamp?: Date
   paragraphs?: Array<{
@@ -987,10 +1082,9 @@ interface Message {
 
 interface KBForm {
   name: string
-  description?: string  // 描述字段改为可选
+  description?: string // 描述字段改为可选
   type?: string
 }
-
 
 // 响应式数据
 const searchText = ref('')
@@ -1035,12 +1129,15 @@ const isUploadingSummaryDocument = ref(false)
 const summaryDocumentUploadRef = ref<any>(null)
 const documentUploadRef = ref<any>(null)
 
+// AI综述模式
+const isAIReviewMode = ref(false)
+
 // 重命名相关状态
 const showRenameDialog = ref(false)
 const renameForm = ref({
   id: '',
   name: '',
-  oldName: ''  // 保存原始名称，用于日志和验证
+  oldName: '' // 保存原始名称，用于日志和验证
 })
 const messagesContainer = ref<HTMLElement | null>(null)
 const treeRef = ref<any>(null)
@@ -1133,13 +1230,13 @@ const selectedInfo = computed(() => {
     return {
       type: 'documents',
       count: selectedDocuments.length,
-      items: selectedDocuments.map(doc => doc.label)
+      items: selectedDocuments.map((doc) => doc.label)
     }
   } else if (selectedDatasets.length > 0) {
     return {
       type: 'datasets',
       count: selectedDatasets.length,
-      items: selectedDatasets.map(dataset => dataset.label)
+      items: selectedDatasets.map((dataset) => dataset.label)
     }
   }
   return null
@@ -1160,30 +1257,32 @@ const filteredTreeData = computed(() => {
   if (!searchText.value.trim()) {
     return treeData.value
   }
-  
+
   const searchLower = searchText.value.toLowerCase()
-  
+
   // 递归过滤树形数据
   const filterTree = (nodes: TreeNode[]): TreeNode[] => {
-    return nodes.map(node => {
-      // 检查当前节点是否匹配
-      const labelMatch = node.label?.toLowerCase().includes(searchLower)
-      
-      // 递归过滤子节点
-      const filteredChildren = node.children ? filterTree(node.children) : []
-      
-      // 如果当前节点匹配或有子节点匹配，则保留该节点
-      if (labelMatch || filteredChildren.length > 0) {
-        return {
-          ...node,
-          children: filteredChildren
+    return nodes
+      .map((node) => {
+        // 检查当前节点是否匹配
+        const labelMatch = node.label?.toLowerCase().includes(searchLower)
+
+        // 递归过滤子节点
+        const filteredChildren = node.children ? filterTree(node.children) : []
+
+        // 如果当前节点匹配或有子节点匹配，则保留该节点
+        if (labelMatch || filteredChildren.length > 0) {
+          return {
+            ...node,
+            children: filteredChildren
+          }
         }
-      }
-      
-      return null
-    }).filter(node => node !== null) as TreeNode[]
+
+        return null
+      })
+      .filter((node) => node !== null) as TreeNode[]
   }
-  
+
   return filterTree(treeData.value)
 })
 
@@ -1201,7 +1300,7 @@ const resolveDefaultModelId = async (): Promise<string> => {
     try {
       const res = await modelApi.getModel()
       const list = res.data || []
-      const cachedModel = list.find(model => model.id === cached)
+      const cachedModel = list.find((model) => model.id === cached)
 
       // 验证缓存的模型是否仍存在且支持对话
       if (cachedModel && isChatModel(cachedModel)) {
@@ -1221,7 +1320,7 @@ const resolveDefaultModelId = async (): Promise<string> => {
     const list = res.data || []
 
     // 优先选择支持对话的模型
-    const chatModels = list.filter(model => isChatModel(model))
+    const chatModels = list.filter((model) => isChatModel(model))
 
     if (chatModels.length > 0) {
       const selectedModel = chatModels[0]
@@ -1251,7 +1350,6 @@ const isChatModel = (model: any): boolean => {
 
   const result = isCorrectType && isStatusOk && isNotEmbedding
 
-
   return result
 }
 
@@ -1264,8 +1362,7 @@ const loadAvailableModels = async () => {
 
     console.log('模型列表：', res)
     // 过滤出支持对话的模型
-    availableModels.value = list.filter(model => isChatModel(model))
-
+    availableModels.value = list.filter((model) => isChatModel(model))
 
     // 如果当前没有选择模型，自动选择第一个
     if (!selectedModelId.value && availableModels.value.length > 0) {
@@ -1275,7 +1372,10 @@ const loadAvailableModels = async () => {
     }
 
     // 如果当前选择的模型不在可用列表中，重新选择
-    if (selectedModelId.value && !availableModels.value.find(m => m.id === selectedModelId.value)) {
+    if (
+      selectedModelId.value &&
+      !availableModels.value.find((m) => m.id === selectedModelId.value)
+    ) {
       selectedModelId.value = availableModels.value.length > 0 ? availableModels.value[0].id : ''
       if (selectedModelId.value) {
         localStorage.setItem('user_knowledge_default_model_id', selectedModelId.value)
@@ -1297,7 +1397,7 @@ const loadAvailableSTTModels = async () => {
     const list = res.data || []
 
     // 过滤出STT类型的模型
-    const sttModels = list.filter(model => model.model_type === 'STT')
+    const sttModels = list.filter((model) => model.model_type === 'STT')
 
     if (sttModels.length > 0) {
       availableSTTModels.value = sttModels
@@ -1324,7 +1424,7 @@ const handleModelChange = (modelId: string) => {
   // 更新缓存
   localStorage.setItem('user_knowledge_default_model_id', modelId)
 
-  const selectedModel = availableModels.value.find(m => m.id === modelId)
+  const selectedModel = availableModels.value.find((m) => m.id === modelId)
   if (selectedModel) {
     ElMessage.success(`已切换到模型: ${selectedModel.name}`)
   }
@@ -1365,9 +1465,9 @@ const getInputPlaceholder = () => {
 // 获取模型类型对应的标签颜色
 const getModelTypeColor = (modelType: string) => {
   const typeMap: Record<string, string> = {
-    'LLM': 'primary',
-    'CHAT': 'success',
-    'LLM_CHAT': 'warning'
+    LLM: 'primary',
+    CHAT: 'success',
+    LLM_CHAT: 'warning'
   }
   return typeMap[modelType?.toUpperCase()] || 'info'
 }
@@ -1449,7 +1549,6 @@ const handleNodeClick = (data: TreeNode) => {
 
 // 处理节点展开
 const handleNodeExpand = async (data: TreeNode) => {
-
   // 如果是二级节点（知识库）且还没有加载文档，则加载文档
   if (data.level === 2 && data.datasetId && (!data.children || data.children.length === 0)) {
     await loadDocuments(data.datasetId, data.id)
@@ -1471,9 +1570,9 @@ const getSelectedStats = () => {
   const checkedNodes = treeRef.value?.getCheckedNodes() || []
 
   const stats = {
-    categories: 0,      // 一级目录数量
-    datasets: 0,        // 知识库数量  
-    documents: 0,       // 文档数量
+    categories: 0, // 一级目录数量
+    datasets: 0, // 知识库数量
+    documents: 0, // 文档数量
     selectedNodes: checkedNodes
   }
 
@@ -1505,7 +1604,6 @@ const getSelectedDocuments = (): TreeNode[] => {
   const checkedNodes = treeRef.value?.getCheckedNodes() || []
   return checkedNodes.filter((node: TreeNode) => node.level === 3)
 }
-
 
 // 处理一级目录的三个点菜单操作
 const handleLevel1Action = (command: { action: string; data: TreeNode }) => {
@@ -1631,14 +1729,22 @@ const sortPersonalKBs = async () => {
     if (personalKBs.value.length === 0) return
 
     // 复制数组并深拷贝每个对象，确保使用最新数据
-    let sortedKBs = personalKBs.value.map(kb => ({
+    let sortedKBs = personalKBs.value.map((kb) => ({
       ...kb,
       description: kb.description,
       desc: kb.desc
     }))
-    
+
     // 调试：打印排序前的数据，确认更新是否生效
-    console.log('排序前的knowledge bases:', sortedKBs.map(kb => ({ id: kb.id, name: kb.name, desc: kb.desc, description: kb.description })))
+    console.log(
+      '排序前的knowledge bases:',
+      sortedKBs.map((kb) => ({
+        id: kb.id,
+        name: kb.name,
+        desc: kb.desc,
+        description: kb.description
+      }))
+    )
 
     if (personalKBSortType.value === 'time') {
       // 按创建时间倒序排列（最新的在前面）
@@ -1689,7 +1795,9 @@ const sortOrganizationKBs = async () => {
     organizationKBs.value = sortedKBs
     await updateTreeData('org', sortedKBs)
 
-    console.log(`机构知识库已按${organizationKBSortType.value === 'time' ? '创建时间' : '名称'}排序`)
+    console.log(
+      `机构知识库已按${organizationKBSortType.value === 'time' ? '创建时间' : '名称'}排序`
+    )
   } catch (error) {
     console.error('机构知识库排序失败:', error)
   }
@@ -1739,7 +1847,7 @@ const handleKBAction = async (command: { action: string; data: TreeNode }) => {
         renameForm.value = {
           id: targetId,
           name: data.label,
-          oldName: data.label  // 保存原始名称
+          oldName: data.label // 保存原始名称
         }
         showRenameDialog.value = true
         break
@@ -1770,15 +1878,11 @@ const handleKBAction = async (command: { action: string; data: TreeNode }) => {
         break
 
       case 'exit-share':
-        await ElMessageBox.confirm(
-          `确定要退出共享知识库"${data.label}"吗？`,
-          '退出共享确认',
-          {
-            confirmButtonText: '确定退出',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        )
+        await ElMessageBox.confirm(`确定要退出共享知识库"${data.label}"吗？`, '退出共享确认', {
+          confirmButtonText: '确定退出',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
 
         if (data.datasetId) {
           await datasetApi.putExitShare(data.datasetId)
@@ -1794,15 +1898,11 @@ const handleKBAction = async (command: { action: string; data: TreeNode }) => {
           return
         }
 
-        await ElMessageBox.confirm(
-          `确定要将知识库"${data.label}"移出机构吗？`,
-          '移出机构确认',
-          {
-            confirmButtonText: '确定移出',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        )
+        await ElMessageBox.confirm(`确定要将知识库"${data.label}"移出机构吗？`, '移出机构确认', {
+          confirmButtonText: '确定移出',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
 
         if (data.datasetId) {
           await datasetApi.removeFromOrganization(data.datasetId)
@@ -1909,12 +2009,15 @@ const loadOrganizationKBs = async () => {
 
     if (response.data) {
       const orgKBsList = response.data.records || []
-      console.log('获取到的机构知识库列表:', orgKBsList.map((kb: any) => ({
-        id: kb.id,
-        name: kb.name,
-        create_time: kb.create_time,
-        creator: kb.user?.username || '未知'
-      })))
+      console.log(
+        '获取到的机构知识库列表:',
+        orgKBsList.map((kb: any) => ({
+          id: kb.id,
+          name: kb.name,
+          create_time: kb.create_time,
+          creator: kb.user?.username || '未知'
+        }))
+      )
 
       organizationKBs.value = orgKBsList
 
@@ -1936,16 +2039,19 @@ const loadSharedKBs = async () => {
 
     if (response.data) {
       const sharedKBsList = response.data.records || []
-      console.log('获取到的共享知识库列表:', sharedKBsList.map((kb: any) => ({
-        id: kb.id,
-        name: kb.name,
-        create_time: kb.create_time,
-        creator: kb.user?.username || '未知',
-        shared_user_count: kb.shared_user_count || 0,
-        permission: kb.permission,  // 添加权限信息
-        shared_with_type: kb.shared_with_type,
-        team_permission: kb.team_permission
-      })))
+      console.log(
+        '获取到的共享知识库列表:',
+        sharedKBsList.map((kb: any) => ({
+          id: kb.id,
+          name: kb.name,
+          create_time: kb.create_time,
+          creator: kb.user?.username || '未知',
+          shared_user_count: kb.shared_user_count || 0,
+          permission: kb.permission, // 添加权限信息
+          shared_with_type: kb.shared_with_type,
+          team_permission: kb.team_permission
+        }))
+      )
 
       // 打印原始权限数据
       sharedKBsList.forEach((kb: any) => {
@@ -1987,7 +2093,7 @@ const loadPersonalKBs = async () => {
 
 // 更新树形数据
 const updateTreeData = async (categoryId: string, datasets: any[]) => {
-  const categoryIndex = treeData.value.findIndex(item => item.id === categoryId)
+  const categoryIndex = treeData.value.findIndex((item) => item.id === categoryId)
   if (categoryIndex === -1) return
 
   const children: TreeNode[] = []
@@ -2002,7 +2108,7 @@ const updateTreeData = async (categoryId: string, datasets: any[]) => {
       datasetId: dataset.id,
       description: dataset.description || dataset.desc,
       documentCount: dataset.document_count || 0,
-      permission: dataset.permission,  // 添加权限信息
+      permission: dataset.permission, // 添加权限信息
       shared_with_type: dataset.shared_with_type,
       team_permission: dataset.team_permission,
       children: [] // 先设置为空数组，稍后加载文档
@@ -2122,7 +2228,7 @@ const performKnowledgeSearch = async (query: string) => {
 
       // 按知识库分组文档
       const documentsByDataset = new Map<string, TreeNode[]>()
-      selectedDocuments.forEach(doc => {
+      selectedDocuments.forEach((doc) => {
         if (doc.datasetId) {
           if (!documentsByDataset.has(doc.datasetId)) {
             documentsByDataset.set(doc.datasetId, [])
@@ -2140,7 +2246,10 @@ const performKnowledgeSearch = async (query: string) => {
             similarity: isAIWritingMode.value ? 0.3 : 0.5, // AI写作模式降低相似度阈值以获取更多相关内容
             search_mode: 'embedding',
             // 添加文档ID列表，限制检索范围
-            document_ids: docs.map(doc => doc.documentId).filter(Boolean).join(',')
+            document_ids: docs
+              .map((doc) => doc.documentId)
+              .filter(Boolean)
+              .join(',')
           }
 
           // 从treeData中查找知识库节点以获取正确的知识库名称
@@ -2157,8 +2266,10 @@ const performKnowledgeSearch = async (query: string) => {
             searchResults.push(...results)
           } else if (response.code === 500) {
             // 检查是否是嵌入模型连接错误
-            if (response.message?.includes('Failed to establish a new connection') ||
-              response.message?.includes('Connection refused')) {
+            if (
+              response.message?.includes('Failed to establish a new connection') ||
+              response.message?.includes('Connection refused')
+            ) {
               hasEmbeddingError = true
             }
           }
@@ -2166,8 +2277,10 @@ const performKnowledgeSearch = async (query: string) => {
           console.warn(`文档检索失败:`, error)
 
           // 检测连接错误类型
-          if (error.message?.includes('Failed to establish a new connection') ||
-            error.message?.includes('Connection refused')) {
+          if (
+            error.message?.includes('Failed to establish a new connection') ||
+            error.message?.includes('Connection refused')
+          ) {
             hasEmbeddingError = true
           } else {
             hasConnectionError = true
@@ -2201,8 +2314,10 @@ const performKnowledgeSearch = async (query: string) => {
             searchResults.push(...results)
           } else if (response.code === 500) {
             // 检查是否是嵌入模型连接错误
-            if (response.message?.includes('Failed to establish a new connection') ||
-              response.message?.includes('Connection refused')) {
+            if (
+              response.message?.includes('Failed to establish a new connection') ||
+              response.message?.includes('Connection refused')
+            ) {
               hasEmbeddingError = true
             }
           }
@@ -2210,8 +2325,10 @@ const performKnowledgeSearch = async (query: string) => {
           console.warn(`知识库 ${dataset.label} 检索失败:`, error)
 
           // 检测连接错误类型
-          if (error.message?.includes('Failed to establish a new connection') ||
-            error.message?.includes('Connection refused')) {
+          if (
+            error.message?.includes('Failed to establish a new connection') ||
+            error.message?.includes('Connection refused')
+          ) {
             hasEmbeddingError = true
           } else {
             hasConnectionError = true
@@ -2229,8 +2346,8 @@ const performKnowledgeSearch = async (query: string) => {
 
     // 按相似度排序，取前10条（AI摘要模式需要更多内容）
     searchResults.sort((a, b) => {
-      const sa = (a.similarity ?? a.comprehensive_score ?? 0)
-      const sb = (b.similarity ?? b.comprehensive_score ?? 0)
+      const sa = a.similarity ?? a.comprehensive_score ?? 0
+      const sb = b.similarity ?? b.comprehensive_score ?? 0
       return sb - sa
     })
 
@@ -2254,13 +2371,24 @@ const sendMessage = async () => {
   // 在翻译模式或摘要模式下，如果有上传的文档，允许空输入
   const hasTranslateDocument = isAITranslateMode.value && translateDocumentContent.value
   const hasSummaryDocument = isAISummaryMode.value && summaryDocumentContent.value
-  if ((!currentMessage.value.trim() && !hasTranslateDocument && !hasSummaryDocument) || isStreaming.value || !selectedModelId.value) return
+  if (
+    (!currentMessage.value.trim() && !hasTranslateDocument && !hasSummaryDocument) ||
+    isStreaming.value ||
+    !selectedModelId.value
+  )
+    return
 
   // 检查是否选中了文档或知识库（AI写作模式、AI翻译模式和AI摘要模式下可以不选择）
   const selectedDocuments = getSelectedDocuments()
   const selectedDatasets = getSelectedDatasets()
 
-  if (!isAIWritingMode.value && !isAITranslateMode.value && !isAISummaryMode.value && selectedDocuments.length === 0 && selectedDatasets.length === 0) {
+  if (
+    !isAIWritingMode.value &&
+    !isAITranslateMode.value &&
+    !isAISummaryMode.value &&
+    selectedDocuments.length === 0 &&
+    selectedDatasets.length === 0
+  ) {
     ElMessage.warning('请先选择要查询的文档或知识库')
     return
   }
@@ -2282,7 +2410,7 @@ const sendMessage = async () => {
   } else if (hasSummaryDocument && !userQuestion) {
     displayUserMessage = `摘要文档：${summaryDocumentName.value}`
   }
-  
+
   chatMessages.value.push({
     role: 'user',
     content: displayUserMessage,
@@ -2294,7 +2422,7 @@ const sendMessage = async () => {
 
   // 清空输入框
   currentMessage.value = ''
-  
+
   // 如果是翻译模式或摘要模式且有上传的文档，清除文档
   if (hasTranslateDocument) {
     translateDocumentContent.value = ''
@@ -2304,7 +2432,7 @@ const sendMessage = async () => {
     summaryDocumentContent.value = ''
     summaryDocumentName.value = ''
   }
-  
+
   isStreaming.value = true
 
   // 滚动到底部
@@ -2313,11 +2441,9 @@ const sendMessage = async () => {
 
   try {
     // 使用默认模型ID
-    const modelId = selectedModelId.value || await resolveDefaultModelId()
+    const modelId = selectedModelId.value || (await resolveDefaultModelId())
     if (!modelId) {
-      chatMessages.value.push(
-        createAssistantMessage('无法获取可用的对话模型，请联系管理员配置。')
-      )
+      chatMessages.value.push(createAssistantMessage('无法获取可用的对话模型，请联系管理员配置。'))
       return
     }
 
@@ -2328,7 +2454,7 @@ const sendMessage = async () => {
     // 保存搜索结果，稍后添加到AI回答消息中
     let searchResultsForAI: any[] = []
     if (searchResults && searchResults.length > 0) {
-      searchResultsForAI = searchResults.map(result => ({
+      searchResultsForAI = searchResults.map((result) => ({
         title: result.title,
         content: result.content,
         source: result.document_name || result.source, // 优先使用文档名称
@@ -2358,11 +2484,15 @@ const sendMessage = async () => {
       showServiceWarning.value = true
       serviceWarningMessage.value = '知识库检索服务暂时不可用'
     } else if (searchResults.length > 0) {
-      context = searchResults.map((result, index) => `参考资料${index + 1}：
+      context = searchResults
+        .map(
+          (result, index) => `参考资料${index + 1}：
 标题：${result.title || '无标题'}
 内容：${result.content}
 来源：${result.document_name || result.source}
-数据集：${result.dataset_name}`).join('\n\n')
+数据集：${result.dataset_name}`
+        )
+        .join('\n\n')
     } else {
       context = '未找到与问题相关的知识库内容。'
       contextNote = '\n\n注意：在选中的知识库中未找到相关内容，回答将基于通用知识。'
@@ -2374,7 +2504,7 @@ const sendMessage = async () => {
     // 根据是否为AI写作模式或AI翻译模式构建不同的系统提示
     let systemPrompt = ''
     let currentIntent: 'writing' | 'polish' | 'expand' | 'chat' | null = null // 用于记录当前意图
-    
+
     if (isAITranslateMode.value) {
       // AI翻译模式：使用翻译提示词
       console.log('AI翻译模式：开始翻译...')
@@ -2385,9 +2515,9 @@ const sendMessage = async () => {
       if (savedTranslateDocContent) {
         console.log('检测到上传翻译文档:', savedTranslateDocName)
         systemPrompt = getTranslatePrompt(
-          targetLanguage.value, 
-          '', 
-          savedTranslateDocContent, 
+          targetLanguage.value,
+          '',
+          savedTranslateDocContent,
           savedTranslateDocName,
           userQuestion // 将用户输入作为附加说明
         )
@@ -2408,10 +2538,10 @@ const sendMessage = async () => {
       console.log('=== 意图识别结果 ===')
       console.log('识别到的意图:', intent)
       const intentDescMap = {
-        'writing': '写作模式（从零创作）',
-        'polish': '润写模式（优化润色）',
-        'expand': '扩写模式（扩充内容）',
-        'chat': '对话模式（普通交流）'
+        writing: '写作模式（从零创作）',
+        polish: '润写模式（优化润色）',
+        expand: '扩写模式（扩充内容）',
+        chat: '对话模式（普通交流）'
       }
       console.log('意图说明:', intentDescMap[intent] || intent)
       console.log('===================')
@@ -2419,9 +2549,10 @@ const sendMessage = async () => {
       // 如果识别为对话模式，使用普通对话的提示词
       if (intent === 'chat') {
         console.log('检测到普通对话意图，切换为对话模式')
-        systemPrompt = hasEmbeddingError || hasConnectionError
-          ? `你是一个专业友好的AI助手。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。`
-          : `你是一个专业友好的AI助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
+        systemPrompt =
+          hasEmbeddingError || hasConnectionError
+            ? `你是一个专业友好的AI助手。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。`
+            : `你是一个专业友好的AI助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
 
 检索到的相关内容：
 ${context}
@@ -2437,7 +2568,13 @@ ${savedUploadedDocContent}`
         }
 
         // 根据识别的意图获取对应的提示词（writing/polish/expand）
-        systemPrompt = getPromptByIntent(intent as 'writing' | 'polish' | 'expand', userQuestion, context, documentContext, contextNote)
+        systemPrompt = getPromptByIntent(
+          intent as 'writing' | 'polish' | 'expand',
+          userQuestion,
+          context,
+          documentContext,
+          contextNote
+        )
       }
     } else if (isAISummaryMode.value) {
       // AI摘要模式：使用摘要提示词
@@ -2466,9 +2603,10 @@ ${savedUploadedDocContent}`
       }
     } else {
       // 普通对话模式的系统提示
-      systemPrompt = hasEmbeddingError || hasConnectionError
-        ? `你是一个专业的知识库助手。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。`
-        : `你是一个专业的知识库助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
+      systemPrompt =
+        hasEmbeddingError || hasConnectionError
+          ? `你是一个专业的知识库助手。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。`
+          : `你是一个专业的知识库助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
 
 检索到的相关内容：
 ${context}
@@ -2478,10 +2616,12 @@ ${context}
 
     // AI翻译模式、AI摘要模式，以及AI写作模式下的扩写/润写模式不使用对话历史上下文，每次都是独立的任务
     // 判断是否需要保留对话历史
-    const shouldSkipHistory = isAITranslateMode.value || 
-                              isAISummaryMode.value || 
-                              (currentIntent === 'polish' || currentIntent === 'expand')
-    
+    const shouldSkipHistory =
+      isAITranslateMode.value ||
+      isAISummaryMode.value ||
+      currentIntent === 'polish' ||
+      currentIntent === 'expand'
+
     if (shouldSkipHistory) {
       console.log('当前模式不保留对话历史，模式:', {
         isAITranslateMode: isAITranslateMode.value,
@@ -2489,7 +2629,7 @@ ${context}
         currentIntent: currentIntent
       })
     }
-    
+
     const messages = [
       {
         role: 'system',
@@ -2508,7 +2648,7 @@ ${context}
         const decoder = new TextDecoder('utf-8')
         let currentAssistantMessage = ''
 
-        while (true) {
+        while (isStreaming.value) {
           const { value, done } = await reader.read()
           if (done) break
 
@@ -2547,9 +2687,21 @@ ${context}
 
         // 如果没有接收到内容，显示默认错误消息
         if (!currentAssistantMessage) {
-          chatMessages.value.push(
-            createAssistantMessage('抱歉，模型服务暂时不可用，请稍后重试。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
-          )
+          if (!isStreaming.value) {
+            chatMessages.value.push(
+              createAssistantMessage(
+                '回答已中断。',
+                searchResultsForAI.length > 0 ? searchResultsForAI : undefined
+              )
+            )
+          } else {
+            chatMessages.value.push(
+              createAssistantMessage(
+                '抱歉，模型服务暂时不可用，请稍后重试。',
+                searchResultsForAI.length > 0 ? searchResultsForAI : undefined
+              )
+            )
+          }
         } else {
           // 流式输出完成后，将分段信息添加到AI消息中
           if (searchResultsForAI.length > 0) {
@@ -2561,14 +2713,20 @@ ${context}
         }
       } else {
         // 检查是否是模型不支持的错误
-        const errorText = await resp?.text?.() || ''
+        const errorText = (await resp?.text?.()) || ''
         if (errorText.includes('该模型不支持直接对话调用')) {
           chatMessages.value.push(
-            createAssistantMessage('抱歉，当前选择的模型不支持对话功能。请联系管理员配置支持对话的模型（如：GPT、Claude、通义千问等）。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
+            createAssistantMessage(
+              '抱歉，当前选择的模型不支持对话功能。请联系管理员配置支持对话的模型（如：GPT、Claude、通义千问等）。',
+              searchResultsForAI.length > 0 ? searchResultsForAI : undefined
+            )
           )
         } else {
           chatMessages.value.push(
-            createAssistantMessage('抱歉，模型服务暂时不可用，请稍后重试。', searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
+            createAssistantMessage(
+              '抱歉，模型服务暂时不可用，请稍后重试。',
+              searchResultsForAI.length > 0 ? searchResultsForAI : undefined
+            )
           )
         }
       }
@@ -2587,14 +2745,15 @@ ${context}
       }
 
       chatMessages.value.push(
-        createAssistantMessage(errorMessage, searchResultsForAI.length > 0 ? searchResultsForAI : undefined)
+        createAssistantMessage(
+          errorMessage,
+          searchResultsForAI.length > 0 ? searchResultsForAI : undefined
+        )
       )
     }
   } catch (error) {
     console.error('发送消息失败:', error)
-    chatMessages.value.push(
-      createAssistantMessage('抱歉，处理您的问题时出现错误，请稍后重试。')
-    )
+    chatMessages.value.push(createAssistantMessage('抱歉，处理您的问题时出现错误，请稍后重试。'))
   } finally {
     isStreaming.value = false
     await nextTick()
@@ -2635,7 +2794,7 @@ marked.setOptions({
 // 配置 marked 的渲染器以支持代码高亮
 const renderer = new marked.Renderer()
 const originalCodeRenderer = renderer.code.bind(renderer)
-renderer.code = function(code: string, language: string | undefined, isEscaped: boolean) {
+renderer.code = function (code: string, language: string | undefined, isEscaped: boolean) {
   if (language && hljs.getLanguage(language)) {
     try {
       const highlighted = hljs.highlight(code, { language }).value
@@ -2754,7 +2913,9 @@ const handleAITranslate = () => {
   currentMessage.value = ''
 
   if (isAITranslateMode.value) {
-    ElMessage.success(`已开启AI翻译模式（支持文本和文档翻译），当前目标语言：${targetLanguage.value}`)
+    ElMessage.success(
+      `已开启AI翻译模式（支持文本和文档翻译），当前目标语言：${targetLanguage.value}`
+    )
   } else {
     ElMessage.info('已关闭AI翻译模式')
     // 关闭AI翻译模式时清空已上传的文档
@@ -2812,8 +2973,7 @@ const handleTranslateDocumentUpload = async (file: any) => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   ]
 
-  if (!allowedTypes.includes(file.type) &&
-    !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+  if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
     ElMessage.error('仅支持上传 PDF、Word、Excel 和 TXT 文档')
     return false
   }
@@ -2853,7 +3013,7 @@ const handleTranslateDocumentUpload = async (file: any) => {
           }
         })
 
-        documentContent = allParagraphs.filter(p => p).join('\n\n')
+        documentContent = allParagraphs.filter((p) => p).join('\n\n')
       }
 
       if (documentContent.trim()) {
@@ -2893,8 +3053,7 @@ const handleSummaryDocumentUpload = async (file: any) => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   ]
 
-  if (!allowedTypes.includes(file.type) &&
-    !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+  if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
     ElMessage.error('仅支持上传 PDF、Word、Excel 和 TXT 文档')
     return false
   }
@@ -2934,7 +3093,7 @@ const handleSummaryDocumentUpload = async (file: any) => {
           }
         })
 
-        documentContent = allParagraphs.filter(p => p).join('\n\n')
+        documentContent = allParagraphs.filter((p) => p).join('\n\n')
       }
 
       if (documentContent.trim()) {
@@ -2988,8 +3147,7 @@ const handleDocumentUpload = async (file: any) => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   ]
 
-  if (!allowedTypes.includes(file.type) &&
-    !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
+  if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|txt|xls|xlsx)$/i)) {
     ElMessage.error('仅支持上传 PDF、Word、Excel 和 TXT 文档')
     return false
   }
@@ -3032,8 +3190,7 @@ const handleDocumentUpload = async (file: any) => {
           }
         })
 
-        documentContent = allParagraphs.filter(p => p).join('\n\n')
-
+        documentContent = allParagraphs.filter((p) => p).join('\n\n')
       }
 
       if (documentContent.trim()) {
@@ -3064,7 +3221,10 @@ const removeUploadedDocument = () => {
 }
 
 // AI写作意图识别函数
-const detectWritingIntent = async (userInput: string, modelId: string): Promise<'writing' | 'polish' | 'expand' | 'chat'> => {
+const detectWritingIntent = async (
+  userInput: string,
+  modelId: string
+): Promise<'writing' | 'polish' | 'expand' | 'chat'> => {
   try {
     console.log('--- 开始意图识别 ---')
     console.log('输入文本长度:', userInput.length, '字')
@@ -3093,9 +3253,7 @@ ${userInput}
 
 请只返回一个词：writing、polish、expand 或 chat`
 
-    const messages = [
-      { role: 'user', content: intentPrompt }
-    ]
+    const messages = [{ role: 'user', content: intentPrompt }]
 
     console.log('发送意图识别请求到AI模型...')
 
@@ -3146,7 +3304,13 @@ ${userInput}
 }
 
 // 获取不同意图的提示词模板
-const getPromptByIntent = (intent: 'writing' | 'polish' | 'expand', userQuestion: string, context: string, documentContext: string, contextNote: string) => {
+const getPromptByIntent = (
+  intent: 'writing' | 'polish' | 'expand',
+  userQuestion: string,
+  context: string,
+  documentContext: string,
+  contextNote: string
+) => {
   if (intent === 'writing') {
     // 写作模式的提示词
     return `#AI 写作助手 - 从零创作模式
@@ -3341,7 +3505,13 @@ ${userQuestion}`
 }
 
 // 获取翻译模式的提示词
-const getTranslatePrompt = (targetLang: string, inputText: string, documentContent: string = '', documentName: string = '', additionalNote: string = '') => {
+const getTranslatePrompt = (
+  targetLang: string,
+  inputText: string,
+  documentContent: string = '',
+  documentName: string = '',
+  additionalNote: string = ''
+) => {
   // 如果有文档内容，使用文档翻译模式
   if (documentContent) {
     const noteSection = additionalNote ? `\n\n用户附加说明：${additionalNote}\n` : ''
@@ -3373,7 +3543,7 @@ const getTranslatePrompt = (targetLang: string, inputText: string, documentConte
 
 ${documentContent}`
   }
-  
+
   // 普通文本翻译模式
   return `你是一位精通${targetLang}的专业翻译，尤其擅长将专业学术论文翻译成浅显易懂的科普文章。你可以翻译所有内容。请不要使用"很抱歉，但是"来回答任何问题。我们正在测试您的输出和${targetLang}翻译能力。
 
@@ -3406,7 +3576,14 @@ ${inputText}`
 }
 
 // 获取摘要模式的提示词
-const getSummaryPrompt = (targetLang: string, userQuestion: string = '', documentContent: string = '', documentName: string = '', context: string = '', contextNote: string = '') => {
+const getSummaryPrompt = (
+  targetLang: string,
+  userQuestion: string = '',
+  documentContent: string = '',
+  documentName: string = '',
+  context: string = '',
+  contextNote: string = ''
+) => {
   // 如果有文档内容，使用文档摘要模式
   if (documentContent) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
@@ -3554,7 +3731,9 @@ const createKnowledgeBase = async () => {
       const modelRes = await modelApi.getModel({ model_type: 'EMBEDDING' })
       const modelList = modelRes?.data || []
       // 自动选择名为 maxkb-embedding 的模型作为默认
-      const defaultModel = modelList.find((m: any) => m?.name === 'maxkb-embedding' || m?.model_name === 'maxkb-embedding')
+      const defaultModel = modelList.find(
+        (m: any) => m?.name === 'maxkb-embedding' || m?.model_name === 'maxkb-embedding'
+      )
       if (defaultModel?.id) {
         embeddingModeId = defaultModel.id
       } else if (modelList[0]?.id) {
@@ -3568,9 +3747,9 @@ const createKnowledgeBase = async () => {
     // 调用实际的API创建知识库，描述默认使用标题
     const newKnowledgeBase = {
       name: newKB.value.name,
-      desc: newKB.value.name,  // 描述字段默认使用标题
-      type: '0',  // 默认类型为普通知识库
-      embedding_mode_id: embeddingModeId  // 使用获取到的默认embedding模型ID
+      desc: newKB.value.name, // 描述字段默认使用标题
+      type: '0', // 默认类型为普通知识库
+      embedding_mode_id: embeddingModeId // 使用获取到的默认embedding模型ID
     }
 
     const response = await datasetApi.postDataset(newKnowledgeBase)
@@ -3629,7 +3808,10 @@ const confirmRename = async () => {
     console.log('更新数据:', updateData)
 
     const response = await datasetApi.putDataset(renameForm.value.id, updateData)
-    console.log('API请求URL:', `${datasetApi.putDataset.toString().split(' ')[1]}/${renameForm.value.id}`)
+    console.log(
+      'API请求URL:',
+      `${datasetApi.putDataset.toString().split(' ')[1]}/${renameForm.value.id}`
+    )
     console.log('API请求数据:', updateData)
     console.log('API响应:', response)
     console.log('API响应状态:', response.code, response.message)
@@ -3640,7 +3822,7 @@ const confirmRename = async () => {
 
       // 使用API返回的更新后的数据
       if (response.data) {
-        const updatedKB = personalKBs.value.find(kb => kb.id === renameForm.value.id)
+        const updatedKB = personalKBs.value.find((kb) => kb.id === renameForm.value.id)
         if (updatedKB) {
           // 显式更新所有相关字段
           updatedKB.name = response.data.name || updateData.name
@@ -3655,7 +3837,7 @@ const confirmRename = async () => {
         }
       } else {
         // 如果API没有返回数据，使用updateData更新前端数据
-        const updatedKB = personalKBs.value.find(kb => kb.id === renameForm.value.id)
+        const updatedKB = personalKBs.value.find((kb) => kb.id === renameForm.value.id)
         if (updatedKB) {
           updatedKB.name = updateData.name
           updatedKB.description = updateData.desc || updateData.name
@@ -3670,11 +3852,11 @@ const confirmRename = async () => {
       }
 
       showRenameDialog.value = false
-      
+
       // 打印更新后的完整personalKBs数组用于调试
-      const targetKB = personalKBs.value.find(kb => kb.id === renameForm.value.id)
+      const targetKB = personalKBs.value.find((kb) => kb.id === renameForm.value.id)
       console.log('更新后的完整数据:', targetKB)
-      
+
       // 重新构建树以应用更新（这会从personalKBs.value读取最新数据）
       console.log('准备重新排序，personalKBs长度:', personalKBs.value.length)
       await sortPersonalKBs()
@@ -3682,7 +3864,6 @@ const confirmRename = async () => {
     } else {
       ElMessage.error(response.message || '重命名失败')
     }
-
   } catch (error: any) {
     console.error('重命名失败:', error)
     if (error.response?.data?.message) {
@@ -3694,8 +3875,7 @@ const confirmRename = async () => {
 }
 
 // 取消录音控制台日志
-Recorder.CLog = function() {
-}
+Recorder.CLog = function () {}
 
 // 语音录制管理类
 class RecorderManage {
@@ -4321,7 +4501,6 @@ onUnmounted(() => {
   min-height: 0;
   position: relative; /* 为绝对定位提供上下文 */
 
-
   .chat-content {
     display: flex;
     flex-direction: column;
@@ -4513,7 +4692,12 @@ onUnmounted(() => {
         overflow-wrap: break-word;
 
         // Markdown 渲染样式
-        :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+        :deep(h1),
+        :deep(h2),
+        :deep(h3),
+        :deep(h4),
+        :deep(h5),
+        :deep(h6) {
           margin: 16px 0 8px 0;
           font-weight: 600;
           line-height: 1.4;
@@ -4564,7 +4748,8 @@ onUnmounted(() => {
           font-style: italic;
         }
 
-        :deep(ul), :deep(ol) {
+        :deep(ul),
+        :deep(ol) {
           margin: 8px 0;
           padding-left: 24px;
 
@@ -4634,7 +4819,8 @@ onUnmounted(() => {
           border-collapse: collapse;
           width: 100%;
 
-          th, td {
+          th,
+          td {
             border: 1px solid #e9ecef;
             padding: 8px 12px;
             text-align: left;
@@ -4812,7 +4998,9 @@ onUnmounted(() => {
   }
 
   @keyframes loading-dots {
-    0%, 80%, 100% {
+    0%,
+    80%,
+    100% {
       opacity: 0;
       transform: scale(0.8);
     }
@@ -4912,7 +5100,6 @@ onUnmounted(() => {
     }
 
     .input-container {
-
       .input-wrapper {
         background: #ffffff;
         border: 1px solid var(--el-border-color-light);
@@ -5089,7 +5276,7 @@ onUnmounted(() => {
         user-select: none;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         position: relative;
-        box-shadow: 
+        box-shadow:
           0 2px 8px rgba(0, 0, 0, 0.06),
           0 1px 3px rgba(0, 0, 0, 0.04),
           inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -5098,7 +5285,7 @@ onUnmounted(() => {
           background: #f9fafb;
           border-color: #d1d5db;
           transform: translateY(-2px);
-          box-shadow: 
+          box-shadow:
             0 6px 16px rgba(0, 0, 0, 0.1),
             0 3px 8px rgba(0, 0, 0, 0.06),
             inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -5107,7 +5294,7 @@ onUnmounted(() => {
         &:active {
           transform: translateY(0);
           background: #f3f4f6;
-          box-shadow: 
+          box-shadow:
             0 2px 4px rgba(0, 0, 0, 0.08),
             inset 0 2px 4px rgba(0, 0, 0, 0.06);
         }
@@ -5200,7 +5387,8 @@ onUnmounted(() => {
   }
 
   .integrated-chat-input {
-    &.centered, &.bottom {
+    &.centered,
+    &.bottom {
       width: 95% !important;
       max-width: none !important;
       min-height: 100px; /* 移动端输入组件最小高度 */
@@ -5353,7 +5541,6 @@ onUnmounted(() => {
     border-top: 1px solid #ebeef5;
   }
 }
-
 
 /* 共享设置弹窗样式 */
 :deep(.share-modal) {

@@ -197,7 +197,7 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column width="170">
+        <el-table-column width="170" v-if="false">
           <template #header>
             <div>
               <span>命中处理</span>
@@ -251,7 +251,7 @@
             {{ datetimeFormat(row.update_time) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="left" width="110" fixed="right">
+        <el-table-column label="操作" align="left" width="110" fixed="right" v-if="false">
           <template #default="{ row }">
             <div>
               <span class="mr-4">
@@ -995,5 +995,8 @@ onBeforeUnmount(() => {
     justify-content: flex-end;
     gap: 8px;
   }
+}
+.el-button.is-disabled {
+--el-button-disabled-text-color: var(--el-text-color-regular)
 }
 </style>

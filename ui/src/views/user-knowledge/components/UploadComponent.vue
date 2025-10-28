@@ -35,6 +35,7 @@
           <p>表格文档支持多行多列，第一行为表头，从第二行开始为数据。</p>
           <p>表格文档中每个单元格字符数不超过2048个字符。</p>
           <p>表格文档最大支持10000行，100列。</p>
+          <p>每次最多上传 50 个文件。</p>
         </div>
       </div>
       <el-upload
@@ -76,9 +77,10 @@
           <AppIcon iconName="app-warning-colorful" style="font-size: 16px"></AppIcon>
         </div>
         <div class="ml-16 lighter">
-          <p>支持 mp3、wav、ogg、aac、m4a、flac 格式音频文件，单个文件大小不超过 100MB。</p>
+          <p>支持 mp3、wav、ogg、aac、m4a、flac 格式音频文件。</p>
           <p>系统将自动将音频转换为文字，并进行智能分段处理。</p>
           <p>为保证识别效果，建议上传清晰、无噪音的音频文件。</p>
+          <p>每次最多上传 10 个文件，每个文件不超过 100MB。</p>
         </div>
       </div>
       <el-upload
@@ -92,7 +94,7 @@
         :show-file-list="false"
         accept=".mp3,.wav,.ogg,.aac,.m4a,.flac"
         :limit="10"
-        :on-exceed="onExceed"
+        :on-exceed="onAudioExceed"
         :on-change="fileHandleChange"
         @click.prevent="handlePreview(false, $event)"
       >
@@ -117,8 +119,9 @@
           <AppIcon iconName="app-warning-colorful" style="font-size: 16px"></AppIcon>
         </div>
         <div class="ml-16 lighter">
-          <p>支持 txt、md、docx、pdf、html、xlsx、xls、csv、zip 格式文件，单个文件大小不超过 100MB。</p>
+          <p>支持 txt、md、docx、pdf、html、xlsx、xls、csv、zip 格式文件。</p>
           <p>为保证问答效果，建议上传的文档内容清晰、结构化程度高。</p>
+          <p>每次最多上传 50 个文件，每个文件不超过 100MB</p>
         </div>
       </div>
       <el-upload
@@ -248,6 +251,12 @@ const fileHandleChange = (file: UploadFile, fileList: UploadFiles) => {
     fileList.splice(-1, 1)
     return false
   }
+  // 判断文件数量不能超过50个
+  if (fileList.length > 50) {
+    MsgError(t('views.document.upload.errorMessage4'))
+    fileList.splice(-1, 1)
+    return false
+  }
 }
 
 const handlePreview = (multiple: boolean, event?: Event) => {
@@ -270,7 +279,19 @@ const handlePreview = (multiple: boolean, event?: Event) => {
   })
 }
 
-const onExceed = () => {
+const onExceed = (files: File[]) => {
+  if (files.length > 50) {
+    MsgError(t('views.document.upload.errorMessage4'))
+    return
+  }
+  MsgError(t('views.document.upload.errorMessage3'))
+}
+
+const onAudioExceed = (files: File[]) => {
+  if (files.length > 10) {
+    MsgError(t('views.document.upload.errorMessage4'))
+    return
+  }
   MsgError(t('views.document.upload.errorMessage3'))
 }
 

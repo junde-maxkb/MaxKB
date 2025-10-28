@@ -240,6 +240,11 @@ h5 {
   display: flex;
 }
 
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
 .flex-center {
   display: flex;
   align-items: center;
@@ -268,6 +273,10 @@ h5 {
 
 .justify-center {
   justify-content: center;
+}
+
+.justify-start {
+  justify-content: left;
 }
 
 .text-left {
