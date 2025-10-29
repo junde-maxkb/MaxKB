@@ -480,6 +480,26 @@
                     </div>
                   </div>
 
+                  <!-- AI综述模式已上传文档展示 -->
+                  <div v-else-if="isAIReviewMode && reviewDocumentName">
+                    <div class="kb-info-text">
+                      <el-icon class="info-icon">
+                        <Document />
+                      </el-icon>
+                      已上传待综述文档：
+                    </div>
+                    <div class="selected-items">
+                      <el-tag
+                        size="small"
+                        class="item-tag document-tag"
+                        closable
+                        @close="removeReviewDocument"
+                      >
+                        {{ reviewDocumentName }}
+                      </el-tag>
+                    </div>
+                  </div>
+
                   <!-- AI写作模式已上传文档展示 -->
                   <div v-else-if="isAIWritingMode && uploadedDocumentName">
                     <div class="kb-info-text">
@@ -668,6 +688,7 @@
                         (!isAIWritingMode &&
                           !isAITranslateMode &&
                           !isAISummaryMode &&
+                          !isAIReviewMode &&
                           !selectedInfo)
                       "
                     />
@@ -852,11 +873,13 @@
                         (!currentMessage.trim() &&
                           !uploadedDocumentContent &&
                           !translateDocumentContent &&
-                          !summaryDocumentContent) ||
+                          !summaryDocumentContent &&
+                          !reviewDocumentContent) ||
                         isStreaming ||
                         (!isAIWritingMode &&
                           !isAITranslateMode &&
                           !isAISummaryMode &&
+                          !isAIReviewMode &&
                           !selectedInfo)
                       "
                     >
@@ -2405,8 +2428,9 @@ const sendMessage = async () => {
   // 在翻译模式或摘要模式下，如果有上传的文档，允许空输入
   const hasTranslateDocument = isAITranslateMode.value && translateDocumentContent.value
   const hasSummaryDocument = isAISummaryMode.value && summaryDocumentContent.value
+  const hasReviewDocument = isAIReviewMode.value && reviewDocumentContent.value
   if (
-    (!currentMessage.value.trim() && !hasTranslateDocument && !hasSummaryDocument) ||
+    (!currentMessage.value.trim() && !hasTranslateDocument && !hasSummaryDocument && !hasReviewDocument) ||
     isStreaming.value ||
     !selectedModelId.value
   )
@@ -2420,6 +2444,7 @@ const sendMessage = async () => {
     !isAIWritingMode.value &&
     !isAITranslateMode.value &&
     !isAISummaryMode.value &&
+    !isAIReviewMode.value &&
     selectedDocuments.length === 0 &&
     selectedDatasets.length === 0
   ) {
@@ -3227,6 +3252,13 @@ const removeSummaryDocument = () => {
   summaryDocumentContent.value = ''
   summaryDocumentName.value = ''
   ElMessage.info('已移除上传的摘要文档')
+}
+
+// 移除AI综述模式已上传的文档
+const removeReviewDocument = () => {
+  reviewDocumentContent.value = ''
+  reviewDocumentName.value = ''
+  ElMessage.info('已移除上传的综述文档')
 }
 
 // AI写作模式文档上传处理
