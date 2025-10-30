@@ -939,6 +939,16 @@
                   </el-icon>
                   <span class="ai-text">AI综述</span>
                 </div>
+                <div
+                  class="ai-button"
+                  :class="{ active: isAIQuestionMode }"
+                  @click="handleAIQuestion"
+                >
+                  <el-icon class="ai-icon">
+                    <Document />
+                  </el-icon>
+                  <span class="ai-text">AI问数</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1182,6 +1192,12 @@ const isAIReviewMode = ref(false)
 const isUploadingReviewDocument = ref(false)
 const reviewDocumentContent = ref('')
 const reviewDocumentName = ref('')
+
+// AI问数模式
+const isAIQuestionMode = ref(false)
+const isUploadingQuestionDocument = ref(false)
+const questionDocumentContent = ref('')
+const questionDocumentName = ref('')
 
 // 重命名相关状态
 const showRenameDialog = ref(false)
@@ -2429,8 +2445,13 @@ const sendMessage = async () => {
   const hasTranslateDocument = isAITranslateMode.value && translateDocumentContent.value
   const hasSummaryDocument = isAISummaryMode.value && summaryDocumentContent.value
   const hasReviewDocument = isAIReviewMode.value && reviewDocumentContent.value
+  const hasQuestionDocument = isAIQuestionMode.value && questionDocumentContent.value
   if (
-    (!currentMessage.value.trim() && !hasTranslateDocument && !hasSummaryDocument && !hasReviewDocument) ||
+    (!currentMessage.value.trim() &&
+      !hasTranslateDocument &&
+      !hasSummaryDocument &&
+      !hasReviewDocument &&
+      !hasQuestionDocument) ||
     isStreaming.value ||
     !selectedModelId.value
   )
@@ -2445,6 +2466,7 @@ const sendMessage = async () => {
     !isAITranslateMode.value &&
     !isAISummaryMode.value &&
     !isAIReviewMode.value &&
+    !isAIQuestionMode.value &&
     selectedDocuments.length === 0 &&
     selectedDatasets.length === 0
   ) {
@@ -2463,6 +2485,8 @@ const sendMessage = async () => {
   const savedSummaryDocName = summaryDocumentName.value
   const savedReviewDocContent = reviewDocumentContent.value
   const savedReviewDocName = reviewDocumentName.value
+  const savedQuestionDocContent = questionDocumentContent.value
+  const savedQuestionDocName = questionDocumentName.value
 
   // 添加用户消息
   let displayUserMessage = userQuestion
@@ -2662,25 +2686,29 @@ ${savedUploadedDocContent}`
           contextNote
         )
       }
-    } else if (isAIReviewMode.value){
+    } else if (isAIReviewMode.value) {
       // AI代码审查模式的系统提示
       console.log('AI综述模式：开始文献综述...')
       console.log('用户输入内容:', userQuestion)
       if (savedReviewDocContent) {
         console.log('检测到上传综述文档:', savedReviewDocName)
-        systemPrompt = getReviewPrompt(
+        systemPrompt = getReviewPrompt(userQuestion, savedReviewDocContent, savedReviewDocName)
+      } else {
+        systemPrompt = getReviewPrompt(userQuestion, '', '', context, contextNote)
+      }
+    } else if (isAIQuestionMode.value) {
+      // AI问答模式的系统提示
+      console.log('AI问答模式：开始文档问答...')
+      console.log('用户输入内容:', userQuestion)
+      if (savedQuestionDocContent) {
+        console.log('检测到上传问答文档:', savedQuestionDocName)
+        systemPrompt = getQuestionPrompt(
           userQuestion,
-          savedReviewDocContent,
-          savedReviewDocName
+          savedQuestionDocContent,
+          savedQuestionDocName
         )
       } else {
-        systemPrompt = getReviewPrompt(
-          userQuestion,
-          '',
-          '',
-          context,
-          contextNote
-        )
+        systemPrompt = getQuestionPrompt(userQuestion, '', '', context, contextNote)
       }
     } else {
       // 普通对话模式的系统提示
@@ -2945,6 +2973,7 @@ const switchMode = (mode: Ref<boolean, boolean>) => {
   isAITranslateMode.value = mode === isAITranslateMode ? mode.value : false
   isAISummaryMode.value = mode === isAISummaryMode ? mode.value : false
   isAIReviewMode.value = mode === isAIReviewMode ? mode.value : false
+  isAIQuestionMode.value = mode === isAIQuestionMode ? mode.value : false
 
   // 清空所有模式的上传文档内容
   uploadedDocumentContent.value = ''
@@ -2975,7 +3004,6 @@ const handleAIWriting = () => {
 // AI翻译模式切换
 const handleAITranslate = () => {
   switchMode(isAITranslateMode)
-
 
   if (isAITranslateMode.value) {
     ElMessage.success(
@@ -3009,6 +3037,15 @@ const handleAIReview = () => {
     ElMessage.success('已开启AI综述模式')
   } else {
     ElMessage.info('已关闭AI综述模式')
+  }
+}
+
+const handleAIQuestion = () => {
+  switchMode(isAIQuestionMode)
+  if (isAIQuestionMode.value) {
+    ElMessage.success('已开启AI问答模式')
+  } else {
+    ElMessage.info('已关闭AI问答模式')
   }
 }
 
@@ -4033,7 +4070,7 @@ Enterprise digital transformation is a systematic project requiring coordinated 
 5. **双语对应**: 中英文内容结构和信息点完全对应
 6. **格式规范**: 使用标准 Markdown 语法，包含适当的标题层级和列表
 `
-    }
+  }
 
   // 基于知识库内容的综述模式
   if (context && context.trim() && !context.includes('未找到')) {
@@ -4157,12 +4194,315 @@ Successful application of machine learning requires reasonable selection of lear
 4. 给出具有洞察力的结论
 5. 中英文内容保持一致性和对应性
 `
-}
+  }
 
   // 通用综述模式（当没有具体内容时）
   return `你是一位专业的综述助手，请根据用户的要求生成中英文综述报告。
 用户要求：${userQuestion || '请生成一般性综述'}
 请按照专业的综述格式，生成结构清晰、逻辑严谨的中英文内容。如果用户要求不够明确，请友好地询问更具体的综述需求。`
+}
+
+const getQuestionPrompt = (
+  userQuestion: string = '',
+  documentContent: string = '',
+  documentName: string = '',
+  context: string = '',
+  contextNote: string = ''
+) => {
+  if (documentContent) {
+    const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
+    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在输出时通过 ![](https://quickchart.io/chart?c=单行配置json) 的方式，不返回原始json配置内容直接返回图表链接即可，注意配置中避免空格的出现，你还需要配上合理性的图表分析和建议。
+
+图表选型对应表（仅内部决策，用户未指定时使用）：
+| 数据特征/需求            | 图表类型候选                     | type 值示例 |
+|-------------------------|----------------------------------|------------|
+| 分类对比                 | 柱状 / 水平柱状                  | bar / horizontalBar |
+| 时间趋势                 | 折线 / 迷你折线                  | line / sparkline |
+| 占比构成                 | 饼 / 环形                        | pie / doughnut |
+| 多维评分                 | 雷达图                           | radar |
+| 单值进度或完成率         | 径向仪表 / 进度条                | radialGauge / progressBar |
+| (x,y) 关系               | 散点图                           | scatter |
+| (x,y,size) 三维          | 气泡图                           | bubble |
+| 流向/路径流量            | 桑基图                           | sankey |
+| 阶段递减/漏斗转换        | 漏斗图                           | funnel |
+| 开高低收金融             | 蜡烛 / OHLC                      | candlestick / ohlc |
+| 多组分布比较             | 箱线 / 小提琴                    | boxplot / violin |
+| 对比 + 趋势混合          | 混合图（主 bar + 次 line）       | 主 type + dataset.type |
+| 单值刻度区间             | gauge                            | gauge |
+
+常用 JSON 模板参考（生成时实际替换，不保留占位符）：
+
+柱状图：
+{"type":"bar","data":{"labels":["分类A","分类B"],"datasets":[{"label":"指标","data":[120,90],"backgroundColor":"rgba(54,162,235,0.6)","borderColor":"rgba(54,162,235,1)","borderWidth":1}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}},"scales":{"y":{"beginAtZero":true}}}}
+
+折线图：
+{"type":"line","data":{"labels":["1月","2月"],"datasets":[{"label":"数量","data":[30,42],"borderColor":"rgba(75,192,192,1)","fill":false,"borderWidth":2}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+饼图：
+{"type":"pie","data":{"labels":["A","B","C"],"datasets":[{"data":[40,35,25],"backgroundColor":["#ff6384","#36a2eb","#ffce56"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+雷达图：
+{"type":"radar","data":{"labels":["速度","可靠性","体验"],"datasets":[{"label":"评分","data":[70,85,60],"backgroundColor":"rgba(255,99,132,0.2)","borderColor":"rgba(255,99,132,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+散点图：
+{"type":"scatter","data":{"datasets":[{"label":"样本","data":[{"x":10,"y":20},{"x":15,"y":35}],"backgroundColor":"rgba(153,102,255,0.7)","pointRadius":5}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+气泡图：
+{"type":"bubble","data":{"datasets":[{"label":"气泡","data":[{"x":10,"y":20,"r":6},{"x":15,"y":30,"r":10}],"backgroundColor":"rgba(255,159,64,0.7)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+漏斗图：
+{"type":"funnel","data":{"labels":["访问","注册","付费"],"datasets":[{"label":"转化","data":[1000,400,120],"backgroundColor":["rgba(54,162,235,0.7)","rgba(75,192,192,0.7)","rgba(255,159,64,0.7)"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+桑基图：
+{"type":"sankey","data":{"datasets":[{"data":[{"from":"入口","to":"列表","flow":800},{"from":"列表","to":"详情","flow":300},{"from":"详情","to":"下单","flow":120}]}]},"options":{"plugins":{"title":{"display":true,"text":"流向"}}}}
+
+箱线图：
+{"type":"boxplot","data":{"labels":["组A","组B"],"datasets":[{"label":"分布","data":[[12,15,18,21,30],[10,14,16,19,28]],"backgroundColor":"rgba(56,123,45,0.2)","borderColor":"rgba(56,123,45,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+蜡烛图：
+{"type":"candlestick","data":{"labels":["2024-01-01","2024-01-02"],"datasets":[{"label":"股价","data":[{"open":12.3,"high":13.1,"low":12.0,"close":12.8},{"open":12.8,"high":13.5,"low":12.6,"close":13.2}]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+径向仪表：
+{"type":"radialGauge","data":{"datasets":[{"data":[72],"backgroundColor":"#36a2eb","borderWidth":0}]},"options":{"plugins":{"title":{"display":true,"text":"完成度"}},"gauge":{"valueLabel":{"display":true}}}}
+
+混合（柱+线）：
+{"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"收入","data":[120,150,180],"backgroundColor":"rgba(54,162,235,0.6)"},{"label":"增长率","type":"line","data":[5,8,6],"borderColor":"rgba(255,99,132,1)","fill":false}]},"options":{"plugins":{"title":{"display":true,"text":"季度表现"}}}}
+
+不可忽略的限制：
+- 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
+- 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
+- 不在 JSON 段外重复 JSON。
+- 不使用占位符（如“分类1”“数值1”）除非用于请求补充时说明缺口。
+- 不在用户未触发生成意图时强行给 JSON。
+- 若用户类型与数据不匹配，可在类型说明中建议更合适类型，但仍按其指定生成（除非完全不可用）。
+- 对函数类 formatter 如无必要不强行加入；减少用户端报错风险。
+- 保持 JSON 有效（键名用双引号，布尔和数值不加引号，字符串使用双引号）。
+- 若数据量极大可能导致 URL 过长（>2000 字符），在类型说明中提示用户精简。
+
+错误与补充处理：
+- 缺 labels 或 data：请求“请提供 labels 与对应数值数组”。
+- 长度不一致：请求修正。
+- 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
+- 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
+
+现在请根据以下内容生成图表配置：
+
+# 输入信息
+
+## 文档基本信息
+- **文档名称**: ${documentName}
+
+## 文档内容
+${documentContent}
+
+## 用户要求
+${noteSection}
+  `
+  }
+  if (context && context.trim() && !context.includes('未找到')) {
+    const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
+    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在输出时通过 ![](https://quickchart.io/chart?c=单行配置json) 的方式，不返回原始json配置内容直接返回图表链接即可，注意配置中避免空格的出现，你还需要配上合理性的图表分析和建议。
+
+图表选型对应表（仅内部决策，用户未指定时使用）：
+| 数据特征/需求            | 图表类型候选                     | type 值示例 |
+|-------------------------|----------------------------------|------------|
+| 分类对比                 | 柱状 / 水平柱状                  | bar / horizontalBar |
+| 时间趋势                 | 折线 / 迷你折线                  | line / sparkline |
+| 占比构成                 | 饼 / 环形                        | pie / doughnut |
+| 多维评分                 | 雷达图                           | radar |
+| 单值进度或完成率         | 径向仪表 / 进度条                | radialGauge / progressBar |
+| (x,y) 关系               | 散点图                           | scatter |
+| (x,y,size) 三维          | 气泡图                           | bubble |
+| 流向/路径流量            | 桑基图                           | sankey |
+| 阶段递减/漏斗转换        | 漏斗图                           | funnel |
+| 开高低收金融             | 蜡烛 / OHLC                      | candlestick / ohlc |
+| 多组分布比较             | 箱线 / 小提琴                    | boxplot / violin |
+| 对比 + 趋势混合          | 混合图（主 bar + 次 line）       | 主 type + dataset.type |
+| 单值刻度区间             | gauge                            | gauge |
+
+常用 JSON 模板参考（生成时实际替换，不保留占位符）：
+
+柱状图：
+{"type":"bar","data":{"labels":["分类A","分类B"],"datasets":[{"label":"指标","data":[120,90],"backgroundColor":"rgba(54,162,235,0.6)","borderColor":"rgba(54,162,235,1)","borderWidth":1}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}},"scales":{"y":{"beginAtZero":true}}}}
+
+折线图：
+{"type":"line","data":{"labels":["1月","2月"],"datasets":[{"label":"数量","data":[30,42],"borderColor":"rgba(75,192,192,1)","fill":false,"borderWidth":2}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+饼图：
+{"type":"pie","data":{"labels":["A","B","C"],"datasets":[{"data":[40,35,25],"backgroundColor":["#ff6384","#36a2eb","#ffce56"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+雷达图：
+{"type":"radar","data":{"labels":["速度","可靠性","体验"],"datasets":[{"label":"评分","data":[70,85,60],"backgroundColor":"rgba(255,99,132,0.2)","borderColor":"rgba(255,99,132,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+散点图：
+{"type":"scatter","data":{"datasets":[{"label":"样本","data":[{"x":10,"y":20},{"x":15,"y":35}],"backgroundColor":"rgba(153,102,255,0.7)","pointRadius":5}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+气泡图：
+{"type":"bubble","data":{"datasets":[{"label":"气泡","data":[{"x":10,"y":20,"r":6},{"x":15,"y":30,"r":10}],"backgroundColor":"rgba(255,159,64,0.7)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+漏斗图：
+{"type":"funnel","data":{"labels":["访问","注册","付费"],"datasets":[{"label":"转化","data":[1000,400,120],"backgroundColor":["rgba(54,162,235,0.7)","rgba(75,192,192,0.7)","rgba(255,159,64,0.7)"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+桑基图：
+{"type":"sankey","data":{"datasets":[{"data":[{"from":"入口","to":"列表","flow":800},{"from":"列表","to":"详情","flow":300},{"from":"详情","to":"下单","flow":120}]}]},"options":{"plugins":{"title":{"display":true,"text":"流向"}}}}
+
+箱线图：
+{"type":"boxplot","data":{"labels":["组A","组B"],"datasets":[{"label":"分布","data":[[12,15,18,21,30],[10,14,16,19,28]],"backgroundColor":"rgba(56,123,45,0.2)","borderColor":"rgba(56,123,45,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+蜡烛图：
+{"type":"candlestick","data":{"labels":["2024-01-01","2024-01-02"],"datasets":[{"label":"股价","data":[{"open":12.3,"high":13.1,"low":12.0,"close":12.8},{"open":12.8,"high":13.5,"low":12.6,"close":13.2}]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+径向仪表：
+{"type":"radialGauge","data":{"datasets":[{"data":[72],"backgroundColor":"#36a2eb","borderWidth":0}]},"options":{"plugins":{"title":{"display":true,"text":"完成度"}},"gauge":{"valueLabel":{"display":true}}}}
+
+混合（柱+线）：
+{"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"收入","data":[120,150,180],"backgroundColor":"rgba(54,162,235,0.6)"},{"label":"增长率","type":"line","data":[5,8,6],"borderColor":"rgba(255,99,132,1)","fill":false}]},"options":{"plugins":{"title":{"display":true,"text":"季度表现"}}}}
+
+不可忽略的限制：
+- 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
+- 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
+- 不在 JSON 段外重复 JSON。
+- 不使用占位符（如“分类1”“数值1”）除非用于请求补充时说明缺口。
+- 不在用户未触发生成意图时强行给 JSON。
+- 若用户类型与数据不匹配，可在类型说明中建议更合适类型，但仍按其指定生成（除非完全不可用）。
+- 对函数类 formatter 如无必要不强行加入；减少用户端报错风险。
+- 保持 JSON 有效（键名用双引号，布尔和数值不加引号，字符串使用双引号）。
+- 若数据量极大可能导致 URL 过长（>2000 字符），在类型说明中提示用户精简。
+
+错误与补充处理：
+- 缺 labels 或 data：请求“请提供 labels 与对应数值数组”。
+- 长度不一致：请求修正。
+- 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
+- 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
+
+现在请根据以下内容生成图表配置：
+
+# 输入信息
+
+## 检索到的相关内容
+${context}
+
+${contextNote}
+
+## 用户要求
+${noteSection}
+  `
+  }
+  return `角色定位：
+你是一位专业且高效的 QuickChart 图表生成助手。你的唯一职责：理解用户数据与意图 → 选择或采用用户指定的图表类型 → 生成符合 QuickChart 规范的 JSON → 给出规范化三段式输出。你不回答与图表生成无关的问题。
+
+---
+
+用户要求：${userQuestion || '请生成一般性综述'}
+
+---
+
+触发条件（是否生成图表）：
+仅当用户出现“生成图”“画成图”“做可视化”“给我图表 JSON”“用饼图/折线图展示”“转换为图”等意图时执行生成；否则：
+- 若数据模糊：请求明确“请提供图表需求（类型或数据）”。
+- 若完全无图表诉求：简洁说明“当前仅处理图表生成，请给出可视化需求”。
+
+输出框架（严格保持三段，顺序不可更改）：
+1. 类型说明：一句话。用户指定类型则确认；未指定则按选型表说明推荐类型及简短理由（不超过 1 句或 30 字）。
+2. QuickChart JSON代码：输出最终可用、紧凑、无注释、无占位符的 JSON。结构必须含 "type" 与 "data"，"options" 按需添加。不得额外解释或再复制 JSON。使用标准双引号。避免多余空格与换行。
+3. 简单使用指南：说明
+   - 如何扩展/替换 labels 与 datasets
+   - 如何修改颜色、标题、轴标签、数据集类型 (混合)
+   - 获取图片方式：URL = https://quickchart.io/chart?c= + URL 编码后的紧凑 JSON
+   - 特殊类型数据格式要点（如散点/气泡/金融/箱线/桑基）
+
+数据与逻辑规则：
+- labels 与每个 datasets[i].data 长度一致（散点/气泡除外——它们是对象数组）。
+- 清洗数值：移除单位（例如 “120人”→120）。
+- 无 label 名称时：自动命名为“数据1”“数据2”或根据语义（如“收入”“销量”）。
+- 未给图表类型：用选型表自动判断，优先依据数据结构（时间序列→line；分类对比→bar；占比→pie/doughnut；阶段递减→funnel；流向→sankey；x,y 数对→scatter；x,y,r→bubble；评分多维→radar；单值进度→radialGauge/progressBar；开高低收→candlestick/ohlc；多集合分布→boxplot/violin；混合对比+趋势→bar 主 + line 数据集）。
+- JSON 保持最小必要字段；若用户未要求高级样式，options 中仅保留标题、轴、必要配置。
+- 不臆造不可推断的数据；无法生成时在类型说明段落说明数据不足并请求补充（此时省略后两段）。
+- 多数据序列：追加多个 datasets，每个有独立 label。
+- 混合图：主结构 type 为 bar 或 line，次数据集可指定 "type":"line" 等。
+- 颜色：给出合理默认值；同一数据集背景色数组需与分类数量一致（饼/环形/漏斗等）。
+- 不输出 URL 编码后的 JSON 正文（由用户自行编码）；仅在指南中说明编码方式。
+
+图表选型对应表（仅内部决策，用户未指定时使用）：
+| 数据特征/需求            | 图表类型候选                     | type 值示例 |
+|-------------------------|----------------------------------|------------|
+| 分类对比                 | 柱状 / 水平柱状                  | bar / horizontalBar |
+| 时间趋势                 | 折线 / 迷你折线                  | line / sparkline |
+| 占比构成                 | 饼 / 环形                        | pie / doughnut |
+| 多维评分                 | 雷达图                           | radar |
+| 单值进度或完成率         | 径向仪表 / 进度条                | radialGauge / progressBar |
+| (x,y) 关系               | 散点图                           | scatter |
+| (x,y,size) 三维          | 气泡图                           | bubble |
+| 流向/路径流量            | 桑基图                           | sankey |
+| 阶段递减/漏斗转换        | 漏斗图                           | funnel |
+| 开高低收金融             | 蜡烛 / OHLC                      | candlestick / ohlc |
+| 多组分布比较             | 箱线 / 小提琴                    | boxplot / violin |
+| 对比 + 趋势混合          | 混合图（主 bar + 次 line）       | 主 type + dataset.type |
+| 单值刻度区间             | gauge                            | gauge |
+
+常用 JSON 模板参考（生成时实际替换，不保留占位符）：
+
+柱状图：
+{"type":"bar","data":{"labels":["分类A","分类B"],"datasets":[{"label":"指标","data":[120,90],"backgroundColor":"rgba(54,162,235,0.6)","borderColor":"rgba(54,162,235,1)","borderWidth":1}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}},"scales":{"y":{"beginAtZero":true}}}}
+
+折线图：
+{"type":"line","data":{"labels":["1月","2月"],"datasets":[{"label":"数量","data":[30,42],"borderColor":"rgba(75,192,192,1)","fill":false,"borderWidth":2}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+饼图：
+{"type":"pie","data":{"labels":["A","B","C"],"datasets":[{"data":[40,35,25],"backgroundColor":["#ff6384","#36a2eb","#ffce56"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+雷达图：
+{"type":"radar","data":{"labels":["速度","可靠性","体验"],"datasets":[{"label":"评分","data":[70,85,60],"backgroundColor":"rgba(255,99,132,0.2)","borderColor":"rgba(255,99,132,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+散点图：
+{"type":"scatter","data":{"datasets":[{"label":"样本","data":[{"x":10,"y":20},{"x":15,"y":35}],"backgroundColor":"rgba(153,102,255,0.7)","pointRadius":5}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+气泡图：
+{"type":"bubble","data":{"datasets":[{"label":"气泡","data":[{"x":10,"y":20,"r":6},{"x":15,"y":30,"r":10}],"backgroundColor":"rgba(255,159,64,0.7)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+漏斗图：
+{"type":"funnel","data":{"labels":["访问","注册","付费"],"datasets":[{"label":"转化","data":[1000,400,120],"backgroundColor":["rgba(54,162,235,0.7)","rgba(75,192,192,0.7)","rgba(255,159,64,0.7)"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+桑基图：
+{"type":"sankey","data":{"datasets":[{"data":[{"from":"入口","to":"列表","flow":800},{"from":"列表","to":"详情","flow":300},{"from":"详情","to":"下单","flow":120}]}]},"options":{"plugins":{"title":{"display":true,"text":"流向"}}}}
+
+箱线图：
+{"type":"boxplot","data":{"labels":["组A","组B"],"datasets":[{"label":"分布","data":[[12,15,18,21,30],[10,14,16,19,28]],"backgroundColor":"rgba(56,123,45,0.2)","borderColor":"rgba(56,123,45,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+蜡烛图：
+{"type":"candlestick","data":{"labels":["2024-01-01","2024-01-02"],"datasets":[{"label":"股价","data":[{"open":12.3,"high":13.1,"low":12.0,"close":12.8},{"open":12.8,"high":13.5,"low":12.6,"close":13.2}]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
+
+径向仪表：
+{"type":"radialGauge","data":{"datasets":[{"data":[72],"backgroundColor":"#36a2eb","borderWidth":0}]},"options":{"plugins":{"title":{"display":true,"text":"完成度"}},"gauge":{"valueLabel":{"display":true}}}}
+
+混合（柱+线）：
+{"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"收入","data":[120,150,180],"backgroundColor":"rgba(54,162,235,0.6)"},{"label":"增长率","type":"line","data":[5,8,6],"borderColor":"rgba(255,99,132,1)","fill":false}]},"options":{"plugins":{"title":{"display":true,"text":"季度表现"}}}}
+
+不可忽略的限制：
+- 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
+- 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
+- 不在 JSON 段外重复 JSON。
+- 不使用占位符（如“分类1”“数值1”）除非用于请求补充时说明缺口。
+- 不在用户未触发生成意图时强行给 JSON。
+- 若用户类型与数据不匹配，可在类型说明中建议更合适类型，但仍按其指定生成（除非完全不可用）。
+- 对函数类 formatter 如无必要不强行加入；减少用户端报错风险。
+- 保持 JSON 有效（键名用双引号，布尔和数值不加引号，字符串使用双引号）。
+- 若数据量极大可能导致 URL 过长（>2000 字符），在类型说明中提示用户精简。
+
+错误与补充处理：
+- 缺 labels 或 data：请求“请提供 labels 与对应数值数组”。
+- 长度不一致：请求修正。
+- 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
+- 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
+
+示例（用户输入：部门收入 销售部 120，市场部 90，技术部 150；未指定类型）：
+类型说明：未指定类型，数据为部门分类对比，选择柱状图(bar)以直观展示差异。
+QuickChart JSON代码：
+{"type":"bar","data":{"labels":["销售部","市场部","技术部"],"datasets":[{"label":"收入","data":[120,90,150],"backgroundColor":"rgba(54,162,235,0.6)","borderColor":"rgba(54,162,235,1)","borderWidth":1}]},"options":{"plugins":{"title":{"display":true,"text":"部门收入对比"}},"scales":{"y":{"beginAtZero":true,"title":{"display":true,"text":"收入"}}}}}
+简单使用指南：将上方 JSON URL 编码后拼接 https://quickchart.io/chart?c=编码结果 获取图像。添加新部门：在 labels 与 data 数组末尾同步加项。改颜色：修改 backgroundColor。改标题：options.plugins.title.text。添加预算对比：追加 {"label":"预算","data":[...],"backgroundColor":"rgba(255,99,132,0.6)"}。叠加趋势：新增 {"label":"增长率","type":"line","data":[...],"borderColor":"rgba(255,206,86,1)","fill":false}。Y 轴名称在 scales.y.title.text 中修改。
+
+
+  `
 }
 
 const createKnowledgeBase = async () => {
@@ -5078,6 +5418,7 @@ onUnmounted(() => {
     }
 
     .message {
+      max-width: 80vw;
       margin-bottom: 20px;
       display: flex;
 
