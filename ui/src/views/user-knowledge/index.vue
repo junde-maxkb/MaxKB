@@ -500,6 +500,26 @@
                     </div>
                   </div>
 
+                  <!-- AI问数模式已上传文档展示 -->
+                  <div v-else-if="isAIQuestionMode && questionDocumentName">
+                    <div class="kb-info-text">
+                      <el-icon class="info-icon">
+                        <Document />
+                      </el-icon>
+                      已上传待问数文档：
+                    </div>
+                    <div class="selected-items">
+                      <el-tag
+                        size="small"
+                        class="item-tag document-tag"
+                        closable
+                        @close="removeQuestionDocument"
+                      >
+                        {{ questionDocumentName }}
+                      </el-tag>
+                    </div>
+                  </div>
+
                   <!-- AI写作模式已上传文档展示 -->
                   <div v-else-if="isAIWritingMode && uploadedDocumentName">
                     <div class="kb-info-text">
@@ -689,6 +709,7 @@
                           !isAITranslateMode &&
                           !isAISummaryMode &&
                           !isAIReviewMode &&
+                          !isAIQuestionMode &&
                           !selectedInfo)
                       "
                     />
@@ -786,6 +807,28 @@
                       </el-button>
                     </el-upload>
 
+                    <el-upload
+                      v-if="isAIQuestionMode"
+                      ref="questionDocumentUploadRef"
+                      class="document-upload-btn"
+                      :show-file-list="false"
+                      :before-upload="handleQuestionDocumentUpload"
+                      :disabled="isStreaming || isUploadingQuestionDocument"
+                      accept=".xls,.xlsx"
+                    >
+                      <el-button
+                        text
+                        class="voice-btn"
+                        :disabled="isStreaming || isUploadingQuestionDocument"
+                        :loading="isUploadingQuestionDocument"
+                        :title="questionDocumentName ? '重新上传综述文档' : '上传文档进行综述'"
+                      >
+                        <el-icon v-if="!isUploadingQuestionDocument">
+                          <Document />
+                        </el-icon>
+                      </el-button>
+                    </el-upload>
+
                     <!-- 语音录制按钮 -->
                     <el-button
                       text
@@ -796,7 +839,8 @@
                         !isAIWritingMode &&
                         !isAITranslateMode &&
                         !isAISummaryMode &&
-                        !isAIReviewMode
+                        !isAIReviewMode &&
+                        !isAIQuestionMode
                       "
                       :disabled="isStreaming || !selectedInfo || !sttModelEnabled"
                     >
@@ -820,7 +864,8 @@
                         !isAIWritingMode &&
                         !isAITranslateMode &&
                         !isAISummaryMode &&
-                        !isAIReviewMode
+                        !isAIReviewMode &&
+                        !isAIQuestionMode
                       "
                     >
                       <el-button
@@ -874,12 +919,14 @@
                           !uploadedDocumentContent &&
                           !translateDocumentContent &&
                           !summaryDocumentContent &&
+                          !questionDocumentContent &&
                           !reviewDocumentContent) ||
                         isStreaming ||
                         (!isAIWritingMode &&
                           !isAITranslateMode &&
                           !isAISummaryMode &&
                           !isAIReviewMode &&
+                          !isAIQuestionMode &&
                           !selectedInfo)
                       "
                     >
@@ -935,7 +982,7 @@
                 </div>
                 <div class="ai-button" :class="{ active: isAIReviewMode }" @click="handleAIReview">
                   <el-icon class="ai-icon">
-                    <Document />
+                    <Collection />
                   </el-icon>
                   <span class="ai-text">AI综述</span>
                 </div>
@@ -945,7 +992,7 @@
                   @click="handleAIQuestion"
                 >
                   <el-icon class="ai-icon">
-                    <Document />
+                    <DataLine />
                   </el-icon>
                   <span class="ai-text">AI问数</span>
                 </div>
@@ -1085,7 +1132,8 @@ import {
   Timer,
   UploadFilled,
   View,
-  Warning
+  Warning,
+  DataLine
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
@@ -1192,12 +1240,14 @@ const isAIReviewMode = ref(false)
 const isUploadingReviewDocument = ref(false)
 const reviewDocumentContent = ref('')
 const reviewDocumentName = ref('')
+const reviewDocumentUploadRef = ref<any>(null)
 
 // AI问数模式
 const isAIQuestionMode = ref(false)
 const isUploadingQuestionDocument = ref(false)
 const questionDocumentContent = ref('')
 const questionDocumentName = ref('')
+const questionDocumentUploadRef = ref<any>(null)
 
 // 重命名相关状态
 const showRenameDialog = ref(false)
@@ -2445,13 +2495,11 @@ const sendMessage = async () => {
   const hasTranslateDocument = isAITranslateMode.value && translateDocumentContent.value
   const hasSummaryDocument = isAISummaryMode.value && summaryDocumentContent.value
   const hasReviewDocument = isAIReviewMode.value && reviewDocumentContent.value
-  const hasQuestionDocument = isAIQuestionMode.value && questionDocumentContent.value
   if (
     (!currentMessage.value.trim() &&
       !hasTranslateDocument &&
       !hasSummaryDocument &&
-      !hasReviewDocument &&
-      !hasQuestionDocument) ||
+      !hasReviewDocument) ||
     isStreaming.value ||
     !selectedModelId.value
   )
@@ -2794,6 +2842,13 @@ ${context}
           }
         }
 
+        // 流式输出结束后处理quickchart转换
+        const lastMessage = chatMessages.value[chatMessages.value.length - 1]
+        console.log('流式输出结束，当前AI消息内容:', currentAssistantMessage)
+        if (lastMessage && lastMessage.role === 'assistant') {
+          lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
+        }
+
         // 如果没有接收到内容，显示默认错误消息
         if (!currentAssistantMessage) {
           if (!isStreaming.value) {
@@ -2984,6 +3039,12 @@ const switchMode = (mode: Ref<boolean, boolean>) => {
   // 清空摘要模式的上传文档
   summaryDocumentContent.value = ''
   summaryDocumentName.value = ''
+  // 清空综述模式的上传文档
+  reviewDocumentContent.value = ''
+  reviewDocumentName.value = ''
+  // 清空问数模式的上传文档
+  questionDocumentContent.value = ''
+  questionDocumentName.value = ''
   // 切换模式时清空输入框内容，避免混淆
   currentMessage.value = ''
 }
@@ -3209,6 +3270,70 @@ const handleSummaryDocumentUpload = async (file: any) => {
   return false // 阻止默认上传行为
 }
 
+// AI问数模式文档上传处理
+const handleQuestionDocumentUpload = async (file: any) => {
+  if (!isAIQuestionMode.value) {
+    ElMessage.warning('请先开启AI问答模式')
+    return false
+  }
+  // 验证文件类型，只能上传xls和xlsx文件
+  const allowedTypes = [
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ]
+  if (!allowedTypes.includes(file.type) && !file.name.match(/\.(xls|xlsx)$/i)) {
+    ElMessage.error('仅支持上传 Excel 文档（xls 或 xlsx 格式）')
+    return false
+  }
+  // 验证文件大小 (10MB)
+  const maxSize = 10 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过 10MB')
+    return false
+  }
+  try {
+    isUploadingQuestionDocument.value = true
+    // 创建 FormData
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('limit', '100000') // 设置较大的字符限制
+    formData.append('with_filter', 'false')
+    // 调用文档分段API进行文档识别
+    const response = await documentApi.postSplitDocument(formData)
+    if (response.code === 200 && response.data) {
+      // 提取文档内容
+      let documentContent = ''
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const allParagraphs: string[] = []
+        response.data.forEach((doc: any) => {
+          if (Array.isArray(doc.content)) {
+            doc.content.forEach((paragraph: any) => {
+              if (paragraph.content && typeof paragraph.content === 'string') {
+                allParagraphs.push(paragraph.content.trim())
+              }
+            })
+          }
+        })
+        documentContent = allParagraphs.filter((p) => p).join('\n\n')
+      }
+      if (documentContent.trim()) {
+        questionDocumentContent.value = documentContent
+        questionDocumentName.value = file.name
+        ElMessage.success(`文档 "${file.name}" 上传成功，准备进行问答！`)
+      } else {
+        ElMessage.error('文档内容为空或无法识别')
+      }
+    } else {
+      ElMessage.error(response.message || '文档识别失败')
+    }
+  } catch (error: any) {
+    console.error('文档上传失败:', error)
+    ElMessage.error(error.message || '文档上传失败，请重试')
+  } finally {
+    isUploadingQuestionDocument.value = false
+  }
+}
+
 // AI综述模式文档上传处理
 const handleReviewDocumentUpload = async (file: any) => {
   if (!isAIReviewMode.value) {
@@ -3385,6 +3510,12 @@ const handleDocumentUpload = async (file: any) => {
 const removeUploadedDocument = () => {
   uploadedDocumentContent.value = ''
   uploadedDocumentName.value = ''
+  ElMessage.info('已移除上传的文档')
+}
+// 移除已上传的文档
+const removeQuestionDocument = () => {
+  questionDocumentName.value = ''
+  questionDocumentContent.value = ''
   ElMessage.info('已移除上传的文档')
 }
 
@@ -4202,6 +4333,21 @@ Successful application of machine learning requires reasonable selection of lear
 请按照专业的综述格式，生成结构清晰、逻辑严谨的中英文内容。如果用户要求不够明确，请友好地询问更具体的综述需求。`
 }
 
+// 处理 quickchart 图片链接，去掉 alt 文本并对 c 参数进行编码
+function transformWhenAltIsQuickChart(text: string): string {
+  const pattern = /!\[(quickchart)\]\((https?:\/\/quickchart\.io\/chart\?[^)]+)\)/g
+  return text.replace(pattern, (full, alt, url) => {
+    const u = new URL(url)
+    let cVal = u.searchParams.get('c')
+    if (cVal && !/%[0-9A-Fa-f]{2}/.test(cVal)) {
+      // cVal = encodeURIComponent(cVal)
+      u.searchParams.set('c', cVal.replace(/ /g, '%20'))
+      console.log('Encoded quickchart c param:', cVal)
+    }
+    return `![](${u.toString().replace(/ /g, '%20')})`
+  })
+}
+
 const getQuestionPrompt = (
   userQuestion: string = '',
   documentContent: string = '',
@@ -4211,7 +4357,7 @@ const getQuestionPrompt = (
 ) => {
   if (documentContent) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在输出时通过 ![](https://quickchart.io/chart?c=单行配置json) 的方式，不返回原始json配置内容直接返回图表链接即可，注意配置中避免空格的出现，你还需要配上合理性的图表分析和建议。
+    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](https://quickchart.io/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
@@ -4232,41 +4378,18 @@ const getQuestionPrompt = (
 
 常用 JSON 模板参考（生成时实际替换，不保留占位符）：
 
-柱状图：
-{"type":"bar","data":{"labels":["分类A","分类B"],"datasets":[{"label":"指标","data":[120,90],"backgroundColor":"rgba(54,162,235,0.6)","borderColor":"rgba(54,162,235,1)","borderWidth":1}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}},"scales":{"y":{"beginAtZero":true}}}}
-
-折线图：
-{"type":"line","data":{"labels":["1月","2月"],"datasets":[{"label":"数量","data":[30,42],"borderColor":"rgba(75,192,192,1)","fill":false,"borderWidth":2}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-饼图：
-{"type":"pie","data":{"labels":["A","B","C"],"datasets":[{"data":[40,35,25],"backgroundColor":["#ff6384","#36a2eb","#ffce56"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-雷达图：
-{"type":"radar","data":{"labels":["速度","可靠性","体验"],"datasets":[{"label":"评分","data":[70,85,60],"backgroundColor":"rgba(255,99,132,0.2)","borderColor":"rgba(255,99,132,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-散点图：
-{"type":"scatter","data":{"datasets":[{"label":"样本","data":[{"x":10,"y":20},{"x":15,"y":35}],"backgroundColor":"rgba(153,102,255,0.7)","pointRadius":5}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-气泡图：
-{"type":"bubble","data":{"datasets":[{"label":"气泡","data":[{"x":10,"y":20,"r":6},{"x":15,"y":30,"r":10}],"backgroundColor":"rgba(255,159,64,0.7)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-漏斗图：
-{"type":"funnel","data":{"labels":["访问","注册","付费"],"datasets":[{"label":"转化","data":[1000,400,120],"backgroundColor":["rgba(54,162,235,0.7)","rgba(75,192,192,0.7)","rgba(255,159,64,0.7)"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-桑基图：
-{"type":"sankey","data":{"datasets":[{"data":[{"from":"入口","to":"列表","flow":800},{"from":"列表","to":"详情","flow":300},{"from":"详情","to":"下单","flow":120}]}]},"options":{"plugins":{"title":{"display":true,"text":"流向"}}}}
-
-箱线图：
-{"type":"boxplot","data":{"labels":["组A","组B"],"datasets":[{"label":"分布","data":[[12,15,18,21,30],[10,14,16,19,28]],"backgroundColor":"rgba(56,123,45,0.2)","borderColor":"rgba(56,123,45,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-蜡烛图：
-{"type":"candlestick","data":{"labels":["2024-01-01","2024-01-02"],"datasets":[{"label":"股价","data":[{"open":12.3,"high":13.1,"low":12.0,"close":12.8},{"open":12.8,"high":13.5,"low":12.6,"close":13.2}]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-径向仪表：
-{"type":"radialGauge","data":{"datasets":[{"data":[72],"backgroundColor":"#36a2eb","borderWidth":0}]},"options":{"plugins":{"title":{"display":true,"text":"完成度"}},"gauge":{"valueLabel":{"display":true}}}}
-
-混合（柱+线）：
-{"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"收入","data":[120,150,180],"backgroundColor":"rgba(54,162,235,0.6)"},{"label":"增长率","type":"line","data":[5,8,6],"borderColor":"rgba(255,99,132,1)","fill":false}]},"options":{"plugins":{"title":{"display":true,"text":"季度表现"}}}}
+图表类型\t作用/特点\t是否特殊版本限制\t精简示例配置 (可直接放入 c= 参数)\t说明要点
+line\t展示连续趋势，多数据集对比\t否\t{type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}}\tfill:false 去掉面积；可加 tension 调曲线
+bar\t分类数值对比\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]}]}}\t默认纵向；可用 options.scales 调整
+horizontalBar (2.x)\t横向柱状图\t仅 2.x\t{type:'horizontalBar',data:{labels:['Jan','Feb','Mar'],datasets:[{label:'Val',data:[10,20,30]}]}}\t3.x+ 使用 {type:'bar',options:{indexAxis:'y'}}
+radar\t多维指标比较\t否\t{type:'radar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]}]}}\t维度顺序影响可读性；可调 angleLines
+pie\t占比\t否\t{type:'pie',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t不含中心文字（需插件才有）；颜色默认
+doughnut\t占比，环形\t否\t{type:'doughnut',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t与 pie 类似；中心留空无需插件
+半圆 doughnut (Gauge 风格)\t简易仪表显示当前与剩余\t否\t{type:'doughnut',data:{datasets:[{data:[24,66],backgroundColor:['green','#eee'],borderWidth:0}]},options:{circumference:Math.PI,rotation:Math.PI,cutout:'75%'}}\t24 表示当前值，66 表示剩余；可自定颜色
+polarArea\t各类别值以半径表示\t否\t{type:'polarArea',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t所有扇区角度相同，半径编码数值
+scatter\t(x,y) 分布\t否\t{type:'scatter',data:{datasets:[{label:'Data1',data:[{x:2,y:4},{x:3,y:3},{x:-10,y:0},{x:0,y:10},{x:10,y:5}]}]}}\t需提供点数组；可加 options.scales 指定范围
+bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',data:[{x:1,y:4,r:9},{x:2,y:4,r:6},{x:3,y:8,r:30},{x:0,y:10,r:1},{x:10,y:5,r:5}]}]}}\tr 为像素半径；避免过大遮挡
+mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
@@ -4278,6 +4401,7 @@ const getQuestionPrompt = (
 - 对函数类 formatter 如无必要不强行加入；减少用户端报错风险。
 - 保持 JSON 有效（键名用双引号，布尔和数值不加引号，字符串使用双引号）。
 - 若数据量极大可能导致 URL 过长（>2000 字符），在类型说明中提示用户精简。
+- json不需要url编码，直接将json字符串放入 c= 参数后即可 例如 ![quickchart](https://quickchart.io/chart?c={type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}})。
 
 错误与补充处理：
 - 缺 labels 或 data：请求“请提供 labels 与对应数值数组”。
@@ -4285,7 +4409,8 @@ const getQuestionPrompt = (
 - 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
 - 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
 
-现在请根据以下内容生成图表配置：
+
+现在请根据以下内容生成图表url：
 
 # 输入信息
 
@@ -4301,7 +4426,7 @@ ${noteSection}
   }
   if (context && context.trim() && !context.includes('未找到')) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在输出时通过 ![](https://quickchart.io/chart?c=单行配置json) 的方式，不返回原始json配置内容直接返回图表链接即可，注意配置中避免空格的出现，你还需要配上合理性的图表分析和建议。
+    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](https://quickchart.io/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
@@ -4322,41 +4447,18 @@ ${noteSection}
 
 常用 JSON 模板参考（生成时实际替换，不保留占位符）：
 
-柱状图：
-{"type":"bar","data":{"labels":["分类A","分类B"],"datasets":[{"label":"指标","data":[120,90],"backgroundColor":"rgba(54,162,235,0.6)","borderColor":"rgba(54,162,235,1)","borderWidth":1}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}},"scales":{"y":{"beginAtZero":true}}}}
-
-折线图：
-{"type":"line","data":{"labels":["1月","2月"],"datasets":[{"label":"数量","data":[30,42],"borderColor":"rgba(75,192,192,1)","fill":false,"borderWidth":2}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-饼图：
-{"type":"pie","data":{"labels":["A","B","C"],"datasets":[{"data":[40,35,25],"backgroundColor":["#ff6384","#36a2eb","#ffce56"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-雷达图：
-{"type":"radar","data":{"labels":["速度","可靠性","体验"],"datasets":[{"label":"评分","data":[70,85,60],"backgroundColor":"rgba(255,99,132,0.2)","borderColor":"rgba(255,99,132,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-散点图：
-{"type":"scatter","data":{"datasets":[{"label":"样本","data":[{"x":10,"y":20},{"x":15,"y":35}],"backgroundColor":"rgba(153,102,255,0.7)","pointRadius":5}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-气泡图：
-{"type":"bubble","data":{"datasets":[{"label":"气泡","data":[{"x":10,"y":20,"r":6},{"x":15,"y":30,"r":10}],"backgroundColor":"rgba(255,159,64,0.7)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-漏斗图：
-{"type":"funnel","data":{"labels":["访问","注册","付费"],"datasets":[{"label":"转化","data":[1000,400,120],"backgroundColor":["rgba(54,162,235,0.7)","rgba(75,192,192,0.7)","rgba(255,159,64,0.7)"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-桑基图：
-{"type":"sankey","data":{"datasets":[{"data":[{"from":"入口","to":"列表","flow":800},{"from":"列表","to":"详情","flow":300},{"from":"详情","to":"下单","flow":120}]}]},"options":{"plugins":{"title":{"display":true,"text":"流向"}}}}
-
-箱线图：
-{"type":"boxplot","data":{"labels":["组A","组B"],"datasets":[{"label":"分布","data":[[12,15,18,21,30],[10,14,16,19,28]],"backgroundColor":"rgba(56,123,45,0.2)","borderColor":"rgba(56,123,45,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-蜡烛图：
-{"type":"candlestick","data":{"labels":["2024-01-01","2024-01-02"],"datasets":[{"label":"股价","data":[{"open":12.3,"high":13.1,"low":12.0,"close":12.8},{"open":12.8,"high":13.5,"low":12.6,"close":13.2}]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-径向仪表：
-{"type":"radialGauge","data":{"datasets":[{"data":[72],"backgroundColor":"#36a2eb","borderWidth":0}]},"options":{"plugins":{"title":{"display":true,"text":"完成度"}},"gauge":{"valueLabel":{"display":true}}}}
-
-混合（柱+线）：
-{"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"收入","data":[120,150,180],"backgroundColor":"rgba(54,162,235,0.6)"},{"label":"增长率","type":"line","data":[5,8,6],"borderColor":"rgba(255,99,132,1)","fill":false}]},"options":{"plugins":{"title":{"display":true,"text":"季度表现"}}}}
+图表类型\t作用/特点\t是否特殊版本限制\t精简示例配置 (可直接放入 c= 参数)\t说明要点
+line\t展示连续趋势，多数据集对比\t否\t{type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}}\tfill:false 去掉面积；可加 tension 调曲线
+bar\t分类数值对比\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]}]}}\t默认纵向；可用 options.scales 调整
+horizontalBar (2.x)\t横向柱状图\t仅 2.x\t{type:'horizontalBar',data:{labels:['Jan','Feb','Mar'],datasets:[{label:'Val',data:[10,20,30]}]}}\t3.x+ 使用 {type:'bar',options:{indexAxis:'y'}}
+radar\t多维指标比较\t否\t{type:'radar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]}]}}\t维度顺序影响可读性；可调 angleLines
+pie\t占比\t否\t{type:'pie',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t不含中心文字（需插件才有）；颜色默认
+doughnut\t占比，环形\t否\t{type:'doughnut',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t与 pie 类似；中心留空无需插件
+半圆 doughnut (Gauge 风格)\t简易仪表显示当前与剩余\t否\t{type:'doughnut',data:{datasets:[{data:[24,66],backgroundColor:['green','#eee'],borderWidth:0}]},options:{circumference:Math.PI,rotation:Math.PI,cutout:'75%'}}\t24 表示当前值，66 表示剩余；可自定颜色
+polarArea\t各类别值以半径表示\t否\t{type:'polarArea',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t所有扇区角度相同，半径编码数值
+scatter\t(x,y) 分布\t否\t{type:'scatter',data:{datasets:[{label:'Data1',data:[{x:2,y:4},{x:3,y:3},{x:-10,y:0},{x:0,y:10},{x:10,y:5}]}]}}\t需提供点数组；可加 options.scales 指定范围
+bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',data:[{x:1,y:4,r:9},{x:2,y:4,r:6},{x:3,y:8,r:30},{x:0,y:10,r:1},{x:10,y:5,r:5}]}]}}\tr 为像素半径；避免过大遮挡
+mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
@@ -4374,8 +4476,9 @@ ${noteSection}
 - 长度不一致：请求修正。
 - 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
 - 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
+- json不需要url编码，直接将json放入 c= 参数即可。
 
-现在请根据以下内容生成图表配置：
+现在请根据以下内容生成图表url：
 
 # 输入信息
 
@@ -4389,39 +4492,7 @@ ${noteSection}
   `
   }
   return `角色定位：
-你是一位专业且高效的 QuickChart 图表生成助手。你的唯一职责：理解用户数据与意图 → 选择或采用用户指定的图表类型 → 生成符合 QuickChart 规范的 JSON → 给出规范化三段式输出。你不回答与图表生成无关的问题。
-
----
-
-用户要求：${userQuestion || '请生成一般性综述'}
-
----
-
-触发条件（是否生成图表）：
-仅当用户出现“生成图”“画成图”“做可视化”“给我图表 JSON”“用饼图/折线图展示”“转换为图”等意图时执行生成；否则：
-- 若数据模糊：请求明确“请提供图表需求（类型或数据）”。
-- 若完全无图表诉求：简洁说明“当前仅处理图表生成，请给出可视化需求”。
-
-输出框架（严格保持三段，顺序不可更改）：
-1. 类型说明：一句话。用户指定类型则确认；未指定则按选型表说明推荐类型及简短理由（不超过 1 句或 30 字）。
-2. QuickChart JSON代码：输出最终可用、紧凑、无注释、无占位符的 JSON。结构必须含 "type" 与 "data"，"options" 按需添加。不得额外解释或再复制 JSON。使用标准双引号。避免多余空格与换行。
-3. 简单使用指南：说明
-   - 如何扩展/替换 labels 与 datasets
-   - 如何修改颜色、标题、轴标签、数据集类型 (混合)
-   - 获取图片方式：URL = https://quickchart.io/chart?c= + URL 编码后的紧凑 JSON
-   - 特殊类型数据格式要点（如散点/气泡/金融/箱线/桑基）
-
-数据与逻辑规则：
-- labels 与每个 datasets[i].data 长度一致（散点/气泡除外——它们是对象数组）。
-- 清洗数值：移除单位（例如 “120人”→120）。
-- 无 label 名称时：自动命名为“数据1”“数据2”或根据语义（如“收入”“销量”）。
-- 未给图表类型：用选型表自动判断，优先依据数据结构（时间序列→line；分类对比→bar；占比→pie/doughnut；阶段递减→funnel；流向→sankey；x,y 数对→scatter；x,y,r→bubble；评分多维→radar；单值进度→radialGauge/progressBar；开高低收→candlestick/ohlc；多集合分布→boxplot/violin；混合对比+趋势→bar 主 + line 数据集）。
-- JSON 保持最小必要字段；若用户未要求高级样式，options 中仅保留标题、轴、必要配置。
-- 不臆造不可推断的数据；无法生成时在类型说明段落说明数据不足并请求补充（此时省略后两段）。
-- 多数据序列：追加多个 datasets，每个有独立 label。
-- 混合图：主结构 type 为 bar 或 line，次数据集可指定 "type":"line" 等。
-- 颜色：给出合理默认值；同一数据集背景色数组需与分类数量一致（饼/环形/漏斗等）。
-- 不输出 URL 编码后的 JSON 正文（由用户自行编码）；仅在指南中说明编码方式。
+你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](https://quickchart.io/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
@@ -4442,41 +4513,18 @@ ${noteSection}
 
 常用 JSON 模板参考（生成时实际替换，不保留占位符）：
 
-柱状图：
-{"type":"bar","data":{"labels":["分类A","分类B"],"datasets":[{"label":"指标","data":[120,90],"backgroundColor":"rgba(54,162,235,0.6)","borderColor":"rgba(54,162,235,1)","borderWidth":1}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}},"scales":{"y":{"beginAtZero":true}}}}
-
-折线图：
-{"type":"line","data":{"labels":["1月","2月"],"datasets":[{"label":"数量","data":[30,42],"borderColor":"rgba(75,192,192,1)","fill":false,"borderWidth":2}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-饼图：
-{"type":"pie","data":{"labels":["A","B","C"],"datasets":[{"data":[40,35,25],"backgroundColor":["#ff6384","#36a2eb","#ffce56"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-雷达图：
-{"type":"radar","data":{"labels":["速度","可靠性","体验"],"datasets":[{"label":"评分","data":[70,85,60],"backgroundColor":"rgba(255,99,132,0.2)","borderColor":"rgba(255,99,132,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-散点图：
-{"type":"scatter","data":{"datasets":[{"label":"样本","data":[{"x":10,"y":20},{"x":15,"y":35}],"backgroundColor":"rgba(153,102,255,0.7)","pointRadius":5}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-气泡图：
-{"type":"bubble","data":{"datasets":[{"label":"气泡","data":[{"x":10,"y":20,"r":6},{"x":15,"y":30,"r":10}],"backgroundColor":"rgba(255,159,64,0.7)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-漏斗图：
-{"type":"funnel","data":{"labels":["访问","注册","付费"],"datasets":[{"label":"转化","data":[1000,400,120],"backgroundColor":["rgba(54,162,235,0.7)","rgba(75,192,192,0.7)","rgba(255,159,64,0.7)"]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-桑基图：
-{"type":"sankey","data":{"datasets":[{"data":[{"from":"入口","to":"列表","flow":800},{"from":"列表","to":"详情","flow":300},{"from":"详情","to":"下单","flow":120}]}]},"options":{"plugins":{"title":{"display":true,"text":"流向"}}}}
-
-箱线图：
-{"type":"boxplot","data":{"labels":["组A","组B"],"datasets":[{"label":"分布","data":[[12,15,18,21,30],[10,14,16,19,28]],"backgroundColor":"rgba(56,123,45,0.2)","borderColor":"rgba(56,123,45,1)"}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-蜡烛图：
-{"type":"candlestick","data":{"labels":["2024-01-01","2024-01-02"],"datasets":[{"label":"股价","data":[{"open":12.3,"high":13.1,"low":12.0,"close":12.8},{"open":12.8,"high":13.5,"low":12.6,"close":13.2}]}]},"options":{"plugins":{"title":{"display":true,"text":"标题"}}}}
-
-径向仪表：
-{"type":"radialGauge","data":{"datasets":[{"data":[72],"backgroundColor":"#36a2eb","borderWidth":0}]},"options":{"plugins":{"title":{"display":true,"text":"完成度"}},"gauge":{"valueLabel":{"display":true}}}}
-
-混合（柱+线）：
-{"type":"bar","data":{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"收入","data":[120,150,180],"backgroundColor":"rgba(54,162,235,0.6)"},{"label":"增长率","type":"line","data":[5,8,6],"borderColor":"rgba(255,99,132,1)","fill":false}]},"options":{"plugins":{"title":{"display":true,"text":"季度表现"}}}}
+图表类型\t作用/特点\t是否特殊版本限制\t精简示例配置 (可直接放入 c= 参数)\t说明要点
+line\t展示连续趋势，多数据集对比\t否\t{type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}}\tfill:false 去掉面积；可加 tension 调曲线
+bar\t分类数值对比\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]}]}}\t默认纵向；可用 options.scales 调整
+horizontalBar (2.x)\t横向柱状图\t仅 2.x\t{type:'horizontalBar',data:{labels:['Jan','Feb','Mar'],datasets:[{label:'Val',data:[10,20,30]}]}}\t3.x+ 使用 {type:'bar',options:{indexAxis:'y'}}
+radar\t多维指标比较\t否\t{type:'radar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]}]}}\t维度顺序影响可读性；可调 angleLines
+pie\t占比\t否\t{type:'pie',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t不含中心文字（需插件才有）；颜色默认
+doughnut\t占比，环形\t否\t{type:'doughnut',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t与 pie 类似；中心留空无需插件
+半圆 doughnut (Gauge 风格)\t简易仪表显示当前与剩余\t否\t{type:'doughnut',data:{datasets:[{data:[24,66],backgroundColor:['green','#eee'],borderWidth:0}]},options:{circumference:Math.PI,rotation:Math.PI,cutout:'75%'}}\t24 表示当前值，66 表示剩余；可自定颜色
+polarArea\t各类别值以半径表示\t否\t{type:'polarArea',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{data:[50,60,70,180,190]}]}}\t所有扇区角度相同，半径编码数值
+scatter\t(x,y) 分布\t否\t{type:'scatter',data:{datasets:[{label:'Data1',data:[{x:2,y:4},{x:3,y:3},{x:-10,y:0},{x:0,y:10},{x:10,y:5}]}]}}\t需提供点数组；可加 options.scales 指定范围
+bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',data:[{x:1,y:4,r:9},{x:2,y:4,r:6},{x:3,y:8,r:30},{x:0,y:10,r:1},{x:10,y:5,r:5}]}]}}\tr 为像素半径；避免过大遮挡
+mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
@@ -4494,14 +4542,13 @@ ${noteSection}
 - 长度不一致：请求修正。
 - 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
 - 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
+- json不需要url编码，直接将json放入 c= 参数即可。
 
-示例（用户输入：部门收入 销售部 120，市场部 90，技术部 150；未指定类型）：
-类型说明：未指定类型，数据为部门分类对比，选择柱状图(bar)以直观展示差异。
-QuickChart JSON代码：
-{"type":"bar","data":{"labels":["销售部","市场部","技术部"],"datasets":[{"label":"收入","data":[120,90,150],"backgroundColor":"rgba(54,162,235,0.6)","borderColor":"rgba(54,162,235,1)","borderWidth":1}]},"options":{"plugins":{"title":{"display":true,"text":"部门收入对比"}},"scales":{"y":{"beginAtZero":true,"title":{"display":true,"text":"收入"}}}}}
-简单使用指南：将上方 JSON URL 编码后拼接 https://quickchart.io/chart?c=编码结果 获取图像。添加新部门：在 labels 与 data 数组末尾同步加项。改颜色：修改 backgroundColor。改标题：options.plugins.title.text。添加预算对比：追加 {"label":"预算","data":[...],"backgroundColor":"rgba(255,99,132,0.6)"}。叠加趋势：新增 {"label":"增长率","type":"line","data":[...],"borderColor":"rgba(255,206,86,1)","fill":false}。Y 轴名称在 scales.y.title.text 中修改。
+---
 
+用户要求：${userQuestion || '请生成一般性数据分析建议'}
 
+---
   `
 }
 
