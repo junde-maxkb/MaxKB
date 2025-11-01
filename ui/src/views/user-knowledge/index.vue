@@ -4491,7 +4491,7 @@ const getQuestionPrompt = (
 ) => {
   if (documentContent) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](https://quickchart.io/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
+    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](http://172.16.99.49:3400/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
@@ -4535,7 +4535,7 @@ mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Ja
 - 对函数类 formatter 如无必要不强行加入；减少用户端报错风险。
 - 保持 JSON 有效（键名用双引号，布尔和数值不加引号，字符串使用双引号）。
 - 若数据量极大可能导致 URL 过长（>2000 字符），在类型说明中提示用户精简。
-- json不需要url编码，直接将json字符串放入 c= 参数后即可 例如 ![quickchart](https://quickchart.io/chart?c={type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}})。
+- json不需要url编码，直接将json字符串放入 c= 参数后即可 例如 ![quickchart](http://172.16.99.49:3400/chart?c={type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}})。
 
 错误与补充处理：
 - 缺 labels 或 data：请求“请提供 labels 与对应数值数组”。
@@ -4560,7 +4560,7 @@ ${noteSection}
   }
   if (context && context.trim() && !context.includes('未找到')) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](https://quickchart.io/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
+    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](http://172.16.99.49:3400/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
@@ -4626,7 +4626,7 @@ ${noteSection}
   `
   }
   return `角色定位：
-你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](https://quickchart.io/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
+你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](http://172.16.99.49:3400/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
