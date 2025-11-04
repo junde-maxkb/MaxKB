@@ -336,7 +336,7 @@
 
           <div class="chat-area" :class="{ 'has-messages': hasMessages }">
             <!-- 对话消息区域 -->
-            <div class="chat-messages" ref="messagesContainer" v-if="hasMessages">
+            <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll" v-if="hasMessages">
               <div
                 v-for="(message, index) in chatMessages"
                 :key="index"
@@ -1297,6 +1297,7 @@ const renameForm = ref({
   oldName: '' // 保存原始名称，用于日志和验证
 })
 const messagesContainer = ref<HTMLElement | null>(null)
+const isUserAtBottom = ref(true) // 跟踪用户是否在底部，默认在底部
 const treeRef = ref<any>(null)
 
 // 新建知识库表单
@@ -2429,9 +2430,9 @@ const performKnowledgeSearch = async (query: string) => {
         try {
           const searchData = {
             query_text: query,
-            top_number: isAIWritingMode.value ? 5 : 5, // AI写作模式和普通模式都取前5条结果
-            similarity: isAIWritingMode.value ? 0.3 : 0.5, // AI写作模式降低相似度阈值以获取更多相关内容
-            search_mode: 'embedding',
+            top_number: isAIWritingMode.value ? 30 : 10, // AI写作模式取前30条结果，普通模式取前10条结果
+            similarity: 0.3, // 相似度阈值设置为0.3，只返回相似度高于0.3的结果
+            search_mode: 'blend',
             // 添加文档ID列表，限制检索范围
             document_ids: docs
               .map((doc) => doc.documentId)
@@ -2486,9 +2487,9 @@ const performKnowledgeSearch = async (query: string) => {
         try {
           const searchData = {
             query_text: query,
-            top_number: isAIWritingMode.value ? 5 : 3, // AI写作模式取前5条结果，普通模式取前3条
-            similarity: isAIWritingMode.value ? 0.3 : 0.5, // AI写作模式降低相似度阈值以获取更多相关内容
-            search_mode: 'embedding'
+            top_number: isAIWritingMode.value ? 30 : 10, // AI写作模式取前30条结果，普通模式取前10条
+            similarity: 0.3, // 相似度阈值设置为0.3，只返回相似度高于0.3的结果
+            search_mode: 'blend'
           }
 
           const response = await datasetApi.getDatasetHitTest(dataset.datasetId, searchData)
@@ -2531,15 +2532,16 @@ const performKnowledgeSearch = async (query: string) => {
       }
     }
 
-    // 按相似度排序，取前10条（AI摘要模式需要更多内容）
+    // 按相似度排序，AI写作模式取前30条，普通模式取前10条
     searchResults.sort((a, b) => {
       const sa = a.similarity ?? a.comprehensive_score ?? 0
       const sb = b.similarity ?? b.comprehensive_score ?? 0
       return sb - sa
     })
 
+    const maxResults = isAIWritingMode.value ? 30 : 10
     return {
-      results: searchResults.slice(0, 10),
+      results: searchResults.slice(0, maxResults),
       hasEmbeddingError,
       hasConnectionError
     }
@@ -3083,8 +3085,21 @@ ${context}
   }
 }
 
-const scrollToBottom = () => {
+// 检查用户是否在底部
+const handleScroll = () => {
   if (messagesContainer.value) {
+    const container = messagesContainer.value as HTMLElement
+    const scrollTop = container.scrollTop
+    const scrollHeight = container.scrollHeight
+    const clientHeight = container.clientHeight
+    // 允许5px的误差，判断是否在底部
+    isUserAtBottom.value = scrollTop + clientHeight >= scrollHeight - 5
+  }
+}
+
+const scrollToBottom = () => {
+  // 只有在用户位于底部时才自动滚动
+  if (messagesContainer.value && isUserAtBottom.value) {
     setTimeout(() => {
       const container = messagesContainer.value as HTMLElement
       if (container) {
@@ -3094,6 +3109,8 @@ const scrollToBottom = () => {
           top: container.scrollHeight,
           behavior: 'smooth'
         })
+        // 滚动后更新状态
+        isUserAtBottom.value = true
       }
     }, 100)
   }
