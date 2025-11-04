@@ -188,7 +188,7 @@ class DocumentWebInstanceSerializer(ApiMixin, serializers.Serializer):
 class DocumentInstanceSerializer(ApiMixin, serializers.Serializer):
     name = serializers.CharField(required=True,
                                  error_messages=ErrMessage.char(_('document name')),
-                                 max_length=128,
+                                 max_length=255,
                                  min_length=1)
 
     paragraphs = ParagraphInstanceSerializer(required=False, many=True, allow_null=True)
