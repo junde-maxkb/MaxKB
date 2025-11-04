@@ -4550,6 +4550,8 @@ bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',da
 mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
+- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字。
+- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求。
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
 - 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
 - 不在 JSON 段外重复 JSON。
@@ -4619,6 +4621,8 @@ bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',da
 mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
+- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字。
+- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求。
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
 - 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
 - 不在 JSON 段外重复 JSON。
@@ -4685,6 +4689,8 @@ bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',da
 mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
+- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字。
+- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求。
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
 - 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
 - 不在 JSON 段外重复 JSON。
