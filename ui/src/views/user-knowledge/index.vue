@@ -326,6 +326,14 @@
             </el-alert>
           </div>
 
+          <!-- 新聊天按钮 -->
+          <div v-if="hasMessages" class="new-chat-header">
+            <el-button type="primary" link class="new-chat-button" @click="newChat">
+              <el-icon><Plus /></el-icon>
+              <span class="ml-4">新聊天</span>
+            </el-button>
+          </div>
+
           <div class="chat-area" :class="{ 'has-messages': hasMessages }">
             <!-- 对话消息区域 -->
             <div class="chat-messages" ref="messagesContainer" v-if="hasMessages">
@@ -1656,6 +1664,22 @@ const handleSuggestionClick = async (suggestion: string) => {
   currentMessage.value = suggestion
   // 发送消息
   await sendMessage()
+}
+
+// 新聊天功能
+const newChat = () => {
+  // 清空对话消息
+  chatMessages.value = []
+  // 重置流式输出状态
+  isStreaming.value = false
+  // 清空当前输入消息
+  currentMessage.value = ''
+  // 清空分段展开状态
+  expandedParagraphs.value.clear()
+  // 取消所有选中的文档和知识库
+  if (treeRef.value) {
+    treeRef.value.setCheckedKeys([])
+  }
 }
 
 // 方法
@@ -5543,6 +5567,38 @@ onUnmounted(() => {
             margin: 4px 0 0 0;
           }
         }
+      }
+    }
+  }
+
+  .new-chat-header {
+    padding: 12px 20px;
+    background: white;
+    border-bottom: 1px solid #e4e7ed;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    .new-chat-button {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      color: #3370ff;
+      padding: 6px 12px;
+      border-radius: 4px;
+      transition: all 0.3s;
+
+      &:hover {
+        background-color: #f0f5ff;
+        color: #1e5fff;
+      }
+
+      .el-icon {
+        font-size: 16px;
+      }
+
+      .ml-4 {
+        margin-left: 4px;
       }
     }
   }
