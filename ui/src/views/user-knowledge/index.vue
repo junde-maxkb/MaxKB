@@ -4225,7 +4225,7 @@ ${documentContent}
 2. **逻辑性**: 保持内容的逻辑连贯性和结构完整性
 3. **简洁性**: 语言精炼明了，避免冗余，突出重点
 4. **一致性**: 综述内容的语言保持和对话一样一致，语言选择其中一种即可
-5. **适度性**: 综述长度控制在 800-1000 字（中英文各自）
+5. **适度性**: 综述长度至少 1000 字
 6. **规范性**: 使用标准 Markdown 格式输出
 
 ## 内容层次
@@ -4266,38 +4266,6 @@ ${documentContent}
 
 ### ✅ 结论与启示
 [总结文档的核心结论、实践意义或未来展望]
-
----
-
-## English Review
-
-### 📄 Document Overview
-**Topic**: [Core topic of the document]
-**Background**: [Relevant background information]
-
-### 🎯 Core Content
-
-#### 1. [First Key Theme]
-[Detailed elaboration including key data, arguments, or findings]
-
-#### 2. [Second Key Theme]
-[Detailed elaboration including key data, arguments, or findings]
-
-#### 3. [Third Key Theme]
-[Detailed elaboration including key data, arguments, or findings]
-
-### 💎 Important Findings
-- **[Finding 1]**: [Specific description]
-- **[Finding 2]**: [Specific description]
-- **[Finding 3]**: [Specific description]
-
-### 📊 Key Data/Cases
-[Present important data, charts, or cases if available]
-
-### ✅ Conclusions & Implications
-[Summarize core conclusions, practical significance, or future prospects]
-
----
 
 # 示例模版
 
@@ -4567,8 +4535,8 @@ bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',da
 mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
-- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字。
-- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求。
+- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字，需要分析中给出完整详细的分析报告，并询问用户需不需要继续做一些操作。
+- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求，图表输出不允许放置到代码块中。
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
 - 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
 - 不在 JSON 段外重复 JSON。
@@ -4638,8 +4606,8 @@ bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',da
 mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
-- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字。
-- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求。
+- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字，需要分析中给出完整详细的分析报告，并询问用户需不需要继续做一些操作。
+- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求，图表输出不允许放置到代码块中。
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
 - 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
 - 不在 JSON 段外重复 JSON。
@@ -4706,8 +4674,8 @@ bubble\t散点加半径 r\t否\t{type:'bubble',data:{datasets:[{label:'Data1',da
 mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190]},{label:'Cats',data:[100,200,300,400,500]},{type:'line',label:'Potatoes',data:[100,400,200,400,700],fill:false,borderColor:'orange'}]}}\t在某个 dataset 上单独指定 type 实现混合
 
 不可忽略的限制：
-- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字。
-- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求。
+- 数据分析报告需合理；不可盲目生成图表。每次分析不低于1000字，需要分析中给出完整详细的分析报告，并询问用户需不需要继续做一些操作。
+- 图表只需要填充数据部分，样式不需要指定，除非用户有特殊要求，图表输出不允许放置到代码块中。
 - 严格三段结构；数据不足时仅第 1 段提示并请求补充（不输出 JSON / 指南）。
 - 不输出与图表无关内容；不掺入寒暄、无关分析、总结性废话。
 - 不在 JSON 段外重复 JSON。
