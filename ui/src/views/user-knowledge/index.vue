@@ -381,70 +381,74 @@
                   </div>
 
                   <!-- 显示匹配的分段（仅AI回答且有分段信息时显示） -->
-                  <div
-                    v-if="
-                      message.role === 'assistant' &&
-                      message.paragraphs &&
-                      message.paragraphs.length > 0
-                    "
-                    class="matched-paragraphs"
-                  >
-                    <div class="paragraphs-header">
-                      <el-button
-                        type="text"
-                        size="small"
-                        @click="toggleParagraphsVisibility(index)"
-                        class="toggle-paragraphs-btn"
-                      >
-                        <el-icon>
-                          <Document />
-                        </el-icon>
-                        找到 {{ message.paragraphs.length }} 个相关分段
-                        <el-icon :class="{ rotate: isParagraphsExpanded(index) }">
-                          <ArrowDown />
-                        </el-icon>
-                      </el-button>
-                    </div>
+<!--                  <div-->
+<!--                    v-if="-->
+<!--                      message.role === 'assistant' &&-->
+<!--                      message.paragraphs &&-->
+<!--                      message.paragraphs.length > 0-->
+<!--                    "-->
+<!--                    class="matched-paragraphs"-->
+<!--                  >-->
+<!--                    <div class="paragraphs-header">-->
+<!--                      <el-button-->
+<!--                        type="text"-->
+<!--                        size="small"-->
+<!--                        @click="toggleParagraphsVisibility(index)"-->
+<!--                        class="toggle-paragraphs-btn"-->
+<!--                      >-->
+<!--                        <el-icon>-->
+<!--                          <Document />-->
+<!--                        </el-icon>-->
+<!--                        找到 {{ message.paragraphs.length }} 个相关分段-->
+<!--                        <el-icon :class="{ rotate: isParagraphsExpanded(index) }">-->
+<!--                          <ArrowDown />-->
+<!--                        </el-icon>-->
+<!--                      </el-button>-->
+<!--                    </div>-->
 
-                    <div v-show="isParagraphsExpanded(index)" class="paragraphs-list">
-                      <div
-                        v-for="(paragraph, pIndex) in message.paragraphs"
-                        :key="pIndex"
-                        class="paragraph-item"
-                      >
-                        <div class="paragraph-header">
-                          <span class="paragraph-index">{{ pIndex + 1 }}</span>
-                          <span class="paragraph-score">
-                            相关度:
-                            {{
-                              (
-                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100
-                              ).toFixed(1)
-                            }}%
-                          </span>
-                        </div>
-                        <div class="paragraph-content">{{ paragraph.content }}</div>
-                        <div class="paragraph-meta">
-                          <span
-                            class="paragraph-source clickable"
-                            @click="openDocumentParagraphs(paragraph)"
-                            :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"
-                          >
-                            文档名称:
-                            {{
-                              paragraph.document_name || paragraph.source || paragraph.dataset_name
-                            }}
-                          </span>
-                          <span class="paragraph-dataset"
-                            >知识库名称: {{ paragraph.dataset_name }}</span
-                          >
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+<!--                    <div v-show="isParagraphsExpanded(index)" class="paragraphs-list">-->
+<!--                      <div-->
+<!--                        v-for="(paragraph, pIndex) in message.paragraphs"-->
+<!--                        :key="pIndex"-->
+<!--                        class="paragraph-item"-->
+<!--                      >-->
+<!--                        <div class="paragraph-header">-->
+<!--                          <span class="paragraph-index">{{ pIndex + 1 }}</span>-->
+<!--                          <span class="paragraph-score">-->
+<!--                            相关度:-->
+<!--                            {{-->
+<!--                              (-->
+<!--                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100-->
+<!--                              ).toFixed(1)-->
+<!--                            }}%-->
+<!--                          </span>-->
+<!--                        </div>-->
+<!--                        <div class="paragraph-content">{{ paragraph.content }}</div>-->
+<!--                        <div class="paragraph-meta">-->
+<!--                          <span-->
+<!--                            class="paragraph-source clickable"-->
+<!--                            @click="openDocumentParagraphs(paragraph)"-->
+<!--                            :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"-->
+<!--                          >-->
+<!--                            文档名称:-->
+<!--                            {{-->
+<!--                              paragraph.document_name || paragraph.source || paragraph.dataset_name-->
+<!--                            }}-->
+<!--                          </span>-->
+<!--                          <span class="paragraph-dataset"-->
+<!--                            >知识库名称: {{ paragraph.dataset_name }}</span-->
+<!--                          >-->
+<!--                        </div>-->
+<!--                      </div>-->
+<!--                    </div>-->
+<!--                  </div>-->
 
                   <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+                  <div style="height: 20px" class="copy-btn" v-show="message.role === 'assistant'">
+                    <DocumentCopy style="height: inherit" @click="()=>copyMessage(message.content)" />
+                  </div>
                 </div>
+
               </div>
 
               <!-- 流式输出显示 -->
@@ -823,30 +827,31 @@
                     </el-upload>
 
                     <!-- AI综述模式文档上传按钮-->
-                    <el-upload
-                      v-if="isAIReviewMode"
-                      ref="reviewDocumentUploadRef"
-                      class="document-upload-btn"
-                      :show-file-list="false"
-                      :before-upload="handleReviewDocumentUpload"
-                      :disabled="isStreaming || isUploadingReviewDocument"
-                      accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
-                    >
-                      <el-button
-                        text
-                        class="voice-btn"
-                        :disabled="isStreaming || isUploadingReviewDocument"
-                        :loading="isUploadingReviewDocument"
-                        :title="reviewDocumentName ? '重新上传综述文档' : '上传文档进行综述'"
-                      >
-                        <el-icon v-if="!isUploadingReviewDocument">
-                          <Document />
-                        </el-icon>
-                      </el-button>
-                    </el-upload>
+<!--                    <el-upload-->
+<!--                      v-if="isAIReviewMode && !reviewDocumentName"-->
+<!--                      ref="reviewDocumentUploadRef"-->
+<!--                      class="document-upload-btn"-->
+<!--                      :show-file-list="false"-->
+<!--                      :before-upload="handleReviewDocumentUpload"-->
+<!--                      :disabled="isStreaming || isUploadingReviewDocument"-->
+<!--                      accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"-->
+<!--                    >-->
+<!--                      <el-button-->
+<!--                        text-->
+<!--                        class="voice-btn"-->
+<!--                        :disabled="isStreaming || isUploadingReviewDocument"-->
+<!--                        :loading="isUploadingReviewDocument"-->
+<!--                        :title="reviewDocumentName ? '重新上传综述文档' : '上传文档进行综述'"-->
+<!--                      >-->
+<!--                        <el-icon v-if="!isUploadingReviewDocument">-->
+<!--                          <Document />-->
+<!--                        </el-icon>-->
+<!--                      </el-button>-->
+<!--                    </el-upload>-->
 
+                    <!-- AI问数模式文档上传按钮-->
                     <el-upload
-                      v-if="isAIQuestionMode"
+                      v-if="isAIQuestionMode && !questionDocumentName"
                       ref="questionDocumentUploadRef"
                       class="document-upload-btn"
                       :show-file-list="false"
@@ -2953,21 +2958,21 @@ ${context}
         // 流式输出结束后处理
         const lastMessage = chatMessages.value[chatMessages.value.length - 1]
         console.log('流式输出结束，当前AI消息内容:', currentAssistantMessage)
-        
+
         // 判断是否为普通知识库问答模式（排除所有特殊模式）
-        const isNormalKnowledgeBaseMode = 
-          !isAITranslateMode.value && 
-          !isAIWritingMode.value && 
-          !isAISummaryMode.value && 
-          !isAIReviewMode.value && 
+        const isNormalKnowledgeBaseMode =
+          !isAITranslateMode.value &&
+          !isAIWritingMode.value &&
+          !isAISummaryMode.value &&
+          !isAIReviewMode.value &&
           !isAIQuestionMode.value
-        
+
         if (lastMessage && lastMessage.role === 'assistant' && isNormalKnowledgeBaseMode) {
           // 尝试解析JSON格式的响应（引导式问答）
           try {
             // 清理消息内容，尝试提取JSON
             let jsonContent = currentAssistantMessage.trim()
-            
+
             // 如果消息以```json开头，提取JSON部分
             if (jsonContent.includes('```json')) {
               const jsonMatch = jsonContent.match(/```json\s*([\s\S]*?)\s*```/)
@@ -2981,19 +2986,19 @@ ${context}
                 jsonContent = codeMatch[1]
               }
             }
-            
+
             // 尝试解析JSON
             const parsed = JSON.parse(jsonContent)
-            
+
             if (parsed && typeof parsed === 'object') {
               // 提取answer和suggestions
               const answer = parsed.answer || currentAssistantMessage
               const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : []
-              
+
               // 更新消息内容为answer，添加suggestions
               lastMessage.content = transformWhenAltIsQuickChart(answer)
               lastMessage.suggestions = suggestions
-              
+
               console.log('成功解析引导式问答JSON:', { answer, suggestions })
             } else {
               // 如果不是有效的JSON结构，使用原始内容
@@ -4201,7 +4206,7 @@ const getReviewPrompt = (
   contextNote: string = ''
 ) => {
   if (documentContent) {
-    const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
+    const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}, 需要足够详细不低于1000字，且尽可能使用专业术语来表达\n` : ''
     return `# 角色定位
 你是一位专业的双语文档综述专家，擅长从复杂文档中提炼核心信息，生成结构清晰、逻辑严谨的中英文综述报告。
 
@@ -4337,18 +4342,18 @@ Enterprise digital transformation is a systematic project requiring coordinated 
 
 请严格按照上述格式和示例，为提供的文档生成中英文综述。确保：
 
-1. **完整覆盖**: 涵盖文档的所有核心主题（通常 2-4 个）
+1. **完整覆盖**: 涵盖文档的所有核心主题（通常至少 5 个）
 2. **数据支撑**: 引用文档中的关键数据、案例或证据
 3. **层次清晰**: 区分概览、核心内容、发现和结论四个层次
-4. **字数控制**: 中英文综述各 800-1000 字
-5. **双语对应**: 中英文内容结构和信息点完全对应
+4. **字数控制**: 综述至少 1000字，需要特别详细的描述内容越多越好
+5. **双语对应**: 中文内容结构和信息点完全对应
 6. **格式规范**: 使用标准 Markdown 语法，包含适当的标题层级和列表
 `
   }
 
   // 基于知识库内容的综述模式
   if (context && context.trim() && !context.includes('未找到')) {
-    const noteSection = userQuestion ? `\n\n用户问题：${userQuestion}\n` : ''
+    const noteSection = userQuestion ? `\n\n用户问题：${userQuestion}, 需要足够详细不低于1000字，且尽可能使用专业术语来表达\n` : ''
     return `# 角色定位
 你是一位专业的知识综合分析专家,擅长从知识库检索结果中提取核心信息,并生成结构清晰、逻辑严谨的中英文综述报告。
 
@@ -4463,17 +4468,18 @@ Successful application of machine learning requires reasonable selection of lear
 # 执行指令
 请严格按照上述格式和示例模版,基于检索到的内容生成中英文综述。确保:
 1. 提取最核心的概念定义
-2. 列出3-5个关键要点
+2. 列出不少于5个关键要点
 3. 阐明要点之间的逻辑关系
 4. 给出具有洞察力的结论
 5. 中英文内容保持一致性和对应性
+6. 综述至少 1000字，需要特别详细的描述内容越多越好
 `
   }
 
   // 通用综述模式（当没有具体内容时）
   return `你是一位专业的综述助手，请根据用户的要求生成中英文综述报告。
-用户要求：${userQuestion || '请生成一般性综述'}
-请按照专业的综述格式，生成结构清晰、逻辑严谨的中英文内容。如果用户要求不够明确，请友好地询问更具体的综述需求。`
+用户要求：${userQuestion || '请生成一般性综述'}, 需要足够详细不低于1000字需要特别详细的描述内容越多越好，且尽可能使用专业术语来表达
+请按照专业的综述格式，生成结构清晰、逻辑严谨的中文内容。如果用户要求不够明确，请友好地询问更具体的综述需求。`
 }
 
 // 处理 quickchart 图片链接，去掉 alt 文本并对 c 参数进行编码
@@ -4553,7 +4559,7 @@ mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Ja
 - 长度不一致：请求修正。
 - 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
 - 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
-
+- 图表配置 不应该作为内容输出
 
 现在请根据以下内容生成图表url：
 
@@ -4567,6 +4573,7 @@ ${documentContent}
 
 ## 用户要求
 ${noteSection}
+并给出不少于1000字的数据分析及回答。
   `
   }
   if (context && context.trim() && !context.includes('未找到')) {
@@ -4624,6 +4631,7 @@ mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Ja
 - 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
 - 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
 - json不需要url编码，直接将json放入 c= 参数即可。
+- 图表配置 不应该作为内容输出
 
 现在请根据以下内容生成图表url：
 
@@ -4636,6 +4644,7 @@ ${contextNote}
 
 ## 用户要求
 ${noteSection}
+并给出不少于1000字的数据分析及回答。
   `
   }
   return `角色定位：
@@ -4692,10 +4701,12 @@ mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Ja
 - 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
 - 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
 - json不需要url编码，直接将json放入 c= 参数即可。
+- 图表配置 不应该作为内容输出
 
 ---
 
 用户要求：${userQuestion || '请生成一般性数据分析建议'}
+并给出不少于1000字的数据分析及回答。
 
 ---
   `
@@ -5108,6 +5119,19 @@ const stopTimer = () => {
     recorderTime.value = 0
     intervalId.value = null
   }
+}
+
+// 复制消息
+const copyMessage = (message: string) => {
+  navigator.clipboard
+    .writeText(message)
+    .then(() => {
+      ElMessage.success('消息已复制到剪贴板')
+    })
+    .catch((err) => {
+      console.error('复制失败:', err)
+      ElMessage.error('复制失败，请手动复制')
+    })
 }
 
 onMounted(async () => {
@@ -5618,13 +5642,25 @@ onUnmounted(() => {
 
   .chat-messages {
     flex: 1;
-    padding: 20px;
-    padding-bottom: 50px; /* 增加底部内边距，在输出结果和输入框之间添加间隔 */
+    /* 增加底部内边距，在输出结果和输入框之间添加间隔 */
+    padding: 20px 20px 100px;
     margin-bottom: 30px; /* 在输出框和输入框之间添加额外间距 */
     overflow-y: auto;
     background: #fafbfc;
     min-height: 0;
     max-height: calc(100vh - 300px); /* 调整最大高度，为输入组件留出合适空间 */
+
+    .copy-btn {
+      display: flex;
+      justify-content: end;
+
+
+      svg:hover {
+        border-radius: 2px;
+        color: #1e5fff;
+        cursor: pointer;
+      }
+    }
 
     /* 自定义滚动条样式 */
     &::-webkit-scrollbar {
@@ -5919,7 +5955,7 @@ onUnmounted(() => {
             line-height: 1.4;
             padding: 8px 16px;
             font-size: 13px;
-            
+
             &:hover {
               transform: translateY(-1px);
               box-shadow: 0 2px 8px rgba(51, 112, 255, 0.2);
