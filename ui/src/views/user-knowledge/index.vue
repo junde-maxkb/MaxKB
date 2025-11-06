@@ -1603,30 +1603,36 @@ const handleInputFocus = () => {
 const getInputPlaceholder = () => {
   if (isAIWritingMode.value) {
     if (uploadedDocumentName.value) {
-      return '请输入写作主题，AI将基于上传的文档为您创作...'
+      return '请输入写作主题或上传文档，AI将为您提供论文写作、申报书写作、论文续写、文字润色等服务。'
     }
-    return '请输入写作主题或上传文档，AI将为您创作...'
+    return '请输入写作主题或上传文档，AI将为您提供论文写作、申报书写作、论文续写、文字润色等服务。'
   }
   if (isAITranslateMode.value) {
     if (translateDocumentName.value) {
       return `点击发送开始翻译文档，或输入附加说明...`
     }
-    return `请输入需要翻译的内容或上传文档，AI将为您翻译成${targetLanguage.value}...`
+    return `请输入内容或上传文档，AI将为您翻译成${targetLanguage.value}。`
   }
   if (isAISummaryMode.value) {
     if (summaryDocumentName.value) {
-      return '点击发送开始生成中英文摘要，或输入附加说明...'
+      return '请输入内容或上传文档，AI将为您提炼要点或生成中英文摘要。'
     }
-    return '请输入需要摘要的内容或上传文档，AI将为您生成中英文摘要...'
+    return '请输入内容或上传文档，AI将为您提炼要点或生成中英文摘要。'
   }
   if (isAIReviewMode.value) {
     if (reviewDocumentName.value) {
-      return '点击发送开始生成文档综述，或输入附加说明...'
+      return '请勾选知识库或上传文档，AI将为您生成文献综述。'
     }
-    return '请输入需要综述的内容或上传文档，AI将为您生成文档综述...'
+    return '请勾选知识库或上传文档，AI将为您生成文献综述。'
+  }
+  if (isAIQuestionMode.value) {
+    if (questionDocumentName.value) {
+      return '请上传Excel文档或输入数据，AI将为您提供数据解读与可视化图表。'
+    }
+    return '请上传Excel文档或输入数据，AI将为您提供数据解读与可视化图表。'
   }
   if (!selectedInfo.value) {
-    return '请先选择知识库或文档...'
+    return '请先勾选知识库或文档，再与AI进行对话。'
   }
   return '请输入您的问题...'
 }
