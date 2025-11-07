@@ -329,7 +329,9 @@
           <!-- 新聊天按钮 -->
           <div v-if="hasMessages" class="new-chat-header">
             <el-button type="primary" link class="new-chat-button" @click="newChat">
-              <el-icon><Plus /></el-icon>
+              <el-icon>
+                <Plus />
+              </el-icon>
               <span class="ml-4">新聊天</span>
             </el-button>
           </div>
@@ -2829,7 +2831,10 @@ ${savedUploadedDocContent}`
           '中英文', // 固定为中英文摘要
           userQuestion,
           savedSummaryDocContent,
-          savedSummaryDocName
+          savedSummaryDocName,
+          '',
+          '',
+          chatMessages.value.slice(-10) // 传入对话历史记录
         )
       } else {
         // 基于知识库检索结果的摘要模式
@@ -2839,7 +2844,8 @@ ${savedUploadedDocContent}`
           '',
           '',
           context,
-          contextNote
+          contextNote,
+          chatMessages.value.slice(-10) // 传入对话历史记录
         )
       }
     } else if (isAIReviewMode.value) {
@@ -2922,7 +2928,8 @@ ${context}
     }
 
     // AI翻译模式、AI摘要模式，以及AI写作模式下的扩写/润写模式不使用对话历史上下文，每次都是独立的任务
-    // 判断是否需要保留对话历史
+    // 注意：AI摘要模式的历史记录通过 systemPrompt 传入（在 getSummaryPrompt 中格式化），不在 messages 数组中
+    // 判断是否需要保留对话历史（在 messages 数组中）
     const shouldSkipHistory =
       isAITranslateMode.value ||
       isAISummaryMode.value ||
@@ -3175,7 +3182,7 @@ marked.setOptions({
 // 配置 marked 的渲染器以支持代码高亮
 const renderer = new marked.Renderer()
 const originalCodeRenderer = renderer.code.bind(renderer)
-renderer.code = function (code: string, language: string | undefined, isEscaped: boolean) {
+renderer.code = function(code: string, language: string | undefined, isEscaped: boolean) {
   if (language && hljs.getLanguage(language)) {
     try {
       const highlighted = hljs.highlight(code, { language }).value
@@ -3829,55 +3836,71 @@ const getPromptByIntent = (
 ) => {
   if (intent === 'writing') {
     // 写作模式的提示词
-    return `#AI 写作助手 - 从零创作模式
+    return `
+    # AI 写作助手 - 学术综述模式
 
-【重要提示】：这是"写作模式"，用户只提供了主题或要求，需要你从零开始创作一篇全新的文章。
+【重要提示】：这是“学术综述模式”，用户仅提供主题与参考信息，模型需从零开始创作一篇完整、系统、逻辑严密的学术综述文章。
 
 写作风格：学术研究型
 语气：正式、客观
 目标读者：教育研究人员与政策制定者
-篇幅：约1500~2000字
+篇幅：约8000字（允许±10%浮动）
 逻辑层级：三层（一级标题+二级标题）
 
 角色设定：
-你是一名擅长教育研究与学术写作的智能写作助手，熟悉教育部政策文件与教育学研究语言风格。
-你的任务是基于提供的主题与知识片段，从零开始撰写一篇学术风格、逻辑严谨、结构完整的中文文章。
+你是一名教育技术与教师发展领域的学术写作专家，熟悉教育部政策文件、国内外教育研究现状与智能技术应用。
+你的任务是基于主题与知识片段，从零构建一篇系统、完整的中文学术综述，具备学术逻辑、研究深度与理论视角。
 
 【写作要求】
-创作方式
-- 从零开始创作，构建完整的文章框架和内容
-- 根据主题自主确定文章标题、结构和论述重点
-- 充分发挥创作能力，提供全面系统的论述
 
-写作风格
-学术研究型、政策导向型语体；
-用语正式、逻辑严谨、表达客观；
-避免口语化、宣传化或AI口吻；
-善用"从……来看""综合来看""可见""由此可见""具体包括"等学术连接词。
+创作方式：
+- 从零开始撰写，构建完整文章框架；
+- 自主确定标题、章节、逻辑与论述重点；
+- 充分发挥学术研究能力，形成系统、全面的综述性文章；
+- 内容应基于现有学术共识与教育理论，不出现虚构数据或具体学者姓名。
 
-内容结构
-通常包括以下逻辑层次（可根据主题灵活调整）：
-导语/引言：提出研究背景与重要性；
-一、概念界定/发展脉络：回顾核心概念的起源与演变；
-二、核心内涵/理论阐释：界定概念的核心定义与逻辑结构；
-三、构成维度/实践路径：展开层次分析；
+写作风格：
+- 学术研究型、政策导向型；
+- 用语正式、逻辑严谨、表达客观；
+- 避免口语化、宣传化、AI口吻；
+- 句式多样、逻辑衔接自然；
+- 善用“从……来看”“总体而言”“由此可见”“具体包括”“进一步说”等学术衔接词。
 
-结语/总结：概括核心观点、指出实践或研究意义。
-语言规范
-使用标准书面语，不使用第一人称"我"或"我们"；
-段落开头可使用逻辑衔接语，如"从……来看""总体而言""在……的背景下"；
-保持句式多样性，避免重复句式；
-确保全文逻辑连贯、语义完整。
-知识利用原则
-充分融合输入的知识片段，做到内容相关、表达原创；
-若片段观点有差异，进行整合或中性表述；
-禁止添加未在知识片段中出现的事实性信息。
+内容结构（可根据主题灵活调整）：
+1. **导语/引言**：说明研究背景、意义与国内外研究趋势；
+2. **一、概念界定与研究脉络**
+   （一）教师智能素养的概念起源与演变
+   （二）国内外研究的阶段与特征
+3. **二、教师智能素养的内涵与理论框架**
+   （一）核心构成与维度划分
+   （二）与信息素养、数字素养、AI素养的关系
+   （三）相关理论基础（如TPACK、SAMR、AI教育伦理框架等）
+4. **三、国内外研究现状与实践分析**
+   （一）国外研究进展与主流方向
+   （二）国内研究现状与不足
+   （三）比较分析与未来趋势
+5. **结语/总结**：概括主要研究发现，提出未来研究与实践建议。
 
-输出格式
-输出完整文章，标题居中；
-使用 "一、二、三、（一）（二）（三）" 等规范结构标识；
+语言规范：
+- 使用标准书面语；
+- 不使用第一人称；
+- 各部分结构清晰、衔接自然；
+- 确保逻辑连贯、语义完整。
 
-不包含过程性说明或AI口吻提示。
+知识利用原则：
+- 综合整合输入的知识片段（若提供），保持原创表达；
+- 若输入为空，则模型需独立生成学术综述；
+- 若片段观点存在差异，需中性整合表述；
+- 禁止虚构事实性信息（如统计数据、研究者姓名等）。
+
+【输出格式】
+- 输出完整文章；
+- 标题居中；
+- 使用规范结构编号（“一、二、三、（一）（二）（三）”）；
+- 不包含过程性说明、AI提示或生成说明文字。
+
+---
+
 User:
 主题：${userQuestion}
 
@@ -4098,138 +4121,98 @@ const getSummaryPrompt = (
   documentContent: string = '',
   documentName: string = '',
   context: string = '',
-  contextNote: string = ''
+  contextNote: string = '',
+  conversationHistory: Message[] = []
 ) => {
+  // 格式化对话历史记录
+  const formatHistory = (history: Message[]) => {
+    if (!history || history.length === 0) return ''
+    const recentHistory = history.slice(-10) // 只取最近10条
+    const historyText = recentHistory
+      .map((msg, index) => {
+        const role = msg.role === 'user' ? '用户' : '助手'
+        return `${index + 1}. ${role}：${msg.content}`
+      })
+      .join('\n\n')
+    return `\n\n对话历史上下文（供参考，帮助理解用户意图和上下文）：\n${historyText}\n`
+  }
+
+  const historySection = formatHistory(conversationHistory)
+
   // 如果有文档内容，使用文档摘要模式
   if (documentContent) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一位专业的双语文档摘要专家，擅长从复杂文档中精准提炼核心信息并生成中英文摘要。
+    return `你是一位专业的中英文学术摘要撰写专家，精通教育研究与智能技术融合领域，擅长从复杂学术文档中精准提炼研究背景、理论框架、研究方法、主要结果与核心结论。
 
-请为以下文档（文档名：${documentName}）生成中英文摘要：${noteSection}
+任务说明：
+请基于以下文档内容（文档名：${documentName}），撰写结构化的中英文学术摘要。
 
-摘要要求：
-1. 准确提取文档的核心观点和关键信息
-2. 保持内容的逻辑性和完整性
-3. 语言简洁明了，重点突出
-4. 中英文摘要内容保持一致
-5. 摘要长度控制在500-700字
-6. 使用Markdown格式输出
+输出要求：
+1. 以 Markdown 格式输出，包含「中文摘要」与「English Summary」两部分；
+2. 摘要应体现学术逻辑，明确研究背景、问题、方法、结果及研究意义；
+3. 内容准确、语言精炼、逻辑连贯、结构完整；
+4. 中文与英文内容语义一致，术语表达规范；
+5. 总字数控制在 500–700 字之间（两部分合计约 250–350 字/部分）；
+6. 若涉及模型、理论框架或应用场景，请简明概述其结构与实践价值。
 
-输出格式：
+输出格式模板：
+中文摘要
+示例：
+[摘 要] 在大数据+智能时代， 以往单独的数据素养/胜任力或人工智能素养/胜任力， 已不能满足社会对人才
+的要求；数智胜任力的提出是数智融合时代的必然产物，也是未来教师及各领域专业人员必需具备的能力和素
+质。 为此，基于胜任力理论，通过文献分析、自然编码、词频统计等方法，初步构建了教师数智胜任力模型；然后
+运用德尔菲法，经过两轮迭代式修正，最终形成由数智意识及观念、数智知识与技能、高阶数智思维能力、数智
+教学应用能力、相关人格特质 5 个一级指标和 25 个二级指标所构成的教师数智胜任力模型。 这一模型在实践
+应用中着重培养教师的数智融合与人机协同育人意识，并基于教师的高阶数智思维能力，不断提升其数智教学
+应用能力，从而促进教育教学的高质量发展。
 
-## 中文摘要
+文档内容如下：
+${documentContent}${noteSection}
 
-### 文档摘要
-
-**主要内容：**
-[简要概述文档的主题和核心内容]
-
-**关键要点：**
-1. [要点一]
-2. [要点二]
-3. [要点三]
-[根据内容多少自动调整要点数量]
-
-**核心观点：**
-[提取最重要的观点或结论]
-
-**实用信息：**
-[如果有实际应用价值的信息，在此列出]
-
----
-
-## English Summary
-
-### Document Summary
-
-**Main Content:**
-[Brief overview of the document's theme and core content]
-
-**Key Points:**
-1. [Key point one]
-2. [Key point two]
-3. [Key point three]
-[Adjust the number of points based on content]
-
-**Core Insights:**
-[Extract the most important viewpoints or conclusions]
-
-**Practical Information:**
-[List any practically valuable information if available]
-
-现在请为以下文档内容生成中英文摘要：
-
-${documentContent}`
+历史对话记录：
+${historySection}
+`
   }
 
   // 基于知识库内容的摘要模式
   if (context && context.trim() && !context.includes('未找到')) {
     const noteSection = userQuestion ? `\n\n用户问题：${userQuestion}\n` : ''
     console.log('userQuestion:', userQuestion)
-    return `你是一位专业的知识摘要助手，擅长从知识库检索结果中提取核心信息并生成高质量的中英文摘要。
+    console.log('上下文内容:', historySection)
+    return `你是一位专业的知识摘要与学术内容提炼专家，擅长对多源知识库检索结果进行综合分析、语义抽取与逻辑重构，能够在确保准确性的前提下生成结构化、双语对照的高质量摘要。
 
-请基于以下知识库检索内容生成中英文摘要：${noteSection}
+任务说明：
+请基于以下知识库检索内容（主题：${noteSection}），系统地分析并生成中英文对照摘要。
 
-检索到的相关内容：
+检索内容（请按来源标注，如：论文A、报告B、网页C 等）：
 ${context}
 
-摘要规则：
-1. 综合分析所有检索到的内容
-2. 提取最相关和重要的信息
-3. 保持内容的逻辑性和完整性
-4. 语言简洁明了，重点突出
-5. 输出格式为 Markdown 格式
+摘要生成要求：
+1. 综合整合：对所有检索结果进行整合分析，提炼出最具代表性和相关性的关键信息。
+2. 逻辑严谨：摘要应结构清晰，逻辑连贯，体现知识点之间的内在联系。
+3. 语言规范：中英文摘要均应符合学术表达规范，句式精炼、语义准确。
+4. 重点突出：聚焦核心概念、理论要点、研究发现及其实践意义。
+5. 格式标准：以 Markdown 格式输出；中英文部分语义一致、结构对应。
+6. 篇幅控制：每个摘要部分约 400–600 字（词）之间，保证信息完整且便于阅读。
 
-摘要策略：
-请按照以下格式生成摘要：
+输出格式（严格遵守）：
+示例：
+[摘 要] 在大数据+智能时代， 以往单独的数据素养/胜任力或人工智能素养/胜任力， 已不能满足社会对人才
+的要求；数智胜任力的提出是数智融合时代的必然产物，也是未来教师及各领域专业人员必需具备的能力和素
+质。 为此，基于胜任力理论，通过文献分析、自然编码、词频统计等方法，初步构建了教师数智胜任力模型；然后
+运用德尔菲法，经过两轮迭代式修正，最终形成由数智意识及观念、数智知识与技能、高阶数智思维能力、数智
+教学应用能力、相关人格特质 5 个一级指标和 25 个二级指标所构成的教师数智胜任力模型。 这一模型在实践
+应用中着重培养教师的数智融合与人机协同育人意识，并基于教师的高阶数智思维能力，不断提升其数智教学
+应用能力，从而促进教育教学的高质量发展。
 
-## 中文摘要
-
-### 知识摘要
-
-**主要话题：**
-[根据检索内容确定的主要话题]
-
-**核心信息：**
-1. [核心信息一]
-2. [核心信息二]
-3. [核心信息三]
-[根据内容自动调整数量]
-
-**详细说明：**
-[对核心信息的详细阐述和补充]
-
-**信息来源：**
-[简要说明信息的主要来源]
-
----
-
-## English Summary
-
-### Knowledge Summary
-
-**Main Topic:**
-[Determine the main topic based on the retrieved content]
-
-**Core Information:**
-1. [Core information one]
-2. [Core information two]
-3. [Core information three]
-[Adjust the number based on content]
-
-**Detailed Explanation:**
-[Detailed elaboration and supplementation of core information]
-
-**Information Sources:**
-[Briefly explain the main sources of information]
-
-请生成上述内容的中英文摘要。${contextNote}`
+历史对话记录：
+${historySection}
+`
   }
-
   // 通用摘要模式（当没有具体内容时）
   return `你是一位专业的摘要助手，请根据用户的要求生成中英文摘要。
 
-用户要求：${userQuestion || '请生成一般性摘要'}
+用户要求：${userQuestion || '请生成一般性摘要'}${historySection}
 
 请按照专业的摘要格式，生成简洁明了、重点突出的中英文内容。如果用户要求不够明确，请友好地询问更具体的摘要需求。`
 }
@@ -4735,7 +4718,8 @@ const confirmRename = async () => {
 }
 
 // 取消录音控制台日志
-Recorder.CLog = function () {}
+Recorder.CLog = function() {
+}
 
 // 语音录制管理类
 class RecorderManage {
@@ -6239,27 +6223,24 @@ onUnmounted(() => {
         user-select: none;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         position: relative;
-        box-shadow:
-          0 2px 8px rgba(0, 0, 0, 0.06),
-          0 1px 3px rgba(0, 0, 0, 0.04),
-          inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06),
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
         &:hover {
           background: #f9fafb;
           border-color: #d1d5db;
           transform: translateY(-2px);
-          box-shadow:
-            0 6px 16px rgba(0, 0, 0, 0.1),
-            0 3px 8px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.9);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1),
+          0 3px 8px rgba(0, 0, 0, 0.06),
+          inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         &:active {
           transform: translateY(0);
           background: #f3f4f6;
-          box-shadow:
-            0 2px 4px rgba(0, 0, 0, 0.08),
-            inset 0 2px 4px rgba(0, 0, 0, 0.06);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08),
+          inset 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
         .ai-icon {
