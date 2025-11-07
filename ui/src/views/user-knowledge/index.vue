@@ -2831,7 +2831,10 @@ ${savedUploadedDocContent}`
           '中英文', // 固定为中英文摘要
           userQuestion,
           savedSummaryDocContent,
-          savedSummaryDocName
+          savedSummaryDocName,
+          '',
+          '',
+          chatMessages.value.slice(-10) // 传入对话历史记录
         )
       } else {
         // 基于知识库检索结果的摘要模式
@@ -2841,7 +2844,8 @@ ${savedUploadedDocContent}`
           '',
           '',
           context,
-          contextNote
+          contextNote,
+          chatMessages.value.slice(-10) // 传入对话历史记录
         )
       }
     } else if (isAIReviewMode.value) {
@@ -2924,7 +2928,8 @@ ${context}
     }
 
     // AI翻译模式、AI摘要模式，以及AI写作模式下的扩写/润写模式不使用对话历史上下文，每次都是独立的任务
-    // 判断是否需要保留对话历史
+    // 注意：AI摘要模式的历史记录通过 systemPrompt 传入（在 getSummaryPrompt 中格式化），不在 messages 数组中
+    // 判断是否需要保留对话历史（在 messages 数组中）
     const shouldSkipHistory =
       isAITranslateMode.value ||
       isAISummaryMode.value ||
@@ -4100,8 +4105,24 @@ const getSummaryPrompt = (
   documentContent: string = '',
   documentName: string = '',
   context: string = '',
-  contextNote: string = ''
+  contextNote: string = '',
+  conversationHistory: Message[] = []
 ) => {
+  // 格式化对话历史记录
+  const formatHistory = (history: Message[]) => {
+    if (!history || history.length === 0) return ''
+    const recentHistory = history.slice(-10) // 只取最近10条
+    const historyText = recentHistory
+      .map((msg, index) => {
+        const role = msg.role === 'user' ? '用户' : '助手'
+        return `${index + 1}. ${role}：${msg.content}`
+      })
+      .join('\n\n')
+    return `\n\n对话历史上下文（供参考，帮助理解用户意图和上下文）：\n${historyText}\n`
+  }
+
+  const historySection = formatHistory(conversationHistory)
+
   // 如果有文档内容，使用文档摘要模式
   if (documentContent) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
@@ -4120,15 +4141,20 @@ const getSummaryPrompt = (
 
 输出格式模板：
 中文摘要
-详细说明：
-[系统阐述核心研究内容的逻辑结构、理论基础、研究方法、主要发现及其学术或实践意义。]
-
-English Summary
-Detailed Explanation:
-[Systematic elaboration on the logical structure, theoretical background, research methods, principal findings, and the academic or practical significance of the extracted knowledge.]
+示例：
+[摘 要] 在大数据+智能时代， 以往单独的数据素养/胜任力或人工智能素养/胜任力， 已不能满足社会对人才
+的要求；数智胜任力的提出是数智融合时代的必然产物，也是未来教师及各领域专业人员必需具备的能力和素
+质。 为此，基于胜任力理论，通过文献分析、自然编码、词频统计等方法，初步构建了教师数智胜任力模型；然后
+运用德尔菲法，经过两轮迭代式修正，最终形成由数智意识及观念、数智知识与技能、高阶数智思维能力、数智
+教学应用能力、相关人格特质 5 个一级指标和 25 个二级指标所构成的教师数智胜任力模型。 这一模型在实践
+应用中着重培养教师的数智融合与人机协同育人意识，并基于教师的高阶数智思维能力，不断提升其数智教学
+应用能力，从而促进教育教学的高质量发展。
 
 文档内容如下：
 ${documentContent}${noteSection}
+
+历史对话记录：
+${historySection}
 `
   }
 
@@ -4136,7 +4162,7 @@ ${documentContent}${noteSection}
   if (context && context.trim() && !context.includes('未找到')) {
     const noteSection = userQuestion ? `\n\n用户问题：${userQuestion}\n` : ''
     console.log('userQuestion:', userQuestion)
-    console.log('上下文内容:', contextNote)
+    console.log('上下文内容:', historySection)
     return `你是一位专业的知识摘要与学术内容提炼专家，擅长对多源知识库检索结果进行综合分析、语义抽取与逻辑重构，能够在确保准确性的前提下生成结构化、双语对照的高质量摘要。
 
 任务说明：
@@ -4154,16 +4180,23 @@ ${context}
 6. 篇幅控制：每个摘要部分约 400–600 字（词）之间，保证信息完整且便于阅读。
 
 输出格式（严格遵守）：
-[系统阐述上述核心信息的内在逻辑、背景依据及其学术或实践意义]
+示例：
+[摘 要] 在大数据+智能时代， 以往单独的数据素养/胜任力或人工智能素养/胜任力， 已不能满足社会对人才
+的要求；数智胜任力的提出是数智融合时代的必然产物，也是未来教师及各领域专业人员必需具备的能力和素
+质。 为此，基于胜任力理论，通过文献分析、自然编码、词频统计等方法，初步构建了教师数智胜任力模型；然后
+运用德尔菲法，经过两轮迭代式修正，最终形成由数智意识及观念、数智知识与技能、高阶数智思维能力、数智
+教学应用能力、相关人格特质 5 个一级指标和 25 个二级指标所构成的教师数智胜任力模型。 这一模型在实践
+应用中着重培养教师的数智融合与人机协同育人意识，并基于教师的高阶数智思维能力，不断提升其数智教学
+应用能力，从而促进教育教学的高质量发展。
 
-English Summary
-[Systematic elaboration on the logical connections, theoretical background, and academic or practical significance of the extracted knowledge]
+历史对话记录：
+${historySection}
 `
   }
   // 通用摘要模式（当没有具体内容时）
   return `你是一位专业的摘要助手，请根据用户的要求生成中英文摘要。
 
-用户要求：${userQuestion || '请生成一般性摘要'}
+用户要求：${userQuestion || '请生成一般性摘要'}${historySection}
 
 请按照专业的摘要格式，生成简洁明了、重点突出的中英文内容。如果用户要求不够明确，请友好地询问更具体的摘要需求。`
 }
