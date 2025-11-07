@@ -13,3 +13,4 @@ from .system_setting import *
 from .valid import *
 from .model_apply import *
 from .data_source import *
+from .log2message import *

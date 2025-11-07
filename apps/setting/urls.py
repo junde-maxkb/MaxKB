@@ -44,7 +44,7 @@ urlpatterns = [
     path('data_source/<str:id>', views.DataSourceView.Operate.as_view(), name='data_sourcel_detail'),
     path('data_source/get_table/<str:id>', views.DbOperateView.as_view(), name='get_table'),
     path('data_source/<str:id>/<str:table_name>', views.DbOperateView.Operate.as_view(), name='get_columns'),
-
+    path('messages', views.Log2Message.as_view(), name='log2message'),
 ]
 if os.environ.get('SERVER_NAME', 'web') == 'local_model':
     urlpatterns += [

@@ -30,9 +30,21 @@ class Log(AppModelMixin):
 
     status = models.IntegerField(verbose_name="状态")
 
+    log_read = models.BooleanField(default=False, verbose_name="是否已读")
+
     ip_address = models.CharField(max_length=128, verbose_name="ip地址")
 
     details = models.JSONField(verbose_name="详情", default=dict, encoder=SystemEncoder)
+
+    def to_message(self):
+        """
+        将日志转换为消息格式
+        """
+        return '{user} 执行了操作: {operate}，操作对象: {operation_object}'.format(            user=self.user.get('username', '未知用户'),
+            time=self.create_time.strftime('%Y-%m-%d %H:%M:%S'),
+            operate=self.operate,
+            operation_object=self.operation_object.get('name', '未知对象')
+        )
 
     class Meta:
         db_table = "log"

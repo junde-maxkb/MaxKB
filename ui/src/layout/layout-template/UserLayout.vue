@@ -42,6 +42,10 @@
                 <el-icon><User /></el-icon>
                 个人信息
               </el-dropdown-item>
+              <el-dropdown-item command="messages">
+                <el-icon><User /></el-icon>
+                消息通知
+              </el-dropdown-item>
               <el-dropdown-item command="settings">
                 <el-icon><Setting /></el-icon>
                 设置
@@ -59,6 +63,23 @@
     <div class="user-main">
       <router-view />
     </div>
+
+    <el-drawer
+      v-model="drawer"
+      title="消息中心"
+      :direction="'rtl'"
+    >
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <MessageCard
+          v-for="item in messages"
+          :key="item.log_id"
+          :msg="item.msg"
+          @click="()=>readMsg(item.log_id)"
+          :create-time="item.create_time"
+          :log-read="item.log_read"
+        />
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -76,9 +97,33 @@ import {
   SwitchButton
 } from '@element-plus/icons-vue'
 import useStore from '@/stores'
+import {getMessages, readMessage} from '@/api/messages'
+import MessageCard from '@/layout/layout-template/MessageCard.vue'
 
 const router = useRouter()
 const { user } = useStore()
+const drawer = ref(false)
+const messages = ref([])
+
+// 打开消息通知抽屉
+const openDrawer = async () => {
+  drawer.value = true
+  messages.value = (await getMessages()).data
+}
+
+// 已读回调
+const readMsg = async (log_id: number) => {
+  const result = await readMessage(log_id)
+  if (result.code === 200) {
+    messages.value = messages.value.map(item => {
+      if (item.log_id === log_id) {
+        item.log_read = true
+      }
+      return item
+    })
+  }
+}
+
 
 // 用户导航标签
 const userTabs = ref([
@@ -102,6 +147,9 @@ const userTabs = ref([
 // 处理用户下拉菜单命令
 const handleUserCommand = async (command: string) => {
   switch (command) {
+    case 'messages':
+      await openDrawer()
+      break
     case 'profile':
       ElMessage.info('个人信息功能开发中...')
       break
