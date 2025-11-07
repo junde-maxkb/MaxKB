@@ -329,7 +329,9 @@
           <!-- 新聊天按钮 -->
           <div v-if="hasMessages" class="new-chat-header">
             <el-button type="primary" link class="new-chat-button" @click="newChat">
-              <el-icon><Plus /></el-icon>
+              <el-icon>
+                <Plus />
+              </el-icon>
               <span class="ml-4">新聊天</span>
             </el-button>
           </div>
@@ -3175,7 +3177,7 @@ marked.setOptions({
 // 配置 marked 的渲染器以支持代码高亮
 const renderer = new marked.Renderer()
 const originalCodeRenderer = renderer.code.bind(renderer)
-renderer.code = function (code: string, language: string | undefined, isEscaped: boolean) {
+renderer.code = function(code: string, language: string | undefined, isEscaped: boolean) {
   if (language && hljs.getLanguage(language)) {
     try {
       const highlighted = hljs.highlight(code, { language }).value
@@ -4103,129 +4105,61 @@ const getSummaryPrompt = (
   // 如果有文档内容，使用文档摘要模式
   if (documentContent) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一位专业的双语文档摘要专家，擅长从复杂文档中精准提炼核心信息并生成中英文摘要。
+    return `你是一位专业的中英文学术摘要撰写专家，精通教育研究与智能技术融合领域，擅长从复杂学术文档中精准提炼研究背景、理论框架、研究方法、主要结果与核心结论。
 
-请为以下文档（文档名：${documentName}）生成中英文摘要：${noteSection}
+任务说明：
+请基于以下文档内容（文档名：${documentName}），撰写结构化的中英文学术摘要。
 
-摘要要求：
-1. 准确提取文档的核心观点和关键信息
-2. 保持内容的逻辑性和完整性
-3. 语言简洁明了，重点突出
-4. 中英文摘要内容保持一致
-5. 摘要长度控制在500-700字
-6. 使用Markdown格式输出
+输出要求：
+1. 以 Markdown 格式输出，包含「中文摘要」与「English Summary」两部分；
+2. 摘要应体现学术逻辑，明确研究背景、问题、方法、结果及研究意义；
+3. 内容准确、语言精炼、逻辑连贯、结构完整；
+4. 中文与英文内容语义一致，术语表达规范；
+5. 总字数控制在 500–700 字之间（两部分合计约 250–350 字/部分）；
+6. 若涉及模型、理论框架或应用场景，请简明概述其结构与实践价值。
 
-输出格式：
+输出格式模板：
+中文摘要
+详细说明：
+[系统阐述核心研究内容的逻辑结构、理论基础、研究方法、主要发现及其学术或实践意义。]
 
-## 中文摘要
+English Summary
+Detailed Explanation:
+[Systematic elaboration on the logical structure, theoretical background, research methods, principal findings, and the academic or practical significance of the extracted knowledge.]
 
-### 文档摘要
-
-**主要内容：**
-[简要概述文档的主题和核心内容]
-
-**关键要点：**
-1. [要点一]
-2. [要点二]
-3. [要点三]
-[根据内容多少自动调整要点数量]
-
-**核心观点：**
-[提取最重要的观点或结论]
-
-**实用信息：**
-[如果有实际应用价值的信息，在此列出]
-
----
-
-## English Summary
-
-### Document Summary
-
-**Main Content:**
-[Brief overview of the document's theme and core content]
-
-**Key Points:**
-1. [Key point one]
-2. [Key point two]
-3. [Key point three]
-[Adjust the number of points based on content]
-
-**Core Insights:**
-[Extract the most important viewpoints or conclusions]
-
-**Practical Information:**
-[List any practically valuable information if available]
-
-现在请为以下文档内容生成中英文摘要：
-
-${documentContent}`
+文档内容如下：
+${documentContent}${noteSection}
+`
   }
 
   // 基于知识库内容的摘要模式
   if (context && context.trim() && !context.includes('未找到')) {
     const noteSection = userQuestion ? `\n\n用户问题：${userQuestion}\n` : ''
     console.log('userQuestion:', userQuestion)
-    return `你是一位专业的知识摘要助手，擅长从知识库检索结果中提取核心信息并生成高质量的中英文摘要。
+    console.log('上下文内容:', contextNote)
+    return `你是一位专业的知识摘要与学术内容提炼专家，擅长对多源知识库检索结果进行综合分析、语义抽取与逻辑重构，能够在确保准确性的前提下生成结构化、双语对照的高质量摘要。
 
-请基于以下知识库检索内容生成中英文摘要：${noteSection}
+任务说明：
+请基于以下知识库检索内容（主题：${noteSection}），系统地分析并生成中英文对照摘要。
 
-检索到的相关内容：
+检索内容（请按来源标注，如：论文A、报告B、网页C 等）：
 ${context}
 
-摘要规则：
-1. 综合分析所有检索到的内容
-2. 提取最相关和重要的信息
-3. 保持内容的逻辑性和完整性
-4. 语言简洁明了，重点突出
-5. 输出格式为 Markdown 格式
+摘要生成要求：
+1. 综合整合：对所有检索结果进行整合分析，提炼出最具代表性和相关性的关键信息。
+2. 逻辑严谨：摘要应结构清晰，逻辑连贯，体现知识点之间的内在联系。
+3. 语言规范：中英文摘要均应符合学术表达规范，句式精炼、语义准确。
+4. 重点突出：聚焦核心概念、理论要点、研究发现及其实践意义。
+5. 格式标准：以 Markdown 格式输出；中英文部分语义一致、结构对应。
+6. 篇幅控制：每个摘要部分约 400–600 字（词）之间，保证信息完整且便于阅读。
 
-摘要策略：
-请按照以下格式生成摘要：
+输出格式（严格遵守）：
+[系统阐述上述核心信息的内在逻辑、背景依据及其学术或实践意义]
 
-## 中文摘要
-
-### 知识摘要
-
-**主要话题：**
-[根据检索内容确定的主要话题]
-
-**核心信息：**
-1. [核心信息一]
-2. [核心信息二]
-3. [核心信息三]
-[根据内容自动调整数量]
-
-**详细说明：**
-[对核心信息的详细阐述和补充]
-
-**信息来源：**
-[简要说明信息的主要来源]
-
----
-
-## English Summary
-
-### Knowledge Summary
-
-**Main Topic:**
-[Determine the main topic based on the retrieved content]
-
-**Core Information:**
-1. [Core information one]
-2. [Core information two]
-3. [Core information three]
-[Adjust the number based on content]
-
-**Detailed Explanation:**
-[Detailed elaboration and supplementation of core information]
-
-**Information Sources:**
-[Briefly explain the main sources of information]
-
-请生成上述内容的中英文摘要。${contextNote}`
+English Summary
+[Systematic elaboration on the logical connections, theoretical background, and academic or practical significance of the extracted knowledge]
+`
   }
-
   // 通用摘要模式（当没有具体内容时）
   return `你是一位专业的摘要助手，请根据用户的要求生成中英文摘要。
 
@@ -4735,7 +4669,8 @@ const confirmRename = async () => {
 }
 
 // 取消录音控制台日志
-Recorder.CLog = function () {}
+Recorder.CLog = function() {
+}
 
 // 语音录制管理类
 class RecorderManage {
@@ -6239,27 +6174,24 @@ onUnmounted(() => {
         user-select: none;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         position: relative;
-        box-shadow:
-          0 2px 8px rgba(0, 0, 0, 0.06),
-          0 1px 3px rgba(0, 0, 0, 0.04),
-          inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06),
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
         &:hover {
           background: #f9fafb;
           border-color: #d1d5db;
           transform: translateY(-2px);
-          box-shadow:
-            0 6px 16px rgba(0, 0, 0, 0.1),
-            0 3px 8px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.9);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1),
+          0 3px 8px rgba(0, 0, 0, 0.06),
+          inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         &:active {
           transform: translateY(0);
           background: #f3f4f6;
-          box-shadow:
-            0 2px 4px rgba(0, 0, 0, 0.08),
-            inset 0 2px 4px rgba(0, 0, 0, 0.06);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08),
+          inset 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
         .ai-icon {
