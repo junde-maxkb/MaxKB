@@ -71,5 +71,22 @@ export default {
     wecom: '企业微信',
     lark: '飞书',
     dingtalk: '钉钉'
+  },
+  chatHistory: {
+    title: '历史聊天记录',
+    viewHistory: '查看历史记录',
+    history: '历史记录',
+    messages: '条消息',
+    noHistory: '暂无历史记录',
+    searchPlaceholder: '搜索标题或应用名称',
+    filterByApp: '按应用筛选',
+    sortBy: '排序方式',
+    sortByTime: '按时间排序',
+    sortByMessages: '按消息数排序',
+    viewDetail: '查看详情',
+    user: '用户',
+    assistant: '助手',
+    messageIndex: '消息序号',
+    noMessages: '暂无消息'
   }
 }

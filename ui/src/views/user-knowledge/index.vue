@@ -305,6 +305,21 @@
               </template>
             </el-tree>
           </div>
+
+          <!-- 历史对话按钮 -->
+          <div class="history-button-container">
+            <el-button
+              type="primary"
+              plain
+              class="history-button"
+              @click="showHistoryPanel = true"
+            >
+              <el-icon>
+                <ChatLineRound />
+              </el-icon>
+              <span class="ml-4">历史对话</span>
+            </el-button>
+          </div>
         </div>
       </div>
 
@@ -1177,11 +1192,28 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 历史对话面板 -->
+    <el-drawer
+      v-model="showHistoryPanel"
+      title="历史对话"
+      :size="320"
+      direction="rtl"
+      :before-close="closeHistoryPanel"
+    >
+      <ChatHistoryPanel
+        v-if="showHistoryPanel && currentUserId"
+        ref="ChatHistoryPanelRef"
+        :user-id="currentUserId"
+        :username="currentUsername"
+        @close="closeHistoryPanel"
+      />
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, type Ref, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, watch, type Ref, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import useStore from '@/stores'
 import {
@@ -1218,6 +1250,8 @@ import modelApi, { postModelChat, postModelChatStream } from '@/api/model'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
 import DocumentParagraphsDialog from './components/DocumentParagraphsDialog.vue'
+import ChatHistoryPanel from '@/views/user-manage/component/ChatHistoryPanel.vue'
+import userApi from '@/api/user-manage'
 import Recorder from 'recorder-core'
 import 'recorder-core/src/engine/mp3'
 import 'recorder-core/src/engine/mp3-engine'
@@ -1338,6 +1372,14 @@ const messagesContainer = ref<HTMLElement | null>(null)
 const isUserAtBottom = ref(true) // 跟踪用户是否在底部，默认在底部
 const treeRef = ref<any>(null)
 
+// 历史对话相关状态
+const showHistoryPanel = ref(false)
+const currentUserId = ref('')
+const currentUsername = ref('')
+const ChatHistoryPanelRef = ref<any>(null)
+const currentChatHistoryId = ref<string | null>(null) // 当前对话的历史记录ID
+const savedMessageCount = ref(0) // 已保存的消息数量（只计算用户和助手消息）
+
 // 新建知识库表单
 const newKB = ref<KBForm>({
   name: ''
@@ -1416,6 +1458,20 @@ const selectedSTTModelId = ref('')
 const { user } = useStore()
 const userRole = computed(() => user.getRole())
 const isAdmin = computed(() => userRole.value === 'ADMIN')
+
+// 获取当前用户信息
+const getCurrentUserInfo = () => {
+  const userInfo = user.userInfo
+  if (userInfo) {
+    currentUserId.value = userInfo.id || ''
+    currentUsername.value = userInfo.username || ''
+  }
+}
+
+// 关闭历史对话面板
+const closeHistoryPanel = () => {
+  showHistoryPanel.value = false
+}
 
 // 当前选中的文档和知识库信息
 const selectedInfo = computed(() => {
@@ -1721,6 +1777,10 @@ const newChat = () => {
   currentMessage.value = ''
   // 清空分段展开状态
   expandedParagraphs.value.clear()
+  // 重置当前聊天记录ID，以便下次对话时创建新记录
+  currentChatHistoryId.value = null
+  // 重置已保存的消息数量
+  savedMessageCount.value = 0
   // 取消所有选中的文档和知识库
   if (treeRef.value) {
     treeRef.value.setCheckedKeys([])
@@ -3131,6 +3191,82 @@ ${context}
     isStreaming.value = false
     await nextTick()
     scrollToBottom()
+
+    // 保存聊天记录到历史记录
+    try {
+      if (currentUserId.value && chatMessages.value.length > 0) {
+        // 计算消息数量（只计算用户和助手消息，不包括系统消息）
+        const messageCount = chatMessages.value.filter(
+          (msg) => msg.role === 'user' || msg.role === 'assistant'
+        ).length
+
+        // 检测是否是新对话：如果消息数量为2（一条用户消息+一条AI回复）且没有历史记录ID，说明是新对话
+        const isNewConversation = !currentChatHistoryId.value && messageCount >= 2
+
+        if (isNewConversation) {
+          // 获取第一条用户消息作为标题
+          const firstUserMessage = chatMessages.value.find((msg) => msg.role === 'user')
+          const title = firstUserMessage?.content?.substring(0, 50) || '知识库问答'
+
+          // 保存新的聊天记录
+          const response = await userApi.postChatHistory({
+            user_id: currentUserId.value,
+            application_name: '知识库问答',
+            title: title,
+            message_count: messageCount
+          })
+
+          if (response.code === 200 && response.data?.id) {
+            currentChatHistoryId.value = response.data.id
+            // 新对话创建时，重置已保存的消息数量
+            savedMessageCount.value = 0
+            console.log('新聊天记录已保存，ID:', currentChatHistoryId.value)
+          }
+        }
+
+        // 保存消息内容（无论是新对话还是继续对话，都要保存消息）
+        if (currentChatHistoryId.value) {
+          try {
+            // 过滤出需要保存的消息（只保存用户和助手消息，不包括系统消息）
+            const allMessages = chatMessages.value.filter(
+              (msg) => msg.role === 'user' || msg.role === 'assistant'
+            )
+            
+            // 只保存新消息（从已保存数量之后的消息）
+            const newMessages = allMessages.slice(savedMessageCount.value)
+            
+            if (newMessages.length > 0) {
+              // 计算正确的消息序号（从已保存数量+1开始）
+              const messagesToSave = newMessages.map((msg, index) => ({
+                role: msg.role,
+                content: msg.content || '',
+                message_index: savedMessageCount.value + index + 1
+              }))
+
+              // 使用批量保存API保存新消息
+              const saveResponse = await userApi.postChatMessageBatch({
+                chat_history_id: currentChatHistoryId.value,
+                messages: messagesToSave
+              })
+
+              if (saveResponse.code === 200) {
+                // 更新已保存的消息数量
+                savedMessageCount.value = allMessages.length
+                console.log('消息已批量保存，共', messagesToSave.length, '条新消息')
+              } else {
+                console.warn('批量保存消息失败:', saveResponse.message)
+              }
+            }
+          } catch (messageSaveError) {
+            console.error('保存消息内容失败:', messageSaveError)
+            // 不显示错误提示，避免影响用户体验
+          }
+        }
+      }
+    } catch (saveError) {
+      console.error('保存聊天记录失败:', saveError)
+      // 不显示错误提示，避免影响用户体验
+    }
   }
 }
 
@@ -4984,7 +5120,22 @@ const copyMessage = (message: string) => {
     })
 }
 
+// 监听消息数组变化，当消息被清空时自动重置当前聊天历史ID
+watch(
+  () => chatMessages.value.length,
+  (newLength) => {
+    // 当消息数组被清空时，重置当前聊天历史ID，以便下次对话时创建新记录
+    if (newLength === 0) {
+      currentChatHistoryId.value = null
+      savedMessageCount.value = 0
+    }
+  }
+)
+
 onMounted(async () => {
+  // 获取当前用户信息
+  getCurrentUserInfo()
+
   // 从缓存中恢复选择的模型
   const cachedModelId = localStorage.getItem('user_knowledge_default_model_id')
   if (cachedModelId) {
@@ -5346,6 +5497,40 @@ onUnmounted(() => {
 
     p {
       margin: 0;
+    }
+  }
+
+  .history-button-container {
+    padding: 16px 20px;
+    border-top: 1px solid #e9ecef;
+    margin-top: auto;
+    flex-shrink: 0;
+
+    .history-button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+
+      &:hover {
+        background-color: #f0f5ff;
+        border-color: #3370ff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(51, 112, 255, 0.2);
+      }
+
+      .el-icon {
+        font-size: 16px;
+      }
+
+      .ml-4 {
+        margin-left: 4px;
+      }
     }
   }
 }
