@@ -20,6 +20,7 @@ from setting.serializers.team_serializers import TeamMemberSerializer, get_respo
 from django.utils.translation import gettext_lazy as _
 
 from setting.views.common import get_member_operation_object, get_member_operation_object_batch
+from users.models import User
 
 
 class UserTeams(APIView):
@@ -34,20 +35,22 @@ class UserTeams(APIView):
     def get(self, request: Request):
         from setting.models.team_management import Team, TeamMember
         from django.db.models import Q
-        
+
         # 获取用户作为管理员的团队
-        managed_team = TeamMember.objects.filter(user_id=request.user.id, is_manager=True).select_related('team').values(
+        managed_team = TeamMember.objects.filter(user_id=request.user.id, is_manager=True).select_related(
+            'team').values(
             'team_id', 'team__name'
         )
-        
+
         # 获取用户作为成员的团队
-        member_teams = TeamMember.objects.filter(user_id=request.user.id,is_manager=False).select_related('team').values(
+        member_teams = TeamMember.objects.filter(user_id=request.user.id, is_manager=False).select_related(
+            'team').values(
             'team_id', 'team__name'
         )
         print(request.user)
         print(managed_team)
         print(member_teams)
-        
+
         # 合并结果
         teams = []
         for team in managed_team:
@@ -56,14 +59,14 @@ class UserTeams(APIView):
                 'name': team['team__name'],
                 'role': 'manager'
             })
-            
+
         for team in member_teams:
             teams.append({
                 'id': str(team['team_id']),
                 'name': team['team__name'],
                 'role': 'member'
             })
-            
+
         return result.success(teams)
 
 
@@ -81,19 +84,20 @@ class TeamMember(APIView):
         from django.db.models import Q
         print(request.user.id)
         print("调试信息: 用户ID", request.user.id)
-        
+
         # 获取用户作为管理员的团队
-        managed_teams = TeamMember.objects.filter(user_id=request.user.id, is_manager=True).select_related('team').values(
+        managed_teams = TeamMember.objects.filter(user_id=request.user.id, is_manager=True).select_related(
+            'team').values(
             'team_id', 'team__name', 'team__user_id'
         )
         print("调试信息: 管理的团队", managed_teams)
-        
+
         # 获取用户作为成员的团队
         member_teams = TeamMember.objects.filter(user_id=request.user.id).select_related('team').values(
             'team_id', 'team__name', 'team__user_id'
         )
         print("调试信息: 成员的团队", member_teams)
-        
+
         # 合并结果
         teams = []
         for team in managed_teams:
@@ -103,7 +107,7 @@ class TeamMember(APIView):
                 'user_id': str(team['team__id']),
                 'role': 'manager'
             })
-            
+
         for team in member_teams:
             teams.append({
                 'id': str(team['team_id']),
@@ -111,7 +115,7 @@ class TeamMember(APIView):
                 'user_id': str(team['team__id']),
                 'role': 'member'
             })
-        
+
         print("调试信息: 最终团队列表", teams)
         return result.success(teams)
 
@@ -192,6 +196,7 @@ class TeamMember(APIView):
             return result.success(TeamMemberSerializer.Operate(
                 data={'member_id': member_id, 'team_id': str(request.user.id)}).delete())
 
+
 class ShareableList(APIView):
     authentication_classes = [TokenAuth]
 
@@ -203,6 +208,9 @@ class ShareableList(APIView):
     @has_permissions(PermissionConstants.TEAM_READ)
     def get(self, request: Request):
         from setting.models.team_management import Team
+        from django.db.models import Q
+
+        keyword = request.query_params.get('keyword', '')
 
         # 获取所有团队（不限于用户所在团队）
         all_teams = Team.objects.all().values(
@@ -210,11 +218,31 @@ class ShareableList(APIView):
             'name'
         )
 
-        # 构建返回结果（只返回团队，不返回用户）
+        # 获取所有用户
+        all_users = User.objects.filter(
+            Q(nick_name__icontains=keyword) |
+            Q(username__icontains=keyword),
+            is_active=True
+        ).values(
+            'id',
+            'username',
+            'email',
+        )
+
+        # 构建返回结果
         shareable_list = {
             'teams': [],
             'users': []
         }
+
+        # 添加所有用户信息
+        for user in all_users:
+            shareable_list['users'].append({
+                'id': str(user['id']),
+                'name': user['username'],
+                'email': user['email'],
+                'type': 'USER'
+            })
 
         # 添加所有团队信息
         for team in all_teams:
