@@ -7,7 +7,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('setting', '0014_log_add_log_read'),
-        ('setting', '0014_log_log_read'),
     ]
 
     operations = [
