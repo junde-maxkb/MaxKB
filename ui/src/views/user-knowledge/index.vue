@@ -2894,7 +2894,7 @@ ${savedUploadedDocContent}`
           savedSummaryDocName,
           '',
           '',
-          chatMessages.value.slice(-10) // 传入对话历史记录
+          chatMessages.value // 传入对话历史记录（引用所有历史记录）
         )
       } else {
         // 基于知识库检索结果的摘要模式
@@ -2905,7 +2905,7 @@ ${savedUploadedDocContent}`
           '',
           context,
           contextNote,
-          chatMessages.value.slice(-10) // 传入对话历史记录
+          chatMessages.value // 传入对话历史记录（引用所有历史记录）
         )
       }
     } else if (isAIReviewMode.value) {
@@ -3009,7 +3009,7 @@ ${context}
         role: 'system',
         content: systemPrompt
       },
-      ...(shouldSkipHistory ? [] : chatMessages.value.slice(-10)), // 根据需要决定是否保留对话历史
+      ...(shouldSkipHistory ? [] : chatMessages.value), // 根据需要决定是否保留对话历史（引用所有历史记录）
       { role: 'user', content: userQuestion }
     ]
 
@@ -3231,10 +3231,10 @@ ${context}
             const allMessages = chatMessages.value.filter(
               (msg) => msg.role === 'user' || msg.role === 'assistant'
             )
-            
+
             // 只保存新消息（从已保存数量之后的消息）
             const newMessages = allMessages.slice(savedMessageCount.value)
-            
+
             if (newMessages.length > 0) {
               // 计算正确的消息序号（从已保存数量+1开始）
               const messagesToSave = newMessages.map((msg, index) => ({
@@ -3970,16 +3970,17 @@ const getPromptByIntent = (
   documentContext: string,
   contextNote: string
 ) => {
-  console.log("userQuestion",userQuestion)
-  console.log("context",context)
-  console.log("documentContext",documentContext)
-  console.log("contextNote",contextNote)
+  console.log('userQuestion', userQuestion)
+  console.log('context', context)
+  console.log('documentContext', documentContext)
+  console.log('contextNote', contextNote)
   if (intent === 'writing') {
     // 写作模式的提示词
     return `
     # AI 写作助手 - 学术写作模式
 
 【重要提示】：这是“学术创作模式”，用户仅提供主题与参考信息，模型需从零开始创作一篇完整、系统、逻辑严密的学术文章。
+“模型必须将‘资料一致性与事实准确性’作为最高优先级任务，任何生成行为不得违反资料约束。”
 
 写作风格：学术研究型
 语气：正式、客观
@@ -3992,10 +3993,15 @@ const getPromptByIntent = (
 你的任务是基于主题与知识片段，从零构建一篇系统、完整的中文学术文章，具备学术逻辑、研究深度与理论视角。
 
 【写作要求】
+根据用户提供的资料或知识库内容，必须严格以该资料为唯一创作依据，不得擅自添加或推测外部信息；
+若资料不足以支撑写作内容，模型应停止生成并提示用户补充资料；
+严禁虚构事实、学者、数据或研究结论。
+将参考文献，数据与理论框架融入文章论述，确保内容具备学术严谨性与可信度；
+文章结构应清晰，逻辑严密，论点明确，论据充分；
 
 创作方式：
 - 从零开始撰写，构建完整文章框架；
-- 自主确定标题、章节、逻辑与论述重点；
+- 根据提供内容自主确定标题、章节、逻辑与论述重点；
 - 充分发挥学术研究能力，形成系统、全面的综述性文章；
 - 内容应基于现有学术共识与教育理论，不出现虚构数据或具体学者姓名。
 
@@ -4272,7 +4278,7 @@ const getSummaryPrompt = (
   // 格式化对话历史记录
   const formatHistory = (history: Message[]) => {
     if (!history || history.length === 0) return ''
-    const recentHistory = history.slice(-10) // 只取最近10条
+    const recentHistory = history // 引用所有历史记录
     const historyText = recentHistory
       .map((msg, index) => {
         const role = msg.role === 'user' ? '用户' : '助手'
