@@ -31,7 +31,7 @@ from smartdoc.settings import JWT_AUTH
 from users.serializers.user_serializers import RegisterSerializer, LoginSerializer, CheckCodeSerializer, \
     RePasswordSerializer, \
     SendEmailSerializer, UserProfile, UserSerializer, UserManageSerializer, UserInstanceSerializer, SystemSerializer, \
-    SwitchLanguageSerializer
+    SwitchLanguageSerializer, ChatHistorySerializer, ChatMessageSerializer
 from users.views.common import get_user_operation_object, get_re_password_details
 import requests
 from django.shortcuts import redirect
@@ -486,3 +486,105 @@ class OauthCallbackView(APIView):
 
         token_cache.set(token, user, timeout=JWT_AUTH['JWT_EXPIRATION_DELTA'])
         return redirect(f"{settings.base.MAXKB_HOME_URL}?token={token}")
+
+
+class ChatHistoryView(APIView):
+    authentication_classes = [TokenAuth]
+
+    class Page(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_("Get chat history paginated list"),
+                             operation_id=_("Get chat history paginated list"),
+                             tags=[_("User management")],
+                             manual_parameters=ChatHistorySerializer.Query.get_request_params_api(),
+                             responses=result.get_page_api_response(ChatHistorySerializer.Query.get_response_body_api()),
+                             )
+        @has_permissions(ViewPermission(
+            [RoleConstants.ADMIN],
+            [PermissionConstants.USER_READ],
+            compare=CompareConstants.AND))
+        def get(self, request: Request, user_id, current_page, page_size):
+            d = ChatHistorySerializer.Query(
+                data={'user_id': user_id})
+            return result.success(d.page(current_page, page_size))
+
+    class List(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_("Get chat history list"),
+                             operation_id=_("Get chat history list"),
+                             tags=[_("User management")],
+                             manual_parameters=ChatHistorySerializer.Query.get_request_params_api(),
+                             responses=result.get_api_array_response(ChatHistorySerializer.Query.get_response_body_api()),
+                             )
+        @has_permissions(ViewPermission(
+            [RoleConstants.ADMIN],
+            [PermissionConstants.USER_READ],
+            compare=CompareConstants.AND))
+        def get(self, request: Request, user_id):
+            d = ChatHistorySerializer.Query(
+                data={'user_id': user_id})
+            return result.success(d.list())
+
+    class Save(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['POST'], detail=False)
+        @swagger_auto_schema(operation_summary=_("Save chat history"),
+                             operation_id=_("Save chat history"),
+                             tags=[_("User management")],
+                             request_body=ChatHistorySerializer.Instance.get_request_body_api(),
+                             responses=result.get_api_response(ChatHistorySerializer.Instance.get_response_body_api()),
+                             )
+        def post(self, request: Request):
+            d = ChatHistorySerializer.Instance(data=request.data)
+            return result.success(d.save())
+
+
+class ChatMessageView(APIView):
+    authentication_classes = [TokenAuth]
+
+    class Save(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['POST'], detail=False)
+        @swagger_auto_schema(operation_summary=_("Save chat message"),
+                             operation_id=_("Save chat message"),
+                             tags=[_("User management")],
+                             request_body=ChatMessageSerializer.Instance.get_request_body_api(),
+                             responses=result.get_api_response(ChatMessageSerializer.Instance.get_response_body_api()),
+                             )
+        def post(self, request: Request):
+            d = ChatMessageSerializer.Instance(data=request.data)
+            return result.success(d.save())
+
+    class Batch(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['POST'], detail=False)
+        @swagger_auto_schema(operation_summary=_("Save chat messages in batch"),
+                             operation_id=_("Save chat messages in batch"),
+                             tags=[_("User management")],
+                             request_body=ChatMessageSerializer.Batch.get_request_body_api(),
+                             responses=result.get_api_array_response(ChatMessageSerializer.Instance.get_response_body_api()),
+                             )
+        def post(self, request: Request):
+            d = ChatMessageSerializer.Batch(data=request.data)
+            return result.success(d.save())
+
+    class List(APIView):
+        authentication_classes = [TokenAuth]
+
+        @action(methods=['GET'], detail=False)
+        @swagger_auto_schema(operation_summary=_("Get chat messages"),
+                             operation_id=_("Get chat messages"),
+                             tags=[_("User management")],
+                             manual_parameters=ChatMessageSerializer.Query.get_request_params_api(),
+                             responses=result.get_api_array_response(ChatMessageSerializer.Query.get_response_body_api()),
+                             )
+        def get(self, request: Request):
+            d = ChatMessageSerializer.Query(data=request.query_params)
+            return result.success(d.list())

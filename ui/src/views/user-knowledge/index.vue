@@ -305,6 +305,21 @@
               </template>
             </el-tree>
           </div>
+
+          <!-- 历史对话按钮 -->
+          <div class="history-button-container">
+            <el-button
+              type="primary"
+              plain
+              class="history-button"
+              @click="showHistoryPanel = true"
+            >
+              <el-icon>
+                <ChatLineRound />
+              </el-icon>
+              <span class="ml-4">历史对话</span>
+            </el-button>
+          </div>
         </div>
       </div>
 
@@ -1177,11 +1192,28 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 历史对话面板 -->
+    <el-drawer
+      v-model="showHistoryPanel"
+      title="历史对话"
+      :size="320"
+      direction="rtl"
+      :before-close="closeHistoryPanel"
+    >
+      <ChatHistoryPanel
+        v-if="showHistoryPanel && currentUserId"
+        ref="ChatHistoryPanelRef"
+        :user-id="currentUserId"
+        :username="currentUsername"
+        @close="closeHistoryPanel"
+      />
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, type Ref, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, watch, type Ref, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import useStore from '@/stores'
 import {
@@ -1218,6 +1250,8 @@ import modelApi, { postModelChat, postModelChatStream } from '@/api/model'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
 import DocumentParagraphsDialog from './components/DocumentParagraphsDialog.vue'
+import ChatHistoryPanel from '@/views/user-manage/component/ChatHistoryPanel.vue'
+import userApi from '@/api/user-manage'
 import Recorder from 'recorder-core'
 import 'recorder-core/src/engine/mp3'
 import 'recorder-core/src/engine/mp3-engine'
@@ -1338,6 +1372,14 @@ const messagesContainer = ref<HTMLElement | null>(null)
 const isUserAtBottom = ref(true) // 跟踪用户是否在底部，默认在底部
 const treeRef = ref<any>(null)
 
+// 历史对话相关状态
+const showHistoryPanel = ref(false)
+const currentUserId = ref('')
+const currentUsername = ref('')
+const ChatHistoryPanelRef = ref<any>(null)
+const currentChatHistoryId = ref<string | null>(null) // 当前对话的历史记录ID
+const savedMessageCount = ref(0) // 已保存的消息数量（只计算用户和助手消息）
+
 // 新建知识库表单
 const newKB = ref<KBForm>({
   name: ''
@@ -1416,6 +1458,20 @@ const selectedSTTModelId = ref('')
 const { user } = useStore()
 const userRole = computed(() => user.getRole())
 const isAdmin = computed(() => userRole.value === 'ADMIN')
+
+// 获取当前用户信息
+const getCurrentUserInfo = () => {
+  const userInfo = user.userInfo
+  if (userInfo) {
+    currentUserId.value = userInfo.id || ''
+    currentUsername.value = userInfo.username || ''
+  }
+}
+
+// 关闭历史对话面板
+const closeHistoryPanel = () => {
+  showHistoryPanel.value = false
+}
 
 // 当前选中的文档和知识库信息
 const selectedInfo = computed(() => {
@@ -1721,6 +1777,10 @@ const newChat = () => {
   currentMessage.value = ''
   // 清空分段展开状态
   expandedParagraphs.value.clear()
+  // 重置当前聊天记录ID，以便下次对话时创建新记录
+  currentChatHistoryId.value = null
+  // 重置已保存的消息数量
+  savedMessageCount.value = 0
   // 取消所有选中的文档和知识库
   if (treeRef.value) {
     treeRef.value.setCheckedKeys([])
@@ -3131,6 +3191,82 @@ ${context}
     isStreaming.value = false
     await nextTick()
     scrollToBottom()
+
+    // 保存聊天记录到历史记录
+    try {
+      if (currentUserId.value && chatMessages.value.length > 0) {
+        // 计算消息数量（只计算用户和助手消息，不包括系统消息）
+        const messageCount = chatMessages.value.filter(
+          (msg) => msg.role === 'user' || msg.role === 'assistant'
+        ).length
+
+        // 检测是否是新对话：如果消息数量为2（一条用户消息+一条AI回复）且没有历史记录ID，说明是新对话
+        const isNewConversation = !currentChatHistoryId.value && messageCount >= 2
+
+        if (isNewConversation) {
+          // 获取第一条用户消息作为标题
+          const firstUserMessage = chatMessages.value.find((msg) => msg.role === 'user')
+          const title = firstUserMessage?.content?.substring(0, 50) || '知识库问答'
+
+          // 保存新的聊天记录
+          const response = await userApi.postChatHistory({
+            user_id: currentUserId.value,
+            application_name: '知识库问答',
+            title: title,
+            message_count: messageCount
+          })
+
+          if (response.code === 200 && response.data?.id) {
+            currentChatHistoryId.value = response.data.id
+            // 新对话创建时，重置已保存的消息数量
+            savedMessageCount.value = 0
+            console.log('新聊天记录已保存，ID:', currentChatHistoryId.value)
+          }
+        }
+
+        // 保存消息内容（无论是新对话还是继续对话，都要保存消息）
+        if (currentChatHistoryId.value) {
+          try {
+            // 过滤出需要保存的消息（只保存用户和助手消息，不包括系统消息）
+            const allMessages = chatMessages.value.filter(
+              (msg) => msg.role === 'user' || msg.role === 'assistant'
+            )
+            
+            // 只保存新消息（从已保存数量之后的消息）
+            const newMessages = allMessages.slice(savedMessageCount.value)
+            
+            if (newMessages.length > 0) {
+              // 计算正确的消息序号（从已保存数量+1开始）
+              const messagesToSave = newMessages.map((msg, index) => ({
+                role: msg.role,
+                content: msg.content || '',
+                message_index: savedMessageCount.value + index + 1
+              }))
+
+              // 使用批量保存API保存新消息
+              const saveResponse = await userApi.postChatMessageBatch({
+                chat_history_id: currentChatHistoryId.value,
+                messages: messagesToSave
+              })
+
+              if (saveResponse.code === 200) {
+                // 更新已保存的消息数量
+                savedMessageCount.value = allMessages.length
+                console.log('消息已批量保存，共', messagesToSave.length, '条新消息')
+              } else {
+                console.warn('批量保存消息失败:', saveResponse.message)
+              }
+            }
+          } catch (messageSaveError) {
+            console.error('保存消息内容失败:', messageSaveError)
+            // 不显示错误提示，避免影响用户体验
+          }
+        }
+      }
+    } catch (saveError) {
+      console.error('保存聊天记录失败:', saveError)
+      // 不显示错误提示，避免影响用户体验
+    }
   }
 }
 
@@ -3834,6 +3970,10 @@ const getPromptByIntent = (
   documentContext: string,
   contextNote: string
 ) => {
+  console.log("userQuestion",userQuestion)
+  console.log("context",context)
+  console.log("documentContext",documentContext)
+  console.log("contextNote",contextNote)
   if (intent === 'writing') {
     // 写作模式的提示词
     return `
@@ -3904,71 +4044,73 @@ const getPromptByIntent = (
 User:
 主题：${userQuestion}
 
-知识片段：
+原文内容：
 ${context}${documentContext}${contextNote}`
   } else if (intent === 'polish') {
     // 润写模式的提示词
-    return `# Role: AI学术润写助手
+    return `AI学术润写助手
+Profile
+语言：中文
+角色定位：教育研究领域的学术文本润色与优化专家
+擅长方向：教育学、教育技术、教师发展、政策研究等领域的学术写作
+性格特征：严谨、客观、细致、专业
+目标用户：教育研究人员、政策制定者、硕博论文作者、期刊投稿者
 
-## Profile
-- language: 中文
-- description: 专业的学术文本润色专家，专注于教育研究领域的学术表达优化，能够在不改变原文核心思想的前提下提升文本的学术性、逻辑性和可读性
-- background: 基于先进AI技术开发，融合了教育研究领域的学术写作规范和最佳实践
-- personality: 严谨、客观、细致、专业
-- expertise: 学术写作规范、语言优化、逻辑结构梳理、教育研究领域专业知识
-- target_audience: 教育研究人员、政策制定者、学术论文作者
+核心能力
+一、语言表达优化
+语法修正：精准纠正语法、拼写、标点错误；保持句式规范
+句式重构：调整句式结构，提升表达逻辑与学术流畅度
+词汇升级：用正式、学术化的表达替代口语或模糊词
+精炼去冗：删除冗余内容，提高文字密度与可读性
 
-## Skills
+二、逻辑与结构优化
+结构重组：优化段落层次，使论述更具逻辑性与层次感
+衔接优化：补充过渡语，增强句段之间的连贯性
+论证完善：确保论点-论据-结论链条完整、合理
+条理清晰：通过逻辑标识和层次调整强化条理感
 
-1. 语言优化技能
-   - 语法修正: 精准识别并修正语法、拼写与标点错误
-   - 句式优化: 重构句式结构，提升表达流畅度和精准度
-   - 词汇升级: 用正式学术词汇替换口语化或模糊表述
-   - 冗余删除: 识别并删除冗余信息，提高文本简洁度
+三、学术规范与风格一致
+学术格式：严格遵守学术写作规范与正式书面语要求
+中立客观：避免主观推断、情感化表达与第一人称使用
+逻辑衔接：善用“从……来看”“总体而言”“进一步说”等学术连接词
+风格统一：确保全篇语调一致、正式规范，符合学术期刊标准
 
-2. 逻辑优化技能
-   - 结构重组: 调整段落与句子结构，增强论述逻辑连贯性
-   - 过渡衔接: 补充适当的过渡语句，强化段落间逻辑联系
-   - 论证完善: 确保论证过程完整清晰，符合学术写作逻辑
-   - 条理梳理: 优化文本层次结构，使论述条理更加分明
+规则规范
+一、基本原则
+忠实原意：不改变原文核心思想与逻辑结构
+客观中立：不加入主观评价或未经验证的信息
+学术严谨：遵循教育研究领域的学术写作规范
+质量优先：优化结果应达到可发表的学术水准
 
-3. 学术规范技能
-   - 格式规范: 严格遵循学术写作规范和正式书面语表达
-   - 人称处理: 避免使用第一人称，保持客观中立立场
-   - 连接词运用: 熟练使用学术连接词增强逻辑性
-   - 风格统一: 确保文本风格符合学术论文和政策报告标准
+二、操作准则
+保持完整性：不删减关键论述，不扩写额外观点
+内容真实：不得虚构事实、数据或研究者姓名
+风格协调：优化前后文风与语气保持一致
+渐进优化：以精修为主，避免过度改写
 
-## Rules
+三、限制范围
+内容边界：仅针对语言、逻辑与规范层面优化
+人称规范：不得使用“我”“我们”等第一人称
+专业范围：聚焦教育研究、政策研究及教育技术方向
+信息约束：仅基于提供文本与上下文内容进行润色
 
-1. 基本原则：
-   - 忠实原意: 绝不改变原文核心观点、逻辑结构和主要内容
-   - 客观中立: 保持客观立场，不添加主观推断或个人观点
-   - 专业标准: 严格遵循教育研究领域的学术写作规范
-   - 质量优先: 确保润色后的文本达到学术发表标准
+工作流程（Workflows）
+Step 1：文本分析
+识别原文在语言表达、逻辑衔接、结构层次、学术规范等方面的问题。
+Step 2：分层优化
+逐步执行语言优化、逻辑梳理与学术规范调整，保持内容完整性。
+Step 3：整体审校
+通读全文，确保语言精准、逻辑顺畅、风格统一、学术性增强。
+Step 4：标准输出
+输出完整润色后的文本；
+标题居中；
+使用规范编号（“一、二、三、（一）（二）（三）”）；
+不添加任何AI生成说明或操作提示。
 
-2. 行为准则：
-   - 完整性保持: 保持原有篇幅和论述重点不变
-   - 信息真实: 不添加原文未涉及的事实性信息
-   - 风格一致: 确保润色前后文本风格协调统一
-   - 渐进优化: 采用渐进式优化策略，避免过度修改
-
-3. 限制条件：
-   - 内容边界: 仅对语言表达和逻辑结构进行优化，不改变实质内容
-   - 人称限制: 严格避免使用第一人称表述
-   - 专业范围: 主要服务于教育研究领域相关文本
-   - 参考约束: 仅基于提供的知识库和上下文进行优化
-
-## Workflows
-
-- 目标: 将用户提供的学术文本优化为符合教育研究领域标准的专业表达
-- 步骤 1: 全面分析原文，识别语言、逻辑和学术规范方面的问题
-- 步骤 2: 基于知识库参考，逐项进行语言优化、逻辑梳理和规范调整
-- 步骤 3: 整体审校，确保优化后的文本保持原意同时提升学术质量
-- 步骤 4: 输出格式输出完整文章，标题居中；使用 "一、二、三、（一）（二）（三）" 等规范结构标识；
-- 预期结果: 产出语言精准、逻辑清晰、符合学术规范的优化文本
-
-## Initialization
-作为AI学术润写助手，你必须遵守上述Rules，按照Workflows执行任务。
+输出目标
+最终文本语言规范、逻辑严密、表达清晰；
+完全符合教育研究领域的学术论文或政策报告标准；
+可直接用于期刊投稿、学位论文撰写或政策文件整理。
 
 知识库参考：
 ${context}${documentContext}${contextNote}
@@ -3978,67 +4120,70 @@ User:
 ${userQuestion}`
   } else {
     // 扩写模式的提示词
-    return `# AI 学术扩写助手
+    return `
+AI 学术扩写助手
+【重要提示】：这是**“学术扩写模式”。
+用户已提供原始内容（如：知识库检索结果、文档内容或章节片段），你必须完全基于这些资料进行扩写**，在不改变原文核心观点与逻辑的前提下，扩充细节、深化论述、提升学术性。
 
-【重要提示】：这是"扩写模式"，用户已经提供了原始内容，你需要在原有基础上扩充内容、增加细节、丰富论述，而不是从零创作。
-
+写作风格与目标
 写作风格：学术研究型
-语气：正式、客观
-目标读者：教育研究人员、学者与政策制定者
-扩写目标：在原文基础上扩充至原文的 2-3 倍篇幅
+语气：正式、客观、逻辑严谨
+目标读者：教育研究人员、政策制定者、学术作者
+扩写目标：在忠实于原文与资料内容的前提下，将篇幅扩展至原文的 2–3 倍，强化学理依据、政策逻辑与实践深度。
 
 角色设定
-你是一名专业的学术文本扩写助手，擅长在保持原文核心内容与逻辑结构的基础上，充实论述深度、拓展研究视角，并增强文本的逻辑性与学术性。
+你是一名教育研究领域的学术扩写专家，熟悉教育政策、教师发展与智能教育领域的国内外研究文献。
+你的职责是：
+基于知识库或文档提供的内容，在不脱离资料语义与事实的前提下，进行系统性扩展，形成符合学术标准的高质量综述或论述性文本。
 
-【重要】扩写与写作的区别
-- 扩写：基于用户提供的原始内容进行扩充，保留原文框架和观点，增加细节和论述
-- 写作：从零开始创作全新内容
-- 本次任务是"扩写"，必须严格基于用户提供的原始内容进行扩充
+扩写原则
+一、信息依托原则（最重要）
+完全基于资料：所有扩写内容均需来自用户提供的知识库或文档；
+禁止虚构信息：不得捏造研究成果、政策文件、年份、机构或数据；
+中性整合表达：若资料间存在观点差异，应采用中性、综合的表述方式；
+知识融合：可整合多条资料内容，以形成更完整、更连贯的论证；
+不可外推创作：若资料未提及，不得自拟理论、假设或结论。
 
-扩写任务要求
-一、内容扩充（核心任务）
-- 识别原文中的关键观点和论述要点
-- 在不改变原意的前提下，增加细节描述与背景信息
-- 深化论述逻辑，补充原因分析、理论依据与现实意义
-- 适度引用学术研究、教育政策或实证数据（可来自知识片段）
-- 通过增加论证层次与论据丰富度，使内容更具研究深度与说服力
-- 对每个段落进行深度扩充，增加具体案例、数据支持和理论阐述
+二、内容扩充任务
+识别要点：分析原文与资料的核心论点、关键词及逻辑框架。
+深度阐释：对关键概念、理论框架、研究现象进行背景补充与概念细化。
+理论支撑：引用资料中出现的教育学、技术整合、教师素养等理论。
+政策关联：结合知识库中的政策文本、研究方向或应用案例加以说明。
+论证拓展：通过“原因→影响→对策”的链条扩展内容深度。
+实践补充：如资料包含实证研究或教育应用，可适当展开分析与比较。
 
-二、结构优化
-- 严格保持原有结构与段落逻辑顺序
-- 保留原文的标题和小标题（如果有）
-- 必要时可添加新的小标题以增强条理性
-- 调整句式与段落衔接，使全文逻辑更加层次分明、连贯自然
-- 确保扩写后的文本在结构上完整统一
+三、结构与逻辑优化
+保持原文结构：保留原有标题、章节顺序与逻辑层次。
+增强层次感：必要时可新增小标题，提升逻辑条理。
+强化衔接：在段落间增加逻辑过渡语（如“进一步来看”“总体而言”“从而可见”）。
+语言一致：扩写段落的风格应与原文保持一致，避免语体突变。
 
-三、学术规范
-- 语言风格应正式、严谨、客观，避免使用第一人称（如"我""我们"）
-- 善用学术连接词（如"此外""从而""因此""相较而言""具体而言""进一步来看"等）提升连贯性
-- 用语符合理论文体，符合教育学与社会科学领域的表达习惯
+四、学术表达规范
+书面语体：采用正式、规范、客观的学术语言。
+人称限制：避免使用第一人称与主观评价性词汇。
+逻辑严密：确保段落内部与上下文之间逻辑连贯。
+准确引用：资料中出现的术语、概念、框架需准确表达，不得误解或重写。
+表达提升：适度优化句式，使学术表述更流畅、有层次。
 
-四、知识融合
-- 合理引用并整合提供的知识片段
-- 新增内容须与原文主题、语气和逻辑保持一致
-- 不虚构知识片段中未出现的事实性信息
-- 优先使用知识片段中的信息来丰富原文内容
+五、知识整合策略
+内部整合：当不同资料内容相似时，应进行去重与融合，形成统一观点。
+差异表达：当资料内容存在差异时，应说明差异来源与研究取向。
+引用融合：可用“有研究指出”“相关政策提出”“文献普遍认为”等中性引导语整合观点。
+综合提升：通过整合资料，形成体系化的学术阐述。
 
-五、保持核心
-- 坚持原文的核心观点与论述方向
-- 在扩展篇幅的同时，确保主旨不偏移，逻辑线保持清晰
-- 不删除原文的任何重要观点，只进行扩充和丰富
+输出要求
+严格保留原文结构与段落顺序；
+严格要求扩写后篇幅为原文的 2–3 倍；
+使用规范编号（“一、二、三、（一）（二）（三）”等）；
+全文仅使用知识库或文档提供的信息，不引入外部知识；
+不包含任何AI说明、推理过程或提示语。
 
-输出格式
-- 不得改变原文的任何内容，包括标题、小标题、段落顺序、内容等。
-- 输出完整的扩写后文章
-- 保持原文的标题（如果有），或根据内容生成合适标题
-- 使用规范结构标识
-- 不包含过程性说明或AI口吻提示
-
-知识片段参考：
-${context}${documentContext}${contextNote}
+原文内容：
+${context}
+${documentContext}
+${contextNote}
 
 User:
-请基于以下原始内容进行扩写（注意：这是原始内容，需要你在此基础上扩充）：
 ${userQuestion}`
   }
 }
@@ -4984,7 +5129,22 @@ const copyMessage = (message: string) => {
     })
 }
 
+// 监听消息数组变化，当消息被清空时自动重置当前聊天历史ID
+watch(
+  () => chatMessages.value.length,
+  (newLength) => {
+    // 当消息数组被清空时，重置当前聊天历史ID，以便下次对话时创建新记录
+    if (newLength === 0) {
+      currentChatHistoryId.value = null
+      savedMessageCount.value = 0
+    }
+  }
+)
+
 onMounted(async () => {
+  // 获取当前用户信息
+  getCurrentUserInfo()
+
   // 从缓存中恢复选择的模型
   const cachedModelId = localStorage.getItem('user_knowledge_default_model_id')
   if (cachedModelId) {
@@ -5346,6 +5506,40 @@ onUnmounted(() => {
 
     p {
       margin: 0;
+    }
+  }
+
+  .history-button-container {
+    padding: 16px 20px;
+    border-top: 1px solid #e9ecef;
+    margin-top: auto;
+    flex-shrink: 0;
+
+    .history-button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+
+      &:hover {
+        background-color: #f0f5ff;
+        border-color: #3370ff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(51, 112, 255, 0.2);
+      }
+
+      .el-icon {
+        font-size: 16px;
+      }
+
+      .ml-4 {
+        margin-left: 4px;
+      }
     }
   }
 }

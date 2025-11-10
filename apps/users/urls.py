@@ -27,4 +27,11 @@ urlpatterns = [
     path('user/list/<str:type>', views.UserListView.as_view()),
     path('github_auth/', AuthConnect.as_view(), name='github_auth'),
     path('oauth_callback/', OauthCallbackView.as_view(), name='oauth_callback'),
+    path('chat_history/<str:user_id>', views.ChatHistoryView.List.as_view(), name='chat_history_list'),
+    path('chat_history/<str:user_id>/<int:current_page>/<int:page_size>', views.ChatHistoryView.Page.as_view(),
+         name='chat_history_page'),
+    path('chat_history', views.ChatHistoryView.Save.as_view(), name='chat_history_save'),
+    path('chat_message', views.ChatMessageView.Save.as_view(), name='chat_message_save'),
+    path('chat_message/batch', views.ChatMessageView.Batch.as_view(), name='chat_message_batch'),
+    path('chat_message/list', views.ChatMessageView.List.as_view(), name='chat_message_list'),
 ]

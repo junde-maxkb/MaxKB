@@ -39,6 +39,7 @@ from function_lib.models.function import FunctionLib
 from setting.models import Team, SystemSetting, SettingType, Model, TeamMember, TeamMemberPermission
 from smartdoc.conf import PROJECT_DIR
 from users.models.user import User, password_encrypt, get_user_dynamics_permission
+from users.models.chat_history import ChatHistory, ChatMessage
 from django.utils.translation import gettext_lazy as _, gettext, to_locale
 from django.utils.translation import get_language
 user_cache = cache.caches['user_cache']
@@ -896,3 +897,312 @@ class UserManageSerializer(serializers.Serializer):
             user.role = "ADMIN"
             user.save()
             return True
+
+
+class ChatHistorySerializer(ApiMixin, serializers.Serializer):
+    """
+    历史聊天记录序列化器
+    """
+    
+    class Query(ApiMixin, serializers.Serializer):
+        user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
+        
+        @staticmethod
+        def get_request_params_api():
+            return [openapi.Parameter(name='user_id',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=True,
+                                      description=_("User ID"))]
+        
+        @staticmethod
+        def get_response_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['id', 'user_id', 'application_name', 'title', 'create_time'],
+                properties={
+                    'id': openapi.Schema(type=openapi.TYPE_STRING, title='ID', description="ID"),
+                    'user_id': openapi.Schema(type=openapi.TYPE_STRING, title=_("User ID"), description=_("User ID")),
+                    'application_name': openapi.Schema(type=openapi.TYPE_STRING, title=_("Application Name"), 
+                                                      description=_("Application Name")),
+                    'title': openapi.Schema(type=openapi.TYPE_STRING, title=_("Title"), description=_("Title")),
+                    'message_count': openapi.Schema(type=openapi.TYPE_INTEGER, title=_("Message Count"), 
+                                                    description=_("Message Count")),
+                    'create_time': openapi.Schema(type=openapi.TYPE_STRING, title=_("Create Time"), 
+                                                  description=_("Create Time")),
+                }
+            )
+        
+        def get_query_set(self):
+            user_id = self.data.get('user_id')
+            query_set = QuerySet(ChatHistory).filter(user_id=user_id)
+            query_set = query_set.order_by("-create_time")
+            return query_set
+        
+        def list(self, with_valid=True):
+            if with_valid:
+                self.is_valid(raise_exception=True)
+            return [{
+                'id': str(history.id),
+                'user_id': str(history.user_id),
+                'application_name': history.application_name,
+                'title': history.title or history.application_name,
+                'message_count': history.message_count,
+                'create_time': history.create_time.strftime('%Y-%m-%d %H:%M:%S') if history.create_time else None
+            } for history in self.get_query_set()]
+        
+        def page(self, current_page: int, page_size: int, with_valid=True):
+            if with_valid:
+                self.is_valid(raise_exception=True)
+            return page_search(current_page, page_size,
+                               self.get_query_set(),
+                               post_records_handler=lambda h: {
+                                   'id': str(h.id),
+                                   'user_id': str(h.user_id),
+                                   'application_name': h.application_name,
+                                   'title': h.title or h.application_name,
+                                   'message_count': h.message_count,
+                                   'create_time': h.create_time.strftime('%Y-%m-%d %H:%M:%S') if h.create_time else None
+                               })
+    
+    class Instance(ApiMixin, serializers.Serializer):
+        user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
+        application_name = serializers.CharField(required=True, max_length=128, 
+                                                  error_messages=ErrMessage.char(_("Application Name")))
+        title = serializers.CharField(required=False, max_length=256, allow_blank=True, 
+                                      error_messages=ErrMessage.char(_("Title")))
+        message_count = serializers.IntegerField(required=False, default=0)
+        
+        @staticmethod
+        def get_request_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['user_id', 'application_name'],
+                properties={
+                    'user_id': openapi.Schema(type=openapi.TYPE_STRING, title=_("User ID"), 
+                                              description=_("User ID")),
+                    'application_name': openapi.Schema(type=openapi.TYPE_STRING, title=_("Application Name"), 
+                                                        description=_("Application Name")),
+                    'title': openapi.Schema(type=openapi.TYPE_STRING, title=_("Title"), description=_("Title")),
+                    'message_count': openapi.Schema(type=openapi.TYPE_INTEGER, title=_("Message Count"), 
+                                                    description=_("Message Count")),
+                }
+            )
+        
+        def save(self, with_valid=True):
+            if with_valid:
+                self.is_valid(raise_exception=True)
+            user_id = self.data.get('user_id')
+            user = QuerySet(User).filter(id=user_id).first()
+            if user is None:
+                raise AppApiException(500, _("User does not exist"))
+            
+            chat_history = ChatHistory(
+                user=user,
+                application_name=self.data.get('application_name'),
+                title=self.data.get('title', ''),
+                message_count=self.data.get('message_count', 0)
+            )
+            chat_history.save()
+            return {
+                'id': str(chat_history.id),
+                'user_id': str(chat_history.user_id),
+                'application_name': chat_history.application_name,
+                'title': chat_history.title,
+                'message_count': chat_history.message_count,
+                'create_time': chat_history.create_time.strftime('%Y-%m-%d %H:%M:%S') if chat_history.create_time else None
+            }
+
+
+class ChatMessageSerializer(ApiMixin, serializers.Serializer):
+    """
+    聊天消息序列化器
+    """
+    
+    class Instance(ApiMixin, serializers.Serializer):
+        chat_history_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("Chat History ID")))
+        role = serializers.CharField(required=True, max_length=20, error_messages=ErrMessage.char(_("Role")))
+        content = serializers.CharField(required=True, error_messages=ErrMessage.char(_("Content")))
+        message_index = serializers.IntegerField(required=False, default=0)
+        
+        @staticmethod
+        def get_request_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['chat_history_id', 'role', 'content'],
+                properties={
+                    'chat_history_id': openapi.Schema(type=openapi.TYPE_STRING, title=_("Chat History ID"), 
+                                                      description=_("Chat History ID")),
+                    'role': openapi.Schema(type=openapi.TYPE_STRING, title=_("Role"), 
+                                          description=_("Role: user, assistant, or system")),
+                    'content': openapi.Schema(type=openapi.TYPE_STRING, title=_("Content"), 
+                                             description=_("Message content")),
+                    'message_index': openapi.Schema(type=openapi.TYPE_INTEGER, title=_("Message Index"), 
+                                                    description=_("Message index for ordering")),
+                }
+            )
+        
+        @staticmethod
+        def get_response_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['id', 'chat_history_id', 'role', 'content', 'message_index'],
+                properties={
+                    'id': openapi.Schema(type=openapi.TYPE_STRING, title='ID', description="ID"),
+                    'chat_history_id': openapi.Schema(type=openapi.TYPE_STRING, title=_("Chat History ID"), 
+                                                      description=_("Chat History ID")),
+                    'role': openapi.Schema(type=openapi.TYPE_STRING, title=_("Role"), 
+                                          description=_("Role: user, assistant, or system")),
+                    'content': openapi.Schema(type=openapi.TYPE_STRING, title=_("Content"), 
+                                             description=_("Message content")),
+                    'message_index': openapi.Schema(type=openapi.TYPE_INTEGER, title=_("Message Index"), 
+                                                    description=_("Message index for ordering")),
+                    'create_time': openapi.Schema(type=openapi.TYPE_STRING, title=_("Create Time"), 
+                                                  description=_("Create Time")),
+                }
+            )
+        
+        def save(self, with_valid=True):
+            if with_valid:
+                self.is_valid(raise_exception=True)
+            chat_history_id = self.data.get('chat_history_id')
+            chat_history = QuerySet(ChatHistory).filter(id=chat_history_id).first()
+            if chat_history is None:
+                raise AppApiException(500, _("Chat history does not exist"))
+            
+            # 如果没有提供message_index，自动计算下一个序号
+            message_index = self.data.get('message_index')
+            if message_index is None or message_index == 0:
+                last_message = QuerySet(ChatMessage).filter(chat_history_id=chat_history_id).order_by('-message_index').first()
+                message_index = (last_message.message_index + 1) if last_message else 1
+            
+            chat_message = ChatMessage(
+                chat_history=chat_history,
+                role=self.data.get('role'),
+                content=self.data.get('content'),
+                message_index=message_index
+            )
+            chat_message.save()
+            return {
+                'id': str(chat_message.id),
+                'chat_history_id': str(chat_message.chat_history_id),
+                'role': chat_message.role,
+                'content': chat_message.content,
+                'message_index': chat_message.message_index,
+                'create_time': chat_message.create_time.strftime('%Y-%m-%d %H:%M:%S') if chat_message.create_time else None
+            }
+    
+    class Batch(ApiMixin, serializers.Serializer):
+        chat_history_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("Chat History ID")))
+        messages = serializers.ListField(
+            child=serializers.DictField(),
+            required=True,
+            error_messages=ErrMessage.char(_("Messages"))
+        )
+        
+        @staticmethod
+        def get_request_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['chat_history_id', 'messages'],
+                properties={
+                    'chat_history_id': openapi.Schema(type=openapi.TYPE_STRING, title=_("Chat History ID"), 
+                                                      description=_("Chat History ID")),
+                    'messages': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'role': openapi.Schema(type=openapi.TYPE_STRING, title=_("Role")),
+                                'content': openapi.Schema(type=openapi.TYPE_STRING, title=_("Content")),
+                                'message_index': openapi.Schema(type=openapi.TYPE_INTEGER, title=_("Message Index")),
+                            }
+                        ),
+                        title=_("Messages"),
+                        description=_("List of messages to save")
+                    ),
+                }
+            )
+        
+        def save(self, with_valid=True):
+            if with_valid:
+                self.is_valid(raise_exception=True)
+            chat_history_id = self.data.get('chat_history_id')
+            chat_history = QuerySet(ChatHistory).filter(id=chat_history_id).first()
+            if chat_history is None:
+                raise AppApiException(500, _("Chat history does not exist"))
+            
+            messages_data = self.data.get('messages', [])
+            saved_messages = []
+            
+            with transaction.atomic():
+                for idx, msg_data in enumerate(messages_data):
+                    role = msg_data.get('role', 'user')
+                    content = msg_data.get('content', '')
+                    message_index = msg_data.get('message_index', idx + 1)
+                    
+                    chat_message = ChatMessage(
+                        chat_history=chat_history,
+                        role=role,
+                        content=content,
+                        message_index=message_index
+                    )
+                    chat_message.save()
+                    saved_messages.append({
+                        'id': str(chat_message.id),
+                        'role': chat_message.role,
+                        'content': chat_message.content,
+                        'message_index': chat_message.message_index,
+                        'create_time': chat_message.create_time.strftime('%Y-%m-%d %H:%M:%S') if chat_message.create_time else None
+                    })
+            
+            return saved_messages
+    
+    class Query(ApiMixin, serializers.Serializer):
+        chat_history_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("Chat History ID")))
+        
+        @staticmethod
+        def get_request_params_api():
+            return [openapi.Parameter(name='chat_history_id',
+                                    in_=openapi.IN_QUERY,
+                                    type=openapi.TYPE_STRING,
+                                    required=True,
+                                    description=_("Chat History ID"))]
+        
+        @staticmethod
+        def get_response_body_api():
+            return openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['id', 'chat_history_id', 'role', 'content', 'message_index'],
+                properties={
+                    'id': openapi.Schema(type=openapi.TYPE_STRING, title='ID', description="ID"),
+                    'chat_history_id': openapi.Schema(type=openapi.TYPE_STRING, title=_("Chat History ID"), 
+                                                      description=_("Chat History ID")),
+                    'role': openapi.Schema(type=openapi.TYPE_STRING, title=_("Role"), 
+                                          description=_("Role: user, assistant, or system")),
+                    'content': openapi.Schema(type=openapi.TYPE_STRING, title=_("Content"), 
+                                             description=_("Message content")),
+                    'message_index': openapi.Schema(type=openapi.TYPE_INTEGER, title=_("Message Index"), 
+                                                    description=_("Message index for ordering")),
+                    'create_time': openapi.Schema(type=openapi.TYPE_STRING, title=_("Create Time"), 
+                                                  description=_("Create Time")),
+                }
+            )
+        
+        def get_query_set(self):
+            chat_history_id = self.data.get('chat_history_id')
+            query_set = QuerySet(ChatMessage).filter(chat_history_id=chat_history_id)
+            query_set = query_set.order_by("message_index", "create_time")
+            return query_set
+        
+        def list(self, with_valid=True):
+            if with_valid:
+                self.is_valid(raise_exception=True)
+            return [{
+                'id': str(msg.id),
+                'chat_history_id': str(msg.chat_history_id),
+                'role': msg.role,
+                'content': msg.content,
+                'message_index': msg.message_index,
+                'create_time': msg.create_time.strftime('%Y-%m-%d %H:%M:%S') if msg.create_time else None
+            } for msg in self.get_query_set()]

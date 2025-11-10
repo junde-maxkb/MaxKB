@@ -79,11 +79,112 @@ const setAdminManage: (user_id: string,loading?: Ref<boolean>) => Promise<Result
   return put(`${prefix}/${user_id}/set_admin`, undefined, loading)
 }
 
+/**
+ * 获取用户历史聊天记录列表
+ * @param user_id 用户ID
+ * @param loading 加载状态
+ */
+const getChatHistory: (
+  user_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (user_id, loading) => {
+  return get(`/chat_history/${user_id}`, undefined, loading)
+}
+
+/**
+ * 获取用户历史聊天记录分页列表
+ * @param user_id 用户ID
+ * @param page 分页参数
+ * @param loading 加载状态
+ */
+const getChatHistoryPage: (
+  user_id: string,
+  page: pageRequest,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (user_id, page, loading) => {
+  return get(
+    `/chat_history/${user_id}/${page.current_page}/${page.page_size}`,
+    undefined,
+    loading
+  )
+}
+
+/**
+ * 保存聊天记录
+ * @param data 聊天记录数据
+ * @param loading 加载状态
+ */
+const postChatHistory: (
+  data: {
+    user_id: string
+    application_name: string
+    title?: string
+    message_count?: number
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (data, loading) => {
+  return post('/chat_history', data, undefined, loading)
+}
+
+/**
+ * 保存聊天消息
+ * @param data 聊天消息数据
+ * @param loading 加载状态
+ */
+const postChatMessage: (
+  data: {
+    chat_history_id: string
+    role: string
+    content: string
+    message_index?: number
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (data, loading) => {
+  return post('/chat_message', data, undefined, loading)
+}
+
+/**
+ * 批量保存聊天消息
+ * @param data 聊天消息数据
+ * @param loading 加载状态
+ */
+const postChatMessageBatch: (
+  data: {
+    chat_history_id: string
+    messages: Array<{
+      role: string
+      content: string
+      message_index?: number
+    }>
+  },
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (data, loading) => {
+  return post('/chat_message/batch', data, undefined, loading)
+}
+
+/**
+ * 获取聊天消息列表
+ * @param chat_history_id 聊天历史ID
+ * @param loading 加载状态
+ */
+const getChatMessages: (
+  chat_history_id: string,
+  loading?: Ref<boolean>
+) => Promise<Result<any>> = (chat_history_id, loading) => {
+  return get('/chat_message/list', { chat_history_id }, loading)
+}
+
 export default {
   getUserManage,
   delUserManage,
   postUserManage,
   putUserManage,
   putUserManagePassword,
-  setAdminManage
+  setAdminManage,
+  getChatHistory,
+  getChatHistoryPage,
+  postChatHistory,
+  postChatMessage,
+  postChatMessageBatch,
+  getChatMessages
 }

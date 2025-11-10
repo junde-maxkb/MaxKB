@@ -60,5 +60,7 @@ export default {
     inputParam: '輸入參數',
     initParam: '啟動參數'
   },
-  rename: '重命名'
+  rename: '重命名',
+  total: '總計',
+  close: '關閉'
 }

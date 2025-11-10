@@ -67,5 +67,12 @@ export default {
     wecom: 'WeCom',
     lark: 'Lark',
     dingtalk: 'DingTalk'
+  },
+  chatHistory: {
+    title: 'Chat History',
+    viewHistory: 'View History',
+    history: 'History',
+    messages: 'messages',
+    noHistory: 'No history available'
   }
 }

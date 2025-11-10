@@ -66,5 +66,7 @@ export default {
     inputParam: '输入参数',
     initParam: '启动参数'
   },
-  rename: '重命名'
+  rename: '重命名',
+  total: '总计',
+  close: '关闭'
 }

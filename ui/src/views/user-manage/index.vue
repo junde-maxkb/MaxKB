@@ -1,115 +1,137 @@
 <template>
   <LayoutContainer :header="$t('views.user.title')">
-    <div class="p-24">
-      <div class="flex-between">
-        <el-button type="primary" @click="createUser">{{ $t('views.user.createUser') }}</el-button>
-        <el-input
-          v-model="searchValue"
-          @change="searchHandle"
-          :placeholder="$t('common.search')"
-          prefix-icon="Search"
-          class="w-240"
-          clearable
+    <div class="user-manage-container" :class="{ 'show-history': showHistoryPanel }">
+      <!-- 左侧历史记录面板 -->
+      <div class="user-manage__sidebar border-r" v-show="showHistoryPanel">
+        <ChatHistoryPanel
+          ref="ChatHistoryPanelRef"
+          :user-id="currentUserId"
+          :username="currentUsername"
+          @close="closeHistoryPanel"
         />
       </div>
-
-      <app-table
-        class="mt-16"
-        :data="tableData"
-        :pagination-config="paginationConfig"
-        @sizeChange="handleSizeChange"
-        @changePage="getList"
-        v-loading="loading"
-      >
-        <el-table-column prop="username" :label="$t('views.user.userForm.form.username.label')" />
-        <el-table-column prop="nick_name" :label="$t('views.user.userForm.form.nick_name.label')" />
-        <el-table-column
-          prop="email"
-          :label="$t('views.user.userForm.form.email.label')"
-          show-overflow-tooltip
-        />
-        <el-table-column prop="phone" :label="$t('views.user.userForm.form.phone.label')" />
-        <el-table-column prop="source" :label="$t('views.user.source.label')">
-          <template #default="{ row }">
-            {{
-              row.source === 'LOCAL'
-                ? $t('views.user.source.local')
-                : row.source === 'wecom'
-                  ? $t('views.user.source.wecom')
-                  : row.source === 'lark'
-                    ? $t('views.user.source.lark')
-                    : row.source === 'dingtalk'
-                      ? $t('views.user.source.dingtalk')
-                      : row.source === 'OAUTH2' || row.source === 'OAuth2'
-                        ? 'OAuth2'
-                        : row.source
-            }}
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('common.status.label')" width="80">
-          <template #default="{ row }">
-            <div @click.stop>
-              <el-switch
-                :disabled="row.role === 'ADMIN'"
-                size="small"
-                v-model="row.is_active"
-                @change="changeState($event, row)"
-              />
+      
+      <!-- 右侧用户管理内容 -->
+      <div class="user-manage__content">
+        <div class="p-24">
+          <div class="flex-between">
+            <div class="flex align-center">
+              <el-button type="primary" @click="createUser">{{ $t('views.user.createUser') }}</el-button>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('common.createTime')" width="180">
-          <template #default="{ row }">
-            {{ datetimeFormat(row.create_time) }}
-          </template>
-        </el-table-column>
+            <el-input
+              v-model="searchValue"
+              @change="searchHandle"
+              :placeholder="$t('common.search')"
+              prefix-icon="Search"
+              class="w-240"
+              clearable
+            />
+          </div>
 
-        <el-table-column :label="$t('common.operation')" width="150" align="left" fixed="right">
-          <template #default="{ row }">
-            <span class="mr-4">
-              <el-tooltip effect="dark" :content="$t('common.edit')" placement="top">
-                <el-button type="primary" text @click.stop="editUser(row)">
-                  <el-icon><EditPen /></el-icon>
-                </el-button>
-              </el-tooltip>
-            </span>
-            <span class="mr-4">
-              <el-tooltip effect="dark" :content="$t('views.user.setting.setAdmin')" placement="top">
-                <el-button type="primary" 
-                :disabled="row.role !== 'USER'"
-                text @click.stop="setAdmin(row)">
-                  <el-icon><User /></el-icon>
-                </el-button>
-              </el-tooltip>
-            </span>
-            <span class="mr-4"></span>
-            <span class="mr-4">
-            
-              <el-tooltip
-                effect="dark"
-                :content="$t('views.user.setting.updatePwd')"
-                placement="top"
-              >
-                <el-button type="primary" text @click.stop="editPwdUser(row)">
-                  <el-icon><Lock /></el-icon>
-                </el-button>
-              </el-tooltip>
-            </span>
-            <span class="mr-4">
-              <el-tooltip effect="dark" :content="$t('common.delete')" placement="top">
-                <el-button
-                  :disabled="row.role === 'ADMIN'"
-                  type="primary"
-                  text
-                  @click.stop="deleteUserManage(row)"
-                >
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </el-tooltip>
-            </span>
-          </template>
-        </el-table-column>
-      </app-table>
+          <app-table
+            class="mt-16"
+            :data="tableData"
+            :pagination-config="paginationConfig"
+            @sizeChange="handleSizeChange"
+            @changePage="getList"
+            v-loading="loading"
+          >
+            <el-table-column prop="username" :label="$t('views.user.userForm.form.username.label')" />
+            <el-table-column prop="nick_name" :label="$t('views.user.userForm.form.nick_name.label')" />
+            <el-table-column
+              prop="email"
+              :label="$t('views.user.userForm.form.email.label')"
+              show-overflow-tooltip
+            />
+            <el-table-column prop="phone" :label="$t('views.user.userForm.form.phone.label')" />
+            <el-table-column prop="source" :label="$t('views.user.source.label')">
+              <template #default="{ row }">
+                {{
+                  row.source === 'LOCAL'
+                    ? $t('views.user.source.local')
+                    : row.source === 'wecom'
+                      ? $t('views.user.source.wecom')
+                      : row.source === 'lark'
+                        ? $t('views.user.source.lark')
+                        : row.source === 'dingtalk'
+                          ? $t('views.user.source.dingtalk')
+                          : row.source === 'OAUTH2' || row.source === 'OAuth2'
+                            ? 'OAuth2'
+                            : row.source
+                }}
+              </template>
+            </el-table-column>
+            <el-table-column :label="$t('common.status.label')" width="80">
+              <template #default="{ row }">
+                <div @click.stop>
+                  <el-switch
+                    :disabled="row.role === 'ADMIN'"
+                    size="small"
+                    v-model="row.is_active"
+                    @change="changeState($event, row)"
+                  />
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column :label="$t('common.createTime')" width="180">
+              <template #default="{ row }">
+                {{ datetimeFormat(row.create_time) }}
+              </template>
+            </el-table-column>
+
+            <el-table-column :label="$t('common.operation')" width="250" align="left" fixed="right">
+              <template #default="{ row }">
+                <span class="mr-4">
+                  <el-tooltip effect="dark" :content="$t('common.edit')" placement="top">
+                    <el-button type="primary" text @click.stop="editUser(row)">
+                      <el-icon><EditPen /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </span>
+                <span class="mr-4">
+                  <el-tooltip effect="dark" :content="$t('views.user.setting.setAdmin')" placement="top">
+                    <el-button type="primary" 
+                    :disabled="row.role !== 'USER'"
+                    text @click.stop="setAdmin(row)">
+                      <el-icon><User /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </span>
+                <span class="mr-4">
+                  <el-tooltip effect="dark" :content="$t('views.user.chatHistory.viewHistory')" placement="top">
+                    <el-button type="primary" text @click.stop="viewChatHistory(row)">
+                      <el-icon><ChatLineRound /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </span>
+                <span class="mr-4">
+                  <el-tooltip
+                    effect="dark"
+                    :content="$t('views.user.setting.updatePwd')"
+                    placement="top"
+                  >
+                    <el-button type="primary" text @click.stop="editPwdUser(row)">
+                      <el-icon><Lock /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </span>
+                <span class="mr-4">
+                  <el-tooltip effect="dark" :content="$t('common.delete')" placement="top">
+                    <el-button
+                      :disabled="row.role === 'ADMIN'"
+                      type="primary"
+                      text
+                      @click.stop="deleteUserManage(row)"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </span>
+              </template>
+            </el-table-column>
+          </app-table>
+        </div>
+      </div>
     </div>
     <UserDialog :title="title" ref="UserDialogRef" @refresh="refresh" />
     <UserPwdDialog ref="UserPwdDialogRef" @refresh="refresh" />
@@ -117,8 +139,10 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
+import { EditPen, User, Lock, Delete, ChatLineRound } from '@element-plus/icons-vue'
 import UserDialog from './component/UserDialog.vue'
 import UserPwdDialog from './component/UserPwdDialog.vue'
+import ChatHistoryPanel from './component/ChatHistoryPanel.vue'
 import { MsgSuccess, MsgConfirm, MsgAlert, MsgError} from '@/utils/message'
 import userApi from '@/api/user-manage'
 import { datetimeFormat } from '@/utils/time'
@@ -130,7 +154,11 @@ const { common, user } = useStore()
 
 const UserDialogRef = ref()
 const UserPwdDialogRef = ref()
+const ChatHistoryPanelRef = ref()
 const title = ref('')
+const currentUserId = ref('')
+const currentUsername = ref('')
+const showHistoryPanel = ref(false)
 const loading = ref(false)
 const paginationConfig = reactive({
   current_page: 1,
@@ -247,6 +275,23 @@ function refresh() {
   getList()
 }
 
+function viewChatHistory(row: any) {
+  console.log('查看历史记录，用户ID:', row.id, '用户名:', row.username || row.nick_name)
+  currentUserId.value = row.id
+  currentUsername.value = row.username || row.nick_name || ''
+  showHistoryPanel.value = true
+  // 确保面板显示后再加载数据
+  setTimeout(() => {
+    ChatHistoryPanelRef.value?.loadHistory()
+  }, 100)
+}
+
+function closeHistoryPanel() {
+  showHistoryPanel.value = false
+  currentUserId.value = ''
+  currentUsername.value = ''
+}
+
 onMounted(() => {
   getList()
 })
@@ -254,5 +299,40 @@ onMounted(() => {
 <style lang="scss" scoped>
 .log-table tr {
   cursor: pointer;
+}
+
+.user-manage-container {
+  display: flex;
+  height: calc(100vh - var(--app-header-height));
+  overflow: hidden;
+  position: relative;
+
+  &__sidebar {
+    width: 0;
+    background: #ffffff;
+    transition: width 0.3s ease;
+    overflow: hidden;
+    border-right: 1px solid var(--el-border-color);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    transition: margin-left 0.3s ease;
+    background: var(--app-layout-bg-color);
+  }
+
+  &.show-history {
+    .user-manage__sidebar {
+      width: 320px;
+    }
+  }
+}
+
+.border-r {
+  border-right: 1px solid var(--el-border-color);
 }
 </style>
