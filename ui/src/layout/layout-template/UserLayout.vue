@@ -97,13 +97,13 @@ import {
   SwitchButton
 } from '@element-plus/icons-vue'
 import useStore from '@/stores'
-import {getMessages, readMessage} from '@/api/messages'
+import {getMessages, readMessage, type Message} from '@/api/messages'
 import MessageCard from '@/layout/layout-template/MessageCard.vue'
 
 const router = useRouter()
 const { user } = useStore()
 const drawer = ref(false)
-const messages = ref([])
+const messages = ref<Message[]>([])
 
 // 打开消息通知抽屉
 const openDrawer = async () => {
@@ -112,7 +112,7 @@ const openDrawer = async () => {
 }
 
 // 已读回调
-const readMsg = async (log_id: number) => {
+const readMsg = async (log_id: string) => {
   const result = await readMessage(log_id)
   if (result.code === 200) {
     messages.value = messages.value.map(item => {
