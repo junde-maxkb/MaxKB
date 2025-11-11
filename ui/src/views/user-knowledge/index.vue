@@ -2649,6 +2649,23 @@ function replaceQuickChartWithEncodedUrl(text: string) {
   });
 }
 
+// 获取当前模式的标签名称
+const getCurrentModeLabel = (): string => {
+  if (isAIWritingMode.value) {
+    return 'AI 写作'
+  } else if (isAITranslateMode.value) {
+    return 'AI 翻译'
+  } else if (isAISummaryMode.value) {
+    return 'AI 摘要'
+  } else if (isAIReviewMode.value) {
+    return 'AI 综述'
+  } else if (isAIQuestionMode.value) {
+    return 'AI 问数'
+  } else {
+    return '知识库问答'
+  }
+}
+
 // 发送消息并获得AI回答
 const sendMessage = async () => {
   // 在翻译模式或摘要模式下，如果有上传的文档，允许空输入
@@ -3141,10 +3158,13 @@ ${chatMessages.value}
           const firstUserMessage = chatMessages.value.find((msg) => msg.role === 'user')
           const title = firstUserMessage?.content?.substring(0, 50) || '知识库问答'
 
+          // 根据当前模式获取标签名称
+          const modeLabel = getCurrentModeLabel()
+
           // 保存新的聊天记录
           const response = await userApi.postChatHistory({
             user_id: currentUserId.value,
-            application_name: '知识库问答',
+            application_name: modeLabel,
             title: title,
             message_count: messageCount
           })
