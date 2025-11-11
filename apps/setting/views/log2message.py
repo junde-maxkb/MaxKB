@@ -42,6 +42,9 @@ class Log2Message(APIView):
             # '/api/dataset/0adba462-b3c2-11f0-9ffe-1df6b9a97501/members/put_permissions'
             dataset_id = log_item.details['path'].split('/')[3] if len(log_item.details['path'].split('/')) > 3 else ''
             dataset_name = DataSet.objects.filter(id=dataset_id).first().name if dataset_id else '未知知识库'
+
+            is_permission = log_item.details['body'].get('permission', None) == "READ"
+
             if log_item.operate == "将知识库添加到机构知识库":
                 messages.append({
                     "msg": "{} 将知识库 '{}' 添加到机构知识库".format(
@@ -55,23 +58,40 @@ class Log2Message(APIView):
             elif log_item.details['body'].get('share_with_type', None) == "TEAM":
                 team_id = log_item.details['body'].get('user_id', None)
                 if team_id not in teams: continue
-                messages.append({
-                    "msg": "{} 更新了知识库 '{}' 在团队 '{}' 的分享权限".format(
+                if is_permission:
+                    msg = '用户 {} 已经将知识库 {} 分享至您所在团队 {}'.format(
                         share_user_name,
                         dataset_name,
                         teams.get(team_id, '未知团队')
-                    ),
+                    )
+                else:
+                    msg = '用户 {} 已经取消了知识库 {} 在您所在团队 {} 的分享权限'.format(
+                        share_user_name,
+                        dataset_name,
+                        teams.get(team_id, '未知团队')
+                    )
+
+
+                messages.append({
+                    "msg": msg,
                     "log_id": str(log_item.id),
                     "log_read": log_item.log_read,
                     "create_time": log_item.create_time.strftime('%Y-%m-%d %H:%M:%S')
                 })
             elif log_item.details['body'].get('share_with_type', None) == "USER":
                 if str(log_item.details['body'].get('user_id', None)) != str(user.id): continue
-                messages.append({
-                    "msg": "{} 更新了知识库 '{}' 分享给您的权限".format(
+                if is_permission:
+                    msg = "{} 已将知识库 '{}' 分享给您".format(
+                            share_user_name,
+                            dataset_name
+                        )
+                else:
+                    msg = "{} 已经取消了知识库 '{}' 对您的分享权限".format(
                         share_user_name,
                         dataset_name
-                    ),
+                    )
+                messages.append({
+                    "msg": msg,
                     "log_id": str(log_item.id),
                     "log_read": log_item.log_read,
                     "create_time": log_item.create_time.strftime('%Y-%m-%d %H:%M:%S')

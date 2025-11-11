@@ -113,8 +113,8 @@ if __name__ == '__main__':
     elif action == "collect_static":
         collect_static()
     elif action == 'dev':
-        collect_static()
-        perform_db_migrate()
+        # collect_static()
+        # perform_db_migrate()
         dev()
     else:
         collect_static()

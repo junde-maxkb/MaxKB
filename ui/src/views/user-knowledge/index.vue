@@ -431,17 +431,15 @@
                       >
                         <div class="paragraph-header">
                           <span class="paragraph-index">{{ pIndex + 1 }}</span>
-                          <span class="paragraph-score">
-                            相关度:
-                            {{
-                              (
-                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100
-                              ).toFixed(1)
-                            }}%
-                          </span>
-                        </div>
-                        <!--                        <div class="paragraph-content">{{ paragraph.content }}</div>-->
-                        <div class="paragraph-meta">
+<!--                          <span class="paragraph-score">-->
+<!--                            相关度:-->
+<!--                            {{-->
+<!--                              (-->
+<!--                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100-->
+<!--                              ).toFixed(1)-->
+<!--                            }}%-->
+<!--                          </span>-->
+                          <div class="paragraph-meta">
                           <span
                             class="paragraph-source clickable"
                             @click="openDocumentParagraphs(paragraph)"
@@ -452,10 +450,13 @@
                               paragraph.document_name || paragraph.source || paragraph.dataset_name
                             }}
                           </span>
-                          <span class="paragraph-dataset"
-                          >知识库名称: {{ paragraph.dataset_name }}</span
-                          >
+                            <span class="paragraph-dataset"
+                            >知识库名称: {{ paragraph.dataset_name }}</span
+                            >
+                          </div>
                         </div>
+                        <!--                        <div class="paragraph-content">{{ paragraph.content }}</div>-->
+
                       </div>
                     </div>
                   </div>
@@ -6077,11 +6078,9 @@ onUnmounted(() => {
 
         .paragraphs-list {
           .paragraph-item {
-            background: #f8fafc;
-            border: 1px solid #e9ecef;
+            //background: #f8fafc;
+            //border: 1px solid #e9ecef;
             border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 8px;
 
             &:last-child {
               margin-bottom: 0;
@@ -6089,7 +6088,8 @@ onUnmounted(() => {
 
             .paragraph-header {
               display: flex;
-              justify-content: space-between;
+              //justify-content: space-between;
+              gap: 10px;
               align-items: center;
               margin-bottom: 8px;
 
