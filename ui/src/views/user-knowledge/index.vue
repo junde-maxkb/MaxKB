@@ -367,36 +367,6 @@
                 <div class="message-content">
                   <div class="message-text" v-html="formatMessageContent(message.content)"></div>
 
-                  <!-- 显示引导式问答的建议问题（仅AI回答且有suggestions时显示） -->
-                  <div
-                    v-if="
-                      message.role === 'assistant' &&
-                      message.suggestions &&
-                      message.suggestions.length > 0
-                    "
-                    class="suggestions-container"
-                  >
-                    <div class="suggestions-header">
-                      <el-icon class="suggestions-icon">
-                        <ChatLineRound />
-                      </el-icon>
-                      <span class="suggestions-title">推荐问题：</span>
-                    </div>
-                    <div class="suggestions-list">
-                      <el-button
-                        v-for="(suggestion, sIndex) in message.suggestions"
-                        :key="sIndex"
-                        type="primary"
-                        plain
-                        size="small"
-                        class="suggestion-btn"
-                        @click="handleSuggestionClick(suggestion)"
-                      >
-                        {{ suggestion }}
-                      </el-button>
-                    </div>
-                  </div>
-
                   <!-- 显示匹配的分段（仅AI回答且有分段信息时显示） -->
                   <div
                     v-if="
@@ -1291,7 +1261,6 @@ interface Message {
     dataset_id?: string
     document_name?: string
   }>
-  suggestions?: string[] // 引导式问答的建议问题列表
 }
 
 interface KBForm {
@@ -1753,14 +1722,6 @@ const createAssistantMessage = (content: string, paragraphs?: any[]) => {
     timestamp: new Date(),
     paragraphs: paragraphs || undefined
   }
-}
-
-// 处理建议问题点击
-const handleSuggestionClick = async (suggestion: string) => {
-  // 将建议的问题设置为当前消息
-  currentMessage.value = suggestion
-  // 发送消息
-  await sendMessage()
 }
 
 // 新聊天功能
@@ -2962,59 +2923,41 @@ ${savedUploadedDocContent}`
         systemPrompt = getQuestionPrompt(userQuestion, '', '', context, contextNote)
       }
     } else {
-      // 普通对话模式的系统提示（带引导式问答）
+      console.log("知识库问答")
+      console.log("历史对话记录:", chatMessages.value)
+      // 普通对话模式的系统提示
       systemPrompt =
         hasEmbeddingError || hasConnectionError
           ? `你是一名知识库问答专家。
 你的任务是基于知识库检索结果与通用知识，为用户提供准确、全面、结构化的回答。
+
 工作原则
 准确性优先：所有信息必须真实、可靠、可验证。
 完整性保证：回答应覆盖问题的核心与关键方面。
 逻辑清晰：回答结构有条理，层次分明。
 客观中立：避免主观臆断和情绪化表达。
 时效性：优先采用最新可用信息。
+
 工作流程
 理解用户问题的意图与背景。
 检索并分析相关知识库内容。
 整合检索结果与通用知识。
 输出条理清晰、重点突出的答案。
+
 输出要求
 内容准确、清晰、专业、易懂；
 采用分点或分层结构组织；
-不包含未经验证、敏感或主观内容。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。
+不包含未经验证、敏感或主观内容。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答；
+最后请结合用户对话记录，提供个性化建议和指导。
 
-用户提问：${userQuestion}
-
-请生成一个 JSON，对象包含两个字段：
-1. answer：直接回答用户问题。
-2. suggestions：3~5个可能的后续问题，引导用户继续提问。
-
-例子：
-{
-  "answer": "今天上海天气晴，最高26℃，最低18℃。",
-  "suggestions": ["上海今天会下雨吗？", "明天上海天气怎么样？", "上海空气质量好吗？"]
-}
-
-请直接输出JSON，不要包含其他说明文字。`
-          : `你是一个专业的知识库助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
+用户提问：${userQuestion}` : `
 
 检索到的相关内容：
 ${context}
 
-用户提问：${userQuestion}
-
-请生成一个 JSON，对象包含两个字段：
-1. answer：直接回答用户问题（基于上述检索到的相关内容）。
-2. suggestions：3~5个可能的后续问题，引导用户继续提问（问题应该与当前回答和知识库内容相关）。
-
-例子：
-{
-  "answer": "今天上海天气晴，最高26℃，最低18℃。",
-  "suggestions": ["上海今天会下雨吗？", "明天上海天气怎么样？", "上海空气质量好吗？"]
-}
-
-请直接输出JSON，不要包含其他说明文字。${contextNote}`
-    }
+历史对话记录：
+${chatMessages.value}
+`}
 
     // AI翻译模式、AI摘要模式，以及AI写作模式下的扩写/润写模式不使用对话历史上下文，每次都是独立的任务
     // 注意：AI摘要模式的历史记录通过 systemPrompt 传入（在 getSummaryPrompt 中格式化），不在 messages 数组中
@@ -3092,58 +3035,8 @@ ${context}
         const lastMessage = chatMessages.value[chatMessages.value.length - 1]
         console.log('流式输出结束，当前AI消息内容:', currentAssistantMessage)
 
-        // 判断是否为普通知识库问答模式（排除所有特殊模式）
-        const isNormalKnowledgeBaseMode =
-          !isAITranslateMode.value &&
-          !isAIWritingMode.value &&
-          !isAISummaryMode.value &&
-          !isAIReviewMode.value &&
-          !isAIQuestionMode.value
-
-        if (lastMessage && lastMessage.role === 'assistant' && isNormalKnowledgeBaseMode) {
-          // 尝试解析JSON格式的响应（引导式问答）
-          try {
-            // 清理消息内容，尝试提取JSON
-            let jsonContent = currentAssistantMessage.trim()
-
-            // 如果消息以```json开头，提取JSON部分
-            if (jsonContent.includes('```json')) {
-              const jsonMatch = jsonContent.match(/```json\s*([\s\S]*?)\s*```/)
-              if (jsonMatch) {
-                jsonContent = jsonMatch[1]
-              }
-            } else if (jsonContent.includes('```')) {
-              // 如果包含```但不包含json，尝试提取第一个代码块
-              const codeMatch = jsonContent.match(/```\s*([\s\S]*?)\s*```/)
-              if (codeMatch) {
-                jsonContent = codeMatch[1]
-              }
-            }
-
-            // 尝试解析JSON
-            const parsed = JSON.parse(jsonContent)
-
-            if (parsed && typeof parsed === 'object') {
-              // 提取answer和suggestions
-              const answer = parsed.answer || currentAssistantMessage
-              const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : []
-
-              // 更新消息内容为answer，添加suggestions
-              lastMessage.content = transformWhenAltIsQuickChart(answer)
-              lastMessage.suggestions = suggestions
-
-              console.log('成功解析引导式问答JSON:', { answer, suggestions })
-            } else {
-              // 如果不是有效的JSON结构，使用原始内容
-              lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
-            }
-          } catch (e) {
-            // JSON解析失败，使用原始内容（可能是模型没有严格按照JSON格式输出）
-            console.warn('解析引导式问答JSON失败，使用原始内容:', e)
-            lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
-          }
-        } else if (lastMessage && lastMessage.role === 'assistant') {
-          // 其他模式直接使用原始内容
+        if (lastMessage && lastMessage.role === 'assistant') {
+          // 直接使用原始内容
           lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
         }
 
@@ -3388,6 +3281,13 @@ const formatMessageContent = (content: string) => {
   if (!content) return ''
 
   try {
+    const markdownCodeBlockRegex = /^```\s*(?:markdown|md)\s*\n?([\s\S]*?)\n?```\s*$/m
+    const match = content.trim().match(markdownCodeBlockRegex)
+    if (match && match[1]) {
+      // 提取代码块内的 markdown 内容并解析
+      content = match[1].trim()
+    }
+
     // 检查是否包含翻译分隔符
     if (content.includes('<SPLIT_HERE>')) {
       // 处理翻译结果：分割直译和意译
@@ -4338,7 +4238,7 @@ const getSummaryPrompt = (
 请基于以下文档内容（文档名：${documentName}），撰写结构化的中英文学术摘要。
 
 输出要求：
-1. 以 Markdown 格式输出，包含「中文摘要」与「English Summary」两部分；
+1. 摘要包含「中文摘要」与「English Summary」两部分；
 2. 摘要应体现学术逻辑，明确研究背景、问题、方法、结果及研究意义；
 3. 内容准确、语言精炼、逻辑连贯、结构完整；
 4. 中文与英文内容语义一致，术语表达规范；
@@ -5993,52 +5893,6 @@ onUnmounted(() => {
         opacity: 0.6;
         margin-top: 6px;
         text-align: right;
-      }
-
-      // 引导式问答建议样式
-      .suggestions-container {
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid #e9ecef;
-
-        .suggestions-header {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-bottom: 12px;
-
-          .suggestions-icon {
-            color: #3370ff;
-            font-size: 16px;
-          }
-
-          .suggestions-title {
-            font-size: 13px;
-            font-weight: 500;
-            color: #606266;
-          }
-        }
-
-        .suggestions-list {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-
-          .suggestion-btn {
-            margin: 0;
-            white-space: normal;
-            word-break: break-word;
-            text-align: left;
-            line-height: 1.4;
-            padding: 8px 16px;
-            font-size: 13px;
-
-            &:hover {
-              transform: translateY(-1px);
-              box-shadow: 0 2px 8px rgba(51, 112, 255, 0.2);
-            }
-          }
-        }
       }
 
       // 匹配分段样式
