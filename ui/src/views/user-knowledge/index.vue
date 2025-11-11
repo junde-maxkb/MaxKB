@@ -2969,59 +2969,41 @@ ${savedUploadedDocContent}`
         systemPrompt = getQuestionPrompt(userQuestion, '', '', context, contextNote)
       }
     } else {
+      console.log("知识库问答")
+      console.log("历史对话记录:", chatMessages.value)
       // 普通对话模式的系统提示（带引导式问答）
       systemPrompt =
         hasEmbeddingError || hasConnectionError
           ? `你是一名知识库问答专家。
 你的任务是基于知识库检索结果与通用知识，为用户提供准确、全面、结构化的回答。
+
 工作原则
 准确性优先：所有信息必须真实、可靠、可验证。
 完整性保证：回答应覆盖问题的核心与关键方面。
 逻辑清晰：回答结构有条理，层次分明。
 客观中立：避免主观臆断和情绪化表达。
 时效性：优先采用最新可用信息。
+
 工作流程
 理解用户问题的意图与背景。
 检索并分析相关知识库内容。
 整合检索结果与通用知识。
 输出条理清晰、重点突出的答案。
+
 输出要求
 内容准确、清晰、专业、易懂；
 采用分点或分层结构组织；
-不包含未经验证、敏感或主观内容。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答。
+不包含未经验证、敏感或主观内容。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答；
+最后请结合用户对话记录，提供个性化建议和指导。
 
-用户提问：${userQuestion}
-
-请生成一个 JSON，对象包含两个字段：
-1. answer：直接回答用户问题。
-2. suggestions：3~5个可能的后续问题，引导用户继续提问。
-
-例子：
-{
-  "answer": "今天上海天气晴，最高26℃，最低18℃。",
-  "suggestions": ["上海今天会下雨吗？", "明天上海天气怎么样？", "上海空气质量好吗？"]
-}
-
-请直接输出JSON，不要包含其他说明文字。`
-          : `你是一个专业的知识库助手。请根据以下检索到的知识库内容回答用户问题。如果检索内容不足以回答问题，请诚实说明，并提供一般性建议。
+用户提问：${userQuestion}` : `
 
 检索到的相关内容：
 ${context}
 
-用户提问：${userQuestion}
-
-请生成一个 JSON，对象包含两个字段：
-1. answer：直接回答用户问题（基于上述检索到的相关内容）。
-2. suggestions：3~5个可能的后续问题，引导用户继续提问（问题应该与当前回答和知识库内容相关）。
-
-例子：
-{
-  "answer": "今天上海天气晴，最高26℃，最低18℃。",
-  "suggestions": ["上海今天会下雨吗？", "明天上海天气怎么样？", "上海空气质量好吗？"]
-}
-
-请直接输出JSON，不要包含其他说明文字。${contextNote}`
-    }
+历史对话记录：
+${chatMessages.value}
+`}
 
     // AI翻译模式、AI摘要模式，以及AI写作模式下的扩写/润写模式不使用对话历史上下文，每次都是独立的任务
     // 注意：AI摘要模式的历史记录通过 systemPrompt 传入（在 getSummaryPrompt 中格式化），不在 messages 数组中
@@ -3395,6 +3377,13 @@ const formatMessageContent = (content: string) => {
   if (!content) return ''
 
   try {
+    const markdownCodeBlockRegex = /^```\s*(?:markdown|md)\s*\n?([\s\S]*?)\n?```\s*$/m
+    const match = content.trim().match(markdownCodeBlockRegex)
+    if (match && match[1]) {
+      // 提取代码块内的 markdown 内容并解析
+      content = match[1].trim()
+    }
+
     // 检查是否包含翻译分隔符
     if (content.includes('<SPLIT_HERE>')) {
       // 处理翻译结果：分割直译和意译
@@ -4345,7 +4334,7 @@ const getSummaryPrompt = (
 请基于以下文档内容（文档名：${documentName}），撰写结构化的中英文学术摘要。
 
 输出要求：
-1. 以 Markdown 格式输出，包含「中文摘要」与「English Summary」两部分；
+1. 摘要包含「中文摘要」与「English Summary」两部分；
 2. 摘要应体现学术逻辑，明确研究背景、问题、方法、结果及研究意义；
 3. 内容准确、语言精炼、逻辑连贯、结构完整；
 4. 中文与英文内容语义一致，术语表达规范；
