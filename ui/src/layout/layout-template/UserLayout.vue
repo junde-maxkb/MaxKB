@@ -105,7 +105,6 @@ import {
 import useStore from '@/stores'
 import { getMessages, readMessage, type Message } from '@/api/messages'
 import MessageCard from '@/layout/layout-template/MessageCard.vue'
-import { as } from 'vitest/dist/reporters-5f784f42'
 
 const router = useRouter()
 const { user } = useStore()
