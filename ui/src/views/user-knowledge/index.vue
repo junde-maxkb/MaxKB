@@ -4529,17 +4529,7 @@ ${contextNote}
 
 // 处理 quickchart 图片链接，去掉 alt 文本并对 c 参数进行编码
 function transformWhenAltIsQuickChart(text: string): string {
-  const pattern = /!\[(quickchart)\]\((https?:\/\/quickchart\.io\/chart\?[^)]+)\)/g
-  return text.replace(pattern, (full, alt, url) => {
-    const u = new URL(url)
-    let cVal = u.searchParams.get('c')
-    if (cVal && !/%[0-9A-Fa-f]{2}/.test(cVal)) {
-      // cVal = encodeURIComponent(cVal)
-      u.searchParams.set('c', cVal.replace(/ /g, '%20'))
-      console.log('Encoded quickchart c param:', cVal)
-    }
-    return `![](${u.toString().replace(/ /g, '%20')})`
-  })
+  return text
 }
 
 const getQuestionPrompt = (
