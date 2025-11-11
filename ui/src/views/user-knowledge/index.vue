@@ -367,36 +367,6 @@
                 <div class="message-content">
                   <div class="message-text" v-html="formatMessageContent(message.content)"></div>
 
-                  <!-- 显示引导式问答的建议问题（仅AI回答且有suggestions时显示） -->
-                  <div
-                    v-if="
-                      message.role === 'assistant' &&
-                      message.suggestions &&
-                      message.suggestions.length > 0
-                    "
-                    class="suggestions-container"
-                  >
-                    <div class="suggestions-header">
-                      <el-icon class="suggestions-icon">
-                        <ChatLineRound />
-                      </el-icon>
-                      <span class="suggestions-title">推荐问题：</span>
-                    </div>
-                    <div class="suggestions-list">
-                      <el-button
-                        v-for="(suggestion, sIndex) in message.suggestions"
-                        :key="sIndex"
-                        type="primary"
-                        plain
-                        size="small"
-                        class="suggestion-btn"
-                        @click="handleSuggestionClick(suggestion)"
-                      >
-                        {{ suggestion }}
-                      </el-button>
-                    </div>
-                  </div>
-
                   <!-- 显示匹配的分段（仅AI回答且有分段信息时显示） -->
                   <div
                     v-if="
@@ -1291,7 +1261,6 @@ interface Message {
     dataset_id?: string
     document_name?: string
   }>
-  suggestions?: string[] // 引导式问答的建议问题列表
 }
 
 interface KBForm {
@@ -1753,14 +1722,6 @@ const createAssistantMessage = (content: string, paragraphs?: any[]) => {
     timestamp: new Date(),
     paragraphs: paragraphs || undefined
   }
-}
-
-// 处理建议问题点击
-const handleSuggestionClick = async (suggestion: string) => {
-  // 将建议的问题设置为当前消息
-  currentMessage.value = suggestion
-  // 发送消息
-  await sendMessage()
 }
 
 // 新聊天功能
@@ -2971,7 +2932,7 @@ ${savedUploadedDocContent}`
     } else {
       console.log("知识库问答")
       console.log("历史对话记录:", chatMessages.value)
-      // 普通对话模式的系统提示（带引导式问答）
+      // 普通对话模式的系统提示
       systemPrompt =
         hasEmbeddingError || hasConnectionError
           ? `你是一名知识库问答专家。
@@ -3081,58 +3042,8 @@ ${chatMessages.value}
         const lastMessage = chatMessages.value[chatMessages.value.length - 1]
         console.log('流式输出结束，当前AI消息内容:', currentAssistantMessage)
 
-        // 判断是否为普通知识库问答模式（排除所有特殊模式）
-        const isNormalKnowledgeBaseMode =
-          !isAITranslateMode.value &&
-          !isAIWritingMode.value &&
-          !isAISummaryMode.value &&
-          !isAIReviewMode.value &&
-          !isAIQuestionMode.value
-
-        if (lastMessage && lastMessage.role === 'assistant' && isNormalKnowledgeBaseMode) {
-          // 尝试解析JSON格式的响应（引导式问答）
-          try {
-            // 清理消息内容，尝试提取JSON
-            let jsonContent = currentAssistantMessage.trim()
-
-            // 如果消息以```json开头，提取JSON部分
-            if (jsonContent.includes('```json')) {
-              const jsonMatch = jsonContent.match(/```json\s*([\s\S]*?)\s*```/)
-              if (jsonMatch) {
-                jsonContent = jsonMatch[1]
-              }
-            } else if (jsonContent.includes('```')) {
-              // 如果包含```但不包含json，尝试提取第一个代码块
-              const codeMatch = jsonContent.match(/```\s*([\s\S]*?)\s*```/)
-              if (codeMatch) {
-                jsonContent = codeMatch[1]
-              }
-            }
-
-            // 尝试解析JSON
-            const parsed = JSON.parse(jsonContent)
-
-            if (parsed && typeof parsed === 'object') {
-              // 提取answer和suggestions
-              const answer = parsed.answer || currentAssistantMessage
-              const suggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions : []
-
-              // 更新消息内容为answer，添加suggestions
-              lastMessage.content = transformWhenAltIsQuickChart(answer)
-              lastMessage.suggestions = suggestions
-
-              console.log('成功解析引导式问答JSON:', { answer, suggestions })
-            } else {
-              // 如果不是有效的JSON结构，使用原始内容
-              lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
-            }
-          } catch (e) {
-            // JSON解析失败，使用原始内容（可能是模型没有严格按照JSON格式输出）
-            console.warn('解析引导式问答JSON失败，使用原始内容:', e)
-            lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
-          }
-        } else if (lastMessage && lastMessage.role === 'assistant') {
-          // 其他模式直接使用原始内容
+        if (lastMessage && lastMessage.role === 'assistant') {
+          // 直接使用原始内容
           lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
         }
 
@@ -5989,52 +5900,6 @@ onUnmounted(() => {
         opacity: 0.6;
         margin-top: 6px;
         text-align: right;
-      }
-
-      // 引导式问答建议样式
-      .suggestions-container {
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid #e9ecef;
-
-        .suggestions-header {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-bottom: 12px;
-
-          .suggestions-icon {
-            color: #3370ff;
-            font-size: 16px;
-          }
-
-          .suggestions-title {
-            font-size: 13px;
-            font-weight: 500;
-            color: #606266;
-          }
-        }
-
-        .suggestions-list {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-
-          .suggestion-btn {
-            margin: 0;
-            white-space: normal;
-            word-break: break-word;
-            text-align: left;
-            line-height: 1.4;
-            padding: 8px 16px;
-            font-size: 13px;
-
-            &:hover {
-              transform: translateY(-1px);
-              box-shadow: 0 2px 8px rgba(51, 112, 255, 0.2);
-            }
-          }
-        }
       }
 
       // 匹配分段样式
