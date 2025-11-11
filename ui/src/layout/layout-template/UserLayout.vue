@@ -132,11 +132,11 @@ const { loading: notRead, setLoading: setNotRead } = useLoading()
 // 打开消息通知抽屉
 const openDrawer = async () => {
   drawer.value = true
-  await loadMessages()
+  await loadMessages(true)
 }
 
-const loadMessages = async () => {
-  setMsgLoading(true)
+const loadMessages = async (isLoading: boolean) => {
+  if (isLoading) {setMsgLoading(true)}
   setNotRead(false)
   const result = await getMessages()
   if (result.code === 200) {
@@ -147,14 +147,14 @@ const loadMessages = async () => {
       setNotRead(true)
     }
   }
-  setMsgLoading(false)
+  if (isLoading) {setMsgLoading(false)}
 }
 
 let interval: any
 onMounted(()=>{
-  loadMessages()
+  loadMessages(false)
   interval = setInterval(() => {
-    loadMessages()
+    loadMessages(false)
   }, 60000)
 })
 onBeforeMount(

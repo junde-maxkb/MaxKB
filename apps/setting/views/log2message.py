@@ -47,7 +47,7 @@ class Log2Message(APIView):
 
             if log_item.operate == "将知识库添加到机构知识库":
                 messages.append({
-                    "msg": "{} 将知识库 '{}' 添加到机构知识库".format(
+                    "msg": "用户 {} 将知识库 {} 添加到机构知识库".format(
                         share_user_name,
                         dataset_name),
 
@@ -81,12 +81,12 @@ class Log2Message(APIView):
             elif log_item.details['body'].get('share_with_type', None) == "USER":
                 if str(log_item.details['body'].get('user_id', None)) != str(user.id): continue
                 if is_permission:
-                    msg = "{} 已将知识库 '{}' 分享给您".format(
+                    msg = "用户 {} 已将知识库 {} 分享给您".format(
                             share_user_name,
                             dataset_name
                         )
                 else:
-                    msg = "{} 已经取消了知识库 '{}' 对您的分享权限".format(
+                    msg = "用户 {} 已经取消了知识库 {} 对您的分享权限".format(
                         share_user_name,
                         dataset_name
                     )
