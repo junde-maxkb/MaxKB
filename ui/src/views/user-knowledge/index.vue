@@ -308,12 +308,7 @@
 
           <!-- 历史对话按钮 -->
           <div class="history-button-container">
-            <el-button
-              type="primary"
-              plain
-              class="history-button"
-              @click="showHistoryPanel = true"
-            >
+            <el-button type="primary" plain class="history-button" @click="showHistoryPanel = true">
               <el-icon>
                 <ChatLineRound />
               </el-icon>
@@ -403,67 +398,67 @@
                   </div>
 
                   <!-- 显示匹配的分段（仅AI回答且有分段信息时显示） -->
-                  <!--                  <div-->
-                  <!--                    v-if="-->
-                  <!--                      message.role === 'assistant' &&-->
-                  <!--                      message.paragraphs &&-->
-                  <!--                      message.paragraphs.length > 0-->
-                  <!--                    "-->
-                  <!--                    class="matched-paragraphs"-->
-                  <!--                  >-->
-                  <!--                    <div class="paragraphs-header">-->
-                  <!--                      <el-button-->
-                  <!--                        type="text"-->
-                  <!--                        size="small"-->
-                  <!--                        @click="toggleParagraphsVisibility(index)"-->
-                  <!--                        class="toggle-paragraphs-btn"-->
-                  <!--                      >-->
-                  <!--                        <el-icon>-->
-                  <!--                          <Document />-->
-                  <!--                        </el-icon>-->
-                  <!--                        找到 {{ message.paragraphs.length }} 个相关分段-->
-                  <!--                        <el-icon :class="{ rotate: isParagraphsExpanded(index) }">-->
-                  <!--                          <ArrowDown />-->
-                  <!--                        </el-icon>-->
-                  <!--                      </el-button>-->
-                  <!--                    </div>-->
+                  <div
+                    v-if="
+                      message.role === 'assistant' &&
+                      message.paragraphs &&
+                      message.paragraphs.length > 0
+                    "
+                    class="matched-paragraphs"
+                  >
+                    <div class="paragraphs-header">
+                      <el-button
+                        type="text"
+                        size="small"
+                        @click="toggleParagraphsVisibility(index)"
+                        class="toggle-paragraphs-btn"
+                      >
+                        <el-icon>
+                          <Document />
+                        </el-icon>
+                        找到 {{ message.paragraphs.length }} 个相关分段
+                        <el-icon :class="{ rotate: isParagraphsExpanded(index) }">
+                          <ArrowDown />
+                        </el-icon>
+                      </el-button>
+                    </div>
 
-                  <!--                    <div v-show="isParagraphsExpanded(index)" class="paragraphs-list">-->
-                  <!--                      <div-->
-                  <!--                        v-for="(paragraph, pIndex) in message.paragraphs"-->
-                  <!--                        :key="pIndex"-->
-                  <!--                        class="paragraph-item"-->
-                  <!--                      >-->
-                  <!--                        <div class="paragraph-header">-->
-                  <!--                          <span class="paragraph-index">{{ pIndex + 1 }}</span>-->
-                  <!--                          <span class="paragraph-score">-->
-                  <!--                            相关度:-->
-                  <!--                            {{-->
-                  <!--                              (-->
-                  <!--                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100-->
-                  <!--                              ).toFixed(1)-->
-                  <!--                            }}%-->
-                  <!--                          </span>-->
-                  <!--                        </div>-->
-                  <!--                        <div class="paragraph-content">{{ paragraph.content }}</div>-->
-                  <!--                        <div class="paragraph-meta">-->
-                  <!--                          <span-->
-                  <!--                            class="paragraph-source clickable"-->
-                  <!--                            @click="openDocumentParagraphs(paragraph)"-->
-                  <!--                            :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"-->
-                  <!--                          >-->
-                  <!--                            文档名称:-->
-                  <!--                            {{-->
-                  <!--                              paragraph.document_name || paragraph.source || paragraph.dataset_name-->
-                  <!--                            }}-->
-                  <!--                          </span>-->
-                  <!--                          <span class="paragraph-dataset"-->
-                  <!--                            >知识库名称: {{ paragraph.dataset_name }}</span-->
-                  <!--                          >-->
-                  <!--                        </div>-->
-                  <!--                      </div>-->
-                  <!--                    </div>-->
-                  <!--                  </div>-->
+                    <div v-show="isParagraphsExpanded(index)" class="paragraphs-list">
+                      <div
+                        v-for="(paragraph, pIndex) in message.paragraphs"
+                        :key="pIndex"
+                        class="paragraph-item"
+                      >
+                        <div class="paragraph-header">
+                          <span class="paragraph-index">{{ pIndex + 1 }}</span>
+                          <span class="paragraph-score">
+                            相关度:
+                            {{
+                              (
+                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100
+                              ).toFixed(1)
+                            }}%
+                          </span>
+                        </div>
+                        <!--                        <div class="paragraph-content">{{ paragraph.content }}</div>-->
+                        <div class="paragraph-meta">
+                          <span
+                            class="paragraph-source clickable"
+                            @click="openDocumentParagraphs(paragraph)"
+                            :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"
+                          >
+                            文档名称:
+                            {{
+                              paragraph.document_name || paragraph.source || paragraph.dataset_name
+                            }}
+                          </span>
+                          <span class="paragraph-dataset"
+                          >知识库名称: {{ paragraph.dataset_name }}</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   <div class="message-time">{{ formatTime(message.timestamp) }}</div>
                   <div style="height: 20px" class="copy-btn" v-show="message.role === 'assistant'">
@@ -2659,6 +2654,46 @@ const performKnowledgeSearch = async (query: string) => {
   }
 }
 
+// 尝试将类似JS对象的字符串规范化为JSON字符串
+function tryNormalizeJsObjectToJson(str: string) {
+  let s = str.trim();
+
+  // 1) 把对象属性名用双引号包起来： {a: => {"a":
+  // 处理规则：在 { 或 , 后出现的未加引号的属性名
+  s = s.replace(/([{,]\s*)([A-Za-z0-9_$]+)\s*:/g, '$1"$2":');
+
+  // 2) 把单引号字符串改为双引号（处理转义情况）
+  s = s.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, function(_, content) {
+    // 将内部的双引号转义（防止原来有 "）
+    const escaped = content.replace(/"/g, '\\"');
+    return '"' + escaped + '"';
+  });
+
+  return s;
+}
+
+// 替换文本中的 quickchart 标记为编码后的 URL
+function replaceQuickChartWithEncodedUrl(text: string) {
+  return text.replace(/!\[quickchart\]\(([^)]+)\)/g, (match, jsonStr) => {
+    try {
+      let config;
+      try {
+        config = JSON.parse(jsonStr);
+      } catch (e) {
+        // 如果直接解析失败，尝试规范化后再解析
+        const normalizedStr = tryNormalizeJsObjectToJson(jsonStr);
+        config = JSON.parse(normalizedStr);
+      }
+      const encodedParam = encodeURIComponent(JSON.stringify(config));
+      const qualifiedUrl = `https://quickchart.io/chart?c=${encodedParam}`;
+      return `![quickchart](${qualifiedUrl})`;
+    } catch (e) {
+      console.log('JSON解析失败:', e, jsonStr);
+      return match; // JSON 无效则保留原样
+    }
+  });
+}
+
 // 发送消息并获得AI回答
 const sendMessage = async () => {
   // 在翻译模式或摘要模式下，如果有上传的文档，允许空输入
@@ -2894,7 +2929,7 @@ ${savedUploadedDocContent}`
           savedSummaryDocName,
           '',
           '',
-          chatMessages.value // 传入对话历史记录（引用所有历史记录）
+          chatMessages.value.slice(-10) // 传入对话历史记录
         )
       } else {
         // 基于知识库检索结果的摘要模式
@@ -2905,7 +2940,7 @@ ${savedUploadedDocContent}`
           '',
           context,
           contextNote,
-          chatMessages.value // 传入对话历史记录（引用所有历史记录）
+          chatMessages.value.slice(-10) // 传入对话历史记录
         )
       }
     } else if (isAIReviewMode.value) {
@@ -2919,7 +2954,7 @@ ${savedUploadedDocContent}`
         systemPrompt = getReviewPrompt(userQuestion, '', '', context, contextNote)
       }
     } else if (isAIQuestionMode.value) {
-      // AI问答模式的系统提示
+      // AI问数模式的系统提示
       console.log('AI问答模式：开始文档问答...')
       console.log('用户输入内容:', userQuestion)
       if (savedQuestionDocContent) {
@@ -3009,7 +3044,7 @@ ${context}
         role: 'system',
         content: systemPrompt
       },
-      ...(shouldSkipHistory ? [] : chatMessages.value), // 根据需要决定是否保留对话历史（引用所有历史记录）
+      ...(shouldSkipHistory ? [] : chatMessages.value.slice(-10)), // 根据需要决定是否保留对话历史
       { role: 'user', content: userQuestion }
     ]
 
@@ -3142,6 +3177,17 @@ ${context}
             if (lastMessage && lastMessage.role === 'assistant') {
               lastMessage.paragraphs = searchResultsForAI
             }
+          }
+
+          // 问数解析
+          if (isAIQuestionMode.value) {
+            const content = replaceQuickChartWithEncodedUrl(currentAssistantMessage)
+            console.log('替换 quickchart URL 后的内容:', content)
+            chatMessages.value[chatMessages.value.length - 1].content = content
+            setTimeout(()=>{
+              console.log(chatMessages.value[chatMessages.value.length - 1].content)
+
+            }, 1000)
           }
         }
       } else {
@@ -3318,7 +3364,12 @@ marked.setOptions({
 // 配置 marked 的渲染器以支持代码高亮
 const renderer = new marked.Renderer()
 const originalCodeRenderer = renderer.code.bind(renderer)
-renderer.code = function(code: string, language: string | undefined, isEscaped: boolean) {
+renderer.code = function (code: string, language: string | undefined, isEscaped: boolean) {
+  if (language === 'mermaid') {
+    const uniqueId = `mermaid-${Date.now()}`
+    return `<div class="mermaid" id="${uniqueId}" style="white-space: break-spaces">${code}</div>`;
+  }
+
   if (language && hljs.getLanguage(language)) {
     try {
       const highlighted = hljs.highlight(code, { language }).value
@@ -3977,10 +4028,9 @@ const getPromptByIntent = (
   if (intent === 'writing') {
     // 写作模式的提示词
     return `
-    # AI 写作助手 - 学术写作模式
+    # AI 写作助手 - 学术综述模式
 
-【重要提示】：这是“学术创作模式”，用户仅提供主题与参考信息，模型需从零开始创作一篇完整、系统、逻辑严密的学术文章。
-“模型必须将‘资料一致性与事实准确性’作为最高优先级任务，任何生成行为不得违反资料约束。”
+【重要提示】：这是“学术综述模式”，用户仅提供主题与参考信息，模型需从零开始创作一篇完整、系统、逻辑严密的学术综述文章。
 
 写作风格：学术研究型
 语气：正式、客观
@@ -3990,18 +4040,13 @@ const getPromptByIntent = (
 
 角色设定：
 你是一名教育技术与教师发展领域的学术写作专家，熟悉教育部政策文件、国内外教育研究现状与智能技术应用。
-你的任务是基于主题与知识片段，从零构建一篇系统、完整的中文学术文章，具备学术逻辑、研究深度与理论视角。
+你的任务是基于主题与知识片段，从零构建一篇系统、完整的中文学术综述，具备学术逻辑、研究深度与理论视角。
 
 【写作要求】
-根据用户提供的资料或知识库内容，必须严格以该资料为唯一创作依据，不得擅自添加或推测外部信息；
-若资料不足以支撑写作内容，模型应停止生成并提示用户补充资料；
-严禁虚构事实、学者、数据或研究结论。
-将参考文献，数据与理论框架融入文章论述，确保内容具备学术严谨性与可信度；
-文章结构应清晰，逻辑严密，论点明确，论据充分；
 
 创作方式：
 - 从零开始撰写，构建完整文章框架；
-- 根据提供内容自主确定标题、章节、逻辑与论述重点；
+- 自主确定标题、章节、逻辑与论述重点；
 - 充分发挥学术研究能力，形成系统、全面的综述性文章；
 - 内容应基于现有学术共识与教育理论，不出现虚构数据或具体学者姓名。
 
@@ -4278,7 +4323,7 @@ const getSummaryPrompt = (
   // 格式化对话历史记录
   const formatHistory = (history: Message[]) => {
     if (!history || history.length === 0) return ''
-    const recentHistory = history // 引用所有历史记录
+    const recentHistory = history.slice(-10) // 只取最近10条
     const historyText = recentHistory
       .map((msg, index) => {
         const role = msg.role === 'user' ? '用户' : '助手'
@@ -4506,7 +4551,7 @@ const getQuestionPrompt = (
 ) => {
   if (documentContent) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](http://172.16.99.49:3400/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
+    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
@@ -4552,7 +4597,7 @@ mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Ja
 - 对函数类 formatter 如无必要不强行加入；减少用户端报错风险。
 - 保持 JSON 有效（键名用双引号，布尔和数值不加引号，字符串使用双引号）。
 - 若数据量极大可能导致 URL 过长（>2000 字符），在类型说明中提示用户精简。
-- json不需要url编码，直接将json字符串放入 c= 参数后即可 例如 ![quickchart](http://172.16.99.49:3400/chart?c={type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}})。
+- 例如 ![quickchart]({type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}})。
 
 错误与补充处理：
 - 缺 labels 或 data：请求“请提供 labels 与对应数值数组”。
@@ -4578,7 +4623,7 @@ ${noteSection}
   }
   if (context && context.trim() && !context.includes('未找到')) {
     const noteSection = userQuestion ? `\n\n用户附加要求：${userQuestion}\n` : ''
-    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](http://172.16.99.49:3400/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
+    return `你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
@@ -4624,13 +4669,13 @@ mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Ja
 - 对函数类 formatter 如无必要不强行加入；减少用户端报错风险。
 - 保持 JSON 有效（键名用双引号，布尔和数值不加引号，字符串使用双引号）。
 - 若数据量极大可能导致 URL 过长（>2000 字符），在类型说明中提示用户精简。
+- 例如 ![quickchart]({type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}})。
 
 错误与补充处理：
 - 缺 labels 或 data：请求“请提供 labels 与对应数值数组”。
 - 长度不一致：请求修正。
 - 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
 - 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
-- json不需要url编码，直接将json放入 c= 参数即可。
 - 图表配置 不应该作为内容输出
 
 现在请根据以下内容生成图表url：
@@ -4648,7 +4693,7 @@ ${noteSection}
   `
   }
   return `角色定位：
-你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](http://172.16.99.49:3400/chart?c=配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
+你是一个数据分析和可视化专家，擅长根据用户需求选择合适的图表类型并生成对应的分析报告，当用户要求你生成可视化的时候你需要根据用户提供的数据和需求选择合适的图表类型，并生成相应配置，并在返回时通过 ![quickchart](配置json) ，不需要返回原始json配置内容，直接返回拼接的url即可不需要做编码操作，你还需要配上合理性的图表分析和建议。
 
 图表选型对应表（仅内部决策，用户未指定时使用）：
 | 数据特征/需求            | 图表类型候选                     | type 值示例 |
@@ -4694,13 +4739,13 @@ mixed (bar + line)\t组合不同编码方式\t否\t{type:'bar',data:{labels:['Ja
 - 对函数类 formatter 如无必要不强行加入；减少用户端报错风险。
 - 保持 JSON 有效（键名用双引号，布尔和数值不加引号，字符串使用双引号）。
 - 若数据量极大可能导致 URL 过长（>2000 字符），在类型说明中提示用户精简。
+- 例如 ![quickchart]({type:'line',data:{labels:['Jan','Feb','Mar','Apr','May'],datasets:[{label:'Dogs',data:[50,60,70,180,190],fill:false,borderColor:'blue'},{label:'Cats',data:[100,200,300,400,500],fill:false,borderColor:'green'}]}})。
 
 错误与补充处理：
 - 缺 labels 或 data：请求“请提供 labels 与对应数值数组”。
 - 长度不一致：请求修正。
 - 数据格式与类型不符（如散点给两个数组而非对象集）：说明正确格式并请求调整。
 - 不能推断类型：请用户指定维度性质（时间序列 / 分类 / 占比 / 关系等）。
-- json不需要url编码，直接将json放入 c= 参数即可。
 - 图表配置 不应该作为内容输出
 
 ---
@@ -4869,8 +4914,7 @@ const confirmRename = async () => {
 }
 
 // 取消录音控制台日志
-Recorder.CLog = function() {
-}
+Recorder.CLog = function () {}
 
 // 语音录制管理类
 class RecorderManage {
@@ -6423,24 +6467,27 @@ onUnmounted(() => {
         user-select: none;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         position: relative;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06),
-        0 1px 3px rgba(0, 0, 0, 0.04),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        box-shadow:
+          0 2px 8px rgba(0, 0, 0, 0.06),
+          0 1px 3px rgba(0, 0, 0, 0.04),
+          inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
         &:hover {
           background: #f9fafb;
           border-color: #d1d5db;
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1),
-          0 3px 8px rgba(0, 0, 0, 0.06),
-          inset 0 1px 0 rgba(255, 255, 255, 0.9);
+          box-shadow:
+            0 6px 16px rgba(0, 0, 0, 0.1),
+            0 3px 8px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         &:active {
           transform: translateY(0);
           background: #f3f4f6;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08),
-          inset 0 2px 4px rgba(0, 0, 0, 0.06);
+          box-shadow:
+            0 2px 4px rgba(0, 0, 0, 0.08),
+            inset 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
         .ai-icon {
