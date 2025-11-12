@@ -757,7 +757,7 @@
                       :autosize="{ minRows: 1, maxRows: 3 }"
                       :placeholder="getInputPlaceholder()"
                       class="chat-input"
-                      @keyup.enter.exact.prevent="sendMessage"
+                      @keydown.enter.prevent="sendMessage"
                       @focus="handleInputFocus"
                       :disabled="
                         isStreaming ||
