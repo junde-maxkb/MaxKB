@@ -1,5 +1,5 @@
 name: sync2gitee
-on: [push]
+on: []
 
 jobs:
   repo-sync:
