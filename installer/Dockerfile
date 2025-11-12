@@ -19,10 +19,11 @@ RUN mkdir -p /opt/maxkb/app /opt/maxkb/model /opt/maxkb/conf && \
 COPY --from=web-build ui /opt/maxkb/app/ui
 WORKDIR /opt/maxkb/app
 RUN python3 -m venv /opt/py3 && \
-    pip install poetry==1.8.5 --break-system-packages && \
-    poetry config virtualenvs.create false && \
     . /opt/py3/bin/activate && \
+    pip install poetry==1.8.5 && \
+    poetry config virtualenvs.create false && \
     if [ "$(uname -m)" = "x86_64" ]; then sed -i 's/^torch.*/torch = {version = "^2.6.0+cpu", source = "pytorch"}/g' pyproject.toml; fi && \
+    poetry lock && \
     poetry install && \
     export MAXKB_CONFIG_TYPE=ENV && python3 /opt/maxkb/app/apps/manage.py compilemessages
 
@@ -62,6 +63,7 @@ RUN chmod 755 /opt/maxkb/app/installer/run-maxkb.sh && \
     cp -f /opt/maxkb/app/installer/init.sql /docker-entrypoint-initdb.d && \
     curl -L --connect-timeout 120 -m 1800 https://resource.fit2cloud.com/maxkb/ffmpeg/get-ffmpeg-linux | sh && \
     mkdir -p /opt/maxkb/app/sandbox/python-packages &&  \
+    rm -rf /opt/maxkb/app/.venv && \
     find /opt/maxkb/app -mindepth 1 -not -name 'sandbox' -exec chmod 700 {} + && \
     chmod 755 /tmp && \
     useradd --no-create-home --home /opt/maxkb/app/sandbox sandbox -g root && \
