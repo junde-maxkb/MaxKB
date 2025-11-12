@@ -1,5 +1,6 @@
 name: sync2gitee
-on: []
+on:
+  workflow_dispatch:
 
 jobs:
   repo-sync:
