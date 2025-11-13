@@ -39,9 +39,8 @@ class Log2Message(APIView):
         messages = []
         for log_item in logs:
             share_user_name = log_item.user.get('username', None)
-            # '/api/dataset/0adba462-b3c2-11f0-9ffe-1df6b9a97501/members/put_permissions'
             dataset_id = log_item.details['path'].split('/')[3] if len(log_item.details['path'].split('/')) > 3 else ''
-            dataset_name = DataSet.objects.filter(id=dataset_id).first().name if dataset_id else '未知知识库'
+            dataset_name = (DataSet.objects.filter(id=dataset_id).first().name if DataSet.objects.filter(id=dataset_id).first() else '未知知识库') if dataset_id else '未知知识库'
 
             is_permission = log_item.details['body'].get('permission', None) == "READ"
 
