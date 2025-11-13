@@ -13,12 +13,15 @@
     </div>
     <div class="chat-history-content">
       <div class="search-filter-section p-16-24 border-b">
-        <div class="filter-box flex-between">
-          <div class="total-info">
-            <el-text type="info" size="small">
-              {{ $t('common.total') }}: {{ paginationConfig.total }}
-            </el-text>
-          </div>
+        <div class="search-box mb-12">
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索聊天记录标题或内容..."
+            clearable
+            prefix-icon="Search"
+            size="small"
+            @input="handleSearch"
+          />
         </div>
       </div>
       <div class="history-list-container" v-loading="loading">
@@ -99,10 +102,20 @@
       append-to-body
     >
       <div class="chat-detail-content" v-loading="detailLoading">
+        <!-- 聊天详情搜索框 -->
+        <div class="detail-search-box mb-12">
+          <el-input
+            v-model="messageSearchKeyword"
+            placeholder="搜索消息内容..."
+            clearable
+            prefix-icon="Search"
+            size="small"
+          />
+        </div>
         <el-scrollbar height="500px">
           <div class="message-list p-16">
             <div
-              v-for="(message, index) in chatMessages"
+              v-for="(message, index) in filteredChatMessages"
               :key="index"
               class="message-item mb-16"
               :class="message.role === 'user' ? 'message-user' : 'message-assistant'"
@@ -114,8 +127,11 @@
                 <span class="message-index ml-8">{{ $t('views.user.chatHistory.messageIndex') }}: {{ message.message_index || index + 1 }}</span>
               </div>
               <div class="message-content">
-                <pre class="message-text">{{ message.content }}</pre>
+                <pre class="message-text" v-html="highlightText(message.content, messageSearchKeyword)"></pre>
               </div>
+            </div>
+            <div v-if="filteredChatMessages.length === 0 && chatMessages.length > 0" class="text-center p-24">
+              <el-empty description="没有找到匹配的消息" />
             </div>
             <div v-if="chatMessages.length === 0" class="text-center p-24">
               <el-empty :description="$t('views.user.chatHistory.noMessages')" />
@@ -163,6 +179,8 @@ const mouseId = ref('')
 const detailDialogVisible = ref(false)
 const selectedHistory = ref<any>(null)
 const chatMessages = ref<any[]>([])
+const searchKeyword = ref('')
+const messageSearchKeyword = ref('')
 
 const paginationConfig = reactive({
   current_page: 1,
@@ -170,9 +188,57 @@ const paginationConfig = reactive({
   total: 0
 })
 
-// 列表（不进行排序）
+// 搜索处理函数
+function handleSearch() {
+  // 搜索时重置到第一页
+  paginationConfig.current_page = 1
+}
+
+// 高亮文本函数
+function highlightText(text: string, keyword: string) {
+  if (!keyword || !keyword.trim()) {
+    return escapeHtml(text)
+  }
+
+  const escapedText = escapeHtml(text)
+  const escapedKeyword = escapeHtml(keyword.trim())
+  const regex = new RegExp(`(${escapedKeyword})`, 'gi')
+  return escapedText.replace(regex, '<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 2px;">$1</mark>')
+}
+
+// HTML转义函数
+function escapeHtml(text: string) {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
+}
+
+// 过滤聊天消息
+const filteredChatMessages = computed(() => {
+  if (!messageSearchKeyword.value.trim()) {
+    return chatMessages.value
+  }
+
+  const keyword = messageSearchKeyword.value.trim().toLowerCase()
+  return chatMessages.value.filter(msg => {
+    return msg.content.toLowerCase().includes(keyword)
+  })
+})
+
+// 列表（增加搜索过滤）
 const filteredList = computed(() => {
-  return [...chatHistoryList.value]
+  let list = [...chatHistoryList.value]
+
+  // 如果有搜索关键词，进行过滤
+  if (searchKeyword.value.trim()) {
+    const keyword = searchKeyword.value.trim().toLowerCase()
+    list = list.filter(item => {
+      const title = (item.title || item.application_name || '').toLowerCase()
+      return title.includes(keyword)
+    })
+  }
+
+  return list
 })
 
 // 分页显示列表
@@ -243,7 +309,8 @@ async function viewDetail(item: any) {
   detailDialogVisible.value = true
   detailLoading.value = true
   chatMessages.value = []
-  
+  messageSearchKeyword.value = '' // 重置消息搜索关键词
+
   try {
     const res = await userApi.getChatMessages(item.id)
     if (res.code === 200) {
@@ -331,13 +398,8 @@ defineExpose({
   flex-shrink: 0;
   background: #fafafa;
   
-  .filter-box {
-    justify-content: flex-end;
-    
-    .total-info {
-      display: flex;
-      align-items: center;
-    }
+  .search-box {
+    margin-bottom: 12px;
   }
 }
 
@@ -409,11 +471,41 @@ defineExpose({
   flex-shrink: 0;
   background: #ffffff;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  overflow-x: auto;
+  
+  :deep(.el-pagination) {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    white-space: nowrap;
+    
+    .el-pagination__total,
+    .el-pagination__sizes,
+    .btn-prev,
+    .el-pager,
+    .btn-next {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    
+    .el-pagination__total {
+      margin-right: 8px;
+    }
+    
+    .el-pagination__sizes {
+      margin-right: 8px;
+    }
+  }
 }
 
 // 聊天详情对话框样式
 .chat-detail-content {
+  .detail-search-box {
+    padding: 0 16px;
+    margin-bottom: 12px;
+  }
+
   .message-list {
     .message-item {
       padding: 12px;
@@ -451,6 +543,13 @@ defineExpose({
           white-space: pre-wrap;
           word-wrap: break-word;
           font-family: inherit;
+
+          :deep(mark) {
+            background-color: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-weight: 500;
+          }
         }
       }
     }

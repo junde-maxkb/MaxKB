@@ -1163,7 +1163,7 @@
     <el-drawer
       v-model="showHistoryPanel"
       title="历史对话"
-      :size="320"
+      :size="400"
       direction="rtl"
       :before-close="closeHistoryPanel"
     >
@@ -4235,7 +4235,7 @@ ${userQuestion}`
 
 ---
 ## 六、输出要求
-- 严格保留原文结构与逻辑；
+- 输出扩写后的内容，不进行原文输出；
 - 扩写后篇幅为原文 2–3 倍；
 - 使用规范编号格式；
 - 全文不出现 AI 提示或推理说明；
