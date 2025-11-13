@@ -15,7 +15,7 @@ on:
 
 env:
   REGISTRY: registry.cn-shanghai.aliyuncs.com
-  IMAGE_NAME: ai_studio/yunhai
+  IMAGE_NAME: ai_studio/maxkb
 
 jobs:
   build-and-push:
