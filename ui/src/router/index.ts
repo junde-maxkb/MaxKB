@@ -43,7 +43,7 @@ router.beforeEach(
       const token = user.getToken()
       if (!token) {
         next({
-          path: '/oauth_login'
+          path: '/login'
         })
         return
       }
