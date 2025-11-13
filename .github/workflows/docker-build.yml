@@ -72,6 +72,7 @@ jobs:
           file: ./installer/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          network: host
           tags: ${{ steps.prep.outputs.tags }}
           labels: |
             org.opencontainers.image.version=${{ steps.prep.outputs.version }}
