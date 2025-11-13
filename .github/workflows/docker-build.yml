@@ -3,6 +3,11 @@ name: Build and Push Docker Images
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: '构建分支'
+        required: true
+        type: string
+        default: 'feat-new-ui'
       version:
         description: '版本号 (例如: v1.0.0 或 1.0.0)'
         required: true
@@ -24,6 +29,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -80,6 +87,7 @@ jobs:
       - name: Build Summary
         run: |
           echo "✅ Docker 镜像构建成功！"
+          echo "🌿 构建分支: ${{ inputs.branch }}"
           echo "📦 版本号: ${{ inputs.version }}"
           echo "🏷️ 推送的标签:"
           echo "${{ steps.prep.outputs.tags }}" | tr ',' '\n' | sed 's/^/  - /'
