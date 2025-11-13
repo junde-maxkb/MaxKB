@@ -116,6 +116,8 @@ if __name__ == '__main__':
         collect_static()
         perform_db_migrate()
         dev()
+    elif action == "quick-dev":
+        dev()
     else:
         collect_static()
         perform_db_migrate()
