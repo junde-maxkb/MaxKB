@@ -327,7 +327,7 @@ onMounted(() => {
 
   &.show-history {
     .user-manage__sidebar {
-      width: 320px;
+      width: 410px;
     }
   }
 }

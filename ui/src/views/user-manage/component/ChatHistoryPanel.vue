@@ -23,16 +23,6 @@
             @input="handleSearch"
           />
         </div>
-        <div class="filter-box flex-between">
-          <div class="total-info">
-            <el-text type="info" size="small">
-              {{ $t('common.total') }}: {{ paginationConfig.total }}
-              <span v-if="searchKeyword" class="ml-8">
-                (搜索到 {{ filteredList.length }} 条记录)
-              </span>
-            </el-text>
-          </div>
-        </div>
       </div>
       <div class="history-list-container" v-loading="loading">
         <el-scrollbar>
@@ -411,15 +401,6 @@ defineExpose({
   .search-box {
     margin-bottom: 12px;
   }
-
-  .filter-box {
-    justify-content: flex-end;
-    
-    .total-info {
-      display: flex;
-      align-items: center;
-    }
-  }
 }
 
 .history-list-container {
@@ -490,7 +471,32 @@ defineExpose({
   flex-shrink: 0;
   background: #ffffff;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  overflow-x: auto;
+  
+  :deep(.el-pagination) {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    white-space: nowrap;
+    
+    .el-pagination__total,
+    .el-pagination__sizes,
+    .btn-prev,
+    .el-pager,
+    .btn-next {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    
+    .el-pagination__total {
+      margin-right: 8px;
+    }
+    
+    .el-pagination__sizes {
+      margin-right: 8px;
+    }
+  }
 }
 
 // 聊天详情对话框样式
