@@ -1,2 +1,8 @@
 .git*
 .idea*
+ui/node_modules/*
+.venv
+__pycache__
+node_modules
+.pytest_cache
+**/model
