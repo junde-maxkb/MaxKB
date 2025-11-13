@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  maxkb:
+    image: maxkb:latest
+    container_name: maxkb
+    entrypoint: ["/bin/bash"]
+    command: ["/usr/bin/run-maxkb.sh"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - maxkb_data:/opt/maxkb/app/data
+      - maxkb_model:/opt/maxkb/model
+      - maxkb_logs:/opt/maxkb/app/logs
+    restart: unless-stopped
+
+volumes:
+  maxkb_data:
+  maxkb_model:
+  maxkb_logs:
