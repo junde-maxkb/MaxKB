@@ -367,6 +367,23 @@
                 <div class="message-content">
                   <div class="message-text" v-html="formatMessageContent(message.content)"></div>
 
+                  <!-- AI引导式问答 -->
+                  <div
+                    v-if="message.role === 'assistant' && guides.length > 0"
+                    >
+                    <div style="display: flex; gap: 5px">
+                      <span v-for="(guide, index) in guides" :key="index">
+                        <el-tag
+                          size="small"
+                          class="guide-tag"
+                          :key="index"
+                        >
+                          {{ guide }}
+                        </el-tag>
+                      </span>
+                    </div>
+                  </div>
+
                   <!-- 显示匹配的分段（仅AI回答且有分段信息时显示） -->
                   <div
                     v-if="
@@ -1225,6 +1242,7 @@ import { MsgAlert } from '@/utils/message'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
+import useGuide from '@/utils/useGuide'
 
 // 类型定义
 interface TreeNode {
@@ -1270,6 +1288,7 @@ interface KBForm {
 }
 
 // 响应式数据
+const guides = ref<string[]>([])
 const searchText = ref('')
 const selectedKB = ref<TreeNode | null>(null)
 const selectedNode = ref<TreeNode | null>(null)
@@ -2668,6 +2687,7 @@ const getCurrentModeLabel = (): string => {
 
 // 发送消息并获得AI回答
 const sendMessage = async () => {
+  guides.value = []
   // 在翻译模式或摘要模式下，如果有上传的文档，允许空输入
   const hasTranslateDocument = isAITranslateMode.value && translateDocumentContent.value
   const hasSummaryDocument = isAISummaryMode.value && summaryDocumentContent.value
@@ -2814,8 +2834,18 @@ const sendMessage = async () => {
     // 根据是否为AI写作模式或AI翻译模式构建不同的系统提示
     let systemPrompt = ''
     let currentIntent: 'writing' | 'polish' | 'expand' | 'chat' | null = null // 用于记录当前意图
+    let mode: string
+    const documentDoc = `
+上传文档内容（${savedTranslateDocName || savedUploadedDocName || savedSummaryDocName || savedReviewDocName || savedQuestionDocName}）：
+${savedTranslateDocContent || savedUploadedDocContent || savedSummaryDocContent || savedReviewDocContent || savedQuestionDocContent}
+知识库内容：
+${context}
+
+${contextNote}
+    `
 
     if (isAITranslateMode.value) {
+      mode = 'AI翻译'
       // AI翻译模式：使用翻译提示词
       console.log('AI翻译模式：开始翻译...')
       console.log('用户输入内容:', userQuestion)
@@ -2839,6 +2869,7 @@ const sendMessage = async () => {
       // AI写作模式：先进行意图识别
       console.log('AI写作模式：开始意图识别...')
       console.log('用户输入问题:', userQuestion)
+      mode = 'AI写作'
 
       // 调用意图识别函数
       const intent = await detectWritingIntent(userQuestion, modelId)
@@ -2890,6 +2921,7 @@ ${savedUploadedDocContent}`
       // AI摘要模式：使用摘要提示词
       console.log('AI摘要模式：开始中英文摘要生成...')
       console.log('用户输入内容:', userQuestion)
+      mode = 'AI摘要'
 
       // 如果有上传的摘要文档，使用文档摘要模式
       if (savedSummaryDocContent) {
@@ -2919,6 +2951,7 @@ ${savedUploadedDocContent}`
       // AI代码审查模式的系统提示
       console.log('AI综述模式：开始文献综述...')
       console.log('用户输入内容:', userQuestion)
+      mode = 'AI综述'
       if (savedReviewDocContent) {
         console.log('检测到上传综述文档:', savedReviewDocName)
         systemPrompt = getReviewPrompt(userQuestion, savedReviewDocContent, savedReviewDocName)
@@ -2929,6 +2962,7 @@ ${savedUploadedDocContent}`
       // AI问数模式的系统提示
       console.log('AI问答模式：开始文档问答...')
       console.log('用户输入内容:', userQuestion)
+      mode = 'AI问数'
       if (savedQuestionDocContent) {
         console.log('检测到上传问答文档:', savedQuestionDocName)
         systemPrompt = getQuestionPrompt(
@@ -2942,6 +2976,7 @@ ${savedUploadedDocContent}`
     } else {
       console.log("知识库问答")
       console.log("历史对话记录:", chatMessages.value)
+      mode = "无特定要求"
       // 普通对话模式的系统提示
       systemPrompt =
         hasEmbeddingError || hasConnectionError
@@ -3002,6 +3037,10 @@ ${chatMessages.value}
       { role: 'user', content: userQuestion }
     ]
 
+    const { getGuideQuestions } = useGuide()
+
+    const guideQuestions = getGuideQuestions(modelId, mode, userQuestion, documentDoc)
+
     // 调用模型API进行流式对话
     try {
       const resp = await postModelChatStream(modelId, { messages })
@@ -3051,7 +3090,11 @@ ${chatMessages.value}
         // 流式输出结束后处理
         const lastMessage = chatMessages.value[chatMessages.value.length - 1]
         console.log('流式输出结束，当前AI消息内容:', currentAssistantMessage)
-
+        try {
+          guides.value = await guideQuestions
+        } catch (e) {
+          console.log('获取引导问题失败:', e)
+        }
         if (lastMessage && lastMessage.role === 'assistant') {
           // 直接使用原始内容
           lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
