@@ -466,6 +466,8 @@
                   </div>
                 </div>
               </div>
+              <div style="height: 100px">
+              </div>
             </div>
 
             <!-- 集成聊天输入组件 -->

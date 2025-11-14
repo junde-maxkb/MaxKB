@@ -2,7 +2,7 @@
   <div class="dataset-share" v-loading="loading">
     <div class="share-container">
       <!-- 搜索输入 -->
-      <div class="search-bar" v-if="canManageShare">
+      <div class="search-bar">
         <input
           v-model="searchQuery"
           @focus="showDropdown = true"
@@ -21,7 +21,7 @@
             @mousedown.prevent="addUser(item)"
           >
             <div class="name">{{ item.name }}</div>
-            <div class="members">团队</div>
+            <div class="members">{{item.type}}</div>
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@
               </div>
             </div>
           </div>
-          <div v-if="canManageShare" 
+          <div
                class="remove-btn" 
                @click="removePermission(user)">移除</div>
         </div>
@@ -61,11 +61,11 @@
       <div v-if="!memberList.length" class="empty-state">
         <div class="empty-icon">👥</div>
         <div class="empty-text">还没有共享给任何人</div>
-        <div class="empty-subtext" v-if="canManageShare">搜索并添加团队来开始共享</div>
+        <div class="empty-subtext">搜索并添加团队来开始共享</div>
       </div>
 
       <!-- 底部按钮 -->
-      <div class="footer-btns" v-if="canManageShare">
+      <div class="footer-btns">
         <button class="cancel-btn" @click="onCancel">取消</button>
         <button class="save-btn" @click="onSave">保存权限设置</button>
       </div>
@@ -117,15 +117,14 @@ const PERMISSION_OPTIONS = [
 // 计算属性
 const filteredResults = computed(() => {
   const query = searchQuery.value.toLowerCase()
-  if (!query) return []
-
-  // 只搜索团队，不再搜索用户
   const allItems = [
     ...availableTeams.value.map(team => ({
-      ...team,
-      type: 'TEAM'
+      ...team
     }))
   ]
+  if (!query) return allItems
+
+
   return allItems.filter(item =>
     item.name.toLowerCase().includes(query)
   )
@@ -191,7 +190,7 @@ const addUser = (item: any) => {
       permission: item.type === 'TEAM' ? 'MANAGE' : 'READ', // 团队默认辅助管理权限，其他默认只读
       showDropdown: false
     }
-
+    alert('1')
     memberList.value.push(newMember)
   }
 
@@ -288,11 +287,19 @@ const getAvailableUsersOrTeams = async () => {
       // res.data 是一个对象，包含 teams 和 users 两个数组
       const data = res.data as any
       const teams = data.teams || []
-      availableTeams.value = teams.map((team: any) => ({
-        id: team.id,
-        name: team.name,
-        type: 'TEAM'
-      }))
+      const users = data.users || []
+      availableTeams.value = [
+        ...teams.map((team: any) => ({
+          id: team.id,
+          name: team.name,
+          type: 'TEAM'
+        })),
+        ...users.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          type: 'USER'
+        }))
+      ]
     }
   } catch (error) {
     console.error('获取可用团队列表失败:', error)
