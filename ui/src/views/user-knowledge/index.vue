@@ -2382,7 +2382,7 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
       const records = response.data.records;
 
       // 检查是否有任何文档仍在等待或执行中
-      const hasPendingOrStarted = records.some(record =>
+      const hasPendingOrStarted = records.some((record: any) =>
         record.status === PENDING || record.status === STARTED
       );
 
@@ -2398,10 +2398,10 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
       }
 
       // 重新判断所有文档的最终状态
-      const allSuccess = records.every(record => record.status === SUCCESS);
-      const hasFailure = records.some(record => record.status === FAILURE);
-      const hasRevoked = records.some(record => record.status === REVOKED);
-      const hasRevoke = records.some(record => record.status === REVOKE);
+      const allSuccess = records.every((record:any) => record.status === SUCCESS);
+      const hasFailure = records.some((record: any) => record.status === FAILURE);
+      const hasRevoked = records.some((record: any) => record.status === REVOKED);
+      const hasRevoke = records.some((record: any) => record.status === REVOKE);
       console.log('allSuccess:', allSuccess, 'hasFailure:', hasFailure, 'hasRevoked:', hasRevoked, 'hasRevoke:', hasRevoke);
       if (allSuccess) {
         ElMessage.success('上传成功：所有文档处理完成');
