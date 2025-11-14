@@ -3049,7 +3049,7 @@ ${savedUploadedDocContent}`
       }
     } else if (isAIQuestionMode.value) {
       // AI问数模式的系统提示
-      console.log('AI问答模式：开始文档问答...')
+      console.log('AI问数模式：开始文档问答...')
       console.log('用户输入内容:', userQuestion)
       mode = 'AI问数'
       if (savedQuestionDocContent) {
@@ -3561,9 +3561,9 @@ const handleAIReview = () => {
 const handleAIQuestion = () => {
   switchMode(isAIQuestionMode)
   if (isAIQuestionMode.value) {
-    ElMessage.success('已开启AI问答模式')
+    ElMessage.success('已开启AI问数模式')
   } else {
-    ElMessage.info('已关闭AI问答模式')
+    ElMessage.info('已关闭AI问数模式')
   }
 }
 
@@ -3730,7 +3730,7 @@ const handleSummaryDocumentUpload = async (file: any) => {
 // AI问数模式文档上传处理
 const handleQuestionDocumentUpload = async (file: any) => {
   if (!isAIQuestionMode.value) {
-    ElMessage.warning('请先开启AI问答模式')
+    ElMessage.warning('请先开启AI问数模式')
     return false
   }
   // 验证文件类型，只能上传xls和xlsx文件

@@ -44,18 +44,10 @@
 
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="profile">
-                <el-icon><User /></el-icon>
-                个人信息
-              </el-dropdown-item>
               <el-dropdown-item command="messages">
                 <el-icon><Message /></el-icon>
                 <el-badge is-dot v-show="notRead"> 消息通知 </el-badge>
                 <span v-show="!notRead"> 消息通知 </span>
-              </el-dropdown-item>
-              <el-dropdown-item command="settings">
-                <el-icon><Setting /></el-icon>
-                设置
               </el-dropdown-item>
               <el-dropdown-item divided command="logout">
                 <el-icon><SwitchButton /></el-icon>
