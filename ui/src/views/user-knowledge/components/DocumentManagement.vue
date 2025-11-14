@@ -803,7 +803,8 @@ const handleUpload = async () => {
       
       // 上传成功后的处理
       handleUploadSuccess()
-      
+      window.localStorage.setItem('uploading_dataset_id', props.datasetId)
+
     } catch (error) {
       console.error('上传失败:', error)
       ElMessage.error('上传失败')

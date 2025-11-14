@@ -368,16 +368,10 @@
                   <div class="message-text" v-html="formatMessageContent(message.content)"></div>
 
                   <!-- AI引导式问答 -->
-                  <div
-                    v-if="message.role === 'assistant' && guides.length > 0"
-                    >
+                  <div v-if="message.role === 'assistant' && guides.length > 0">
                     <div style="display: flex; gap: 5px">
                       <span v-for="(guide, index) in guides" :key="index">
-                        <el-tag
-                          size="small"
-                          class="guide-tag"
-                          :key="index"
-                        >
+                        <el-tag size="small" class="guide-tag" :key="index">
                           {{ guide }}
                         </el-tag>
                       </span>
@@ -418,32 +412,33 @@
                       >
                         <div class="paragraph-header">
                           <span class="paragraph-index">{{ pIndex + 1 }}</span>
-<!--                          <span class="paragraph-score">-->
-<!--                            相关度:-->
-<!--                            {{-->
-<!--                              (-->
-<!--                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100-->
-<!--                              ).toFixed(1)-->
-<!--                            }}%-->
-<!--                          </span>-->
+                          <!--                          <span class="paragraph-score">-->
+                          <!--                            相关度:-->
+                          <!--                            {{-->
+                          <!--                              (-->
+                          <!--                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100-->
+                          <!--                              ).toFixed(1)-->
+                          <!--                            }}%-->
+                          <!--                          </span>-->
                           <div class="paragraph-meta">
-                          <span
-                            class="paragraph-source clickable"
-                            @click="openDocumentParagraphs(paragraph)"
-                            :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"
-                          >
-                            文档名称:
-                            {{
-                              paragraph.document_name || paragraph.source || paragraph.dataset_name
-                            }}
-                          </span>
+                            <span
+                              class="paragraph-source clickable"
+                              @click="openDocumentParagraphs(paragraph)"
+                              :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"
+                            >
+                              文档名称:
+                              {{
+                                paragraph.document_name ||
+                                paragraph.source ||
+                                paragraph.dataset_name
+                              }}
+                            </span>
                             <span class="paragraph-dataset"
-                            >知识库名称: {{ paragraph.dataset_name }}</span
+                              >知识库名称: {{ paragraph.dataset_name }}</span
                             >
                           </div>
                         </div>
                         <!--                        <div class="paragraph-content">{{ paragraph.content }}</div>-->
-
                       </div>
                     </div>
                   </div>
@@ -1102,7 +1097,6 @@
       class="document-modal"
     >
       <DocumentManagement
-        v-if="showDocumentModal"
         :dataset-id="currentDatasetId"
         :dataset-name="currentDatasetName"
         @close="showDocumentModal = false"
@@ -1196,7 +1190,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, watch, type Ref, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, watch, type Ref, ref, onBeforeMount, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import useStore from '@/stores'
 import {
@@ -2359,6 +2353,99 @@ const loadPersonalKBs = async () => {
   }
 }
 
+// 检查上传文档是否完成
+const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
+
+  // 定义状态常量
+  const PENDING = 'nn0';
+  const STARTED = 'nn1';
+  const SUCCESS = 'nn2';
+  const FAILURE = 'nn3';
+  const REVOKE = 'nn4';
+  const REVOKED = 'nn5';
+
+  try {
+    const params = {
+      current_page: 1,
+      page_size: 10,
+      status: '-1'
+    };
+    const response = await documentApi.getDocument(
+      datasetId,
+      { current_page: 1, page_size: 10 },
+      params
+    );
+
+    if (response.data && response.data.records) {
+      const records = response.data.records;
+
+      // 检查是否有任何文档仍在等待或执行中
+      const hasPendingOrStarted = records.some(record =>
+        record.status === PENDING || record.status === STARTED
+      );
+
+      if (hasPendingOrStarted) {
+        // 仍有文档在处理中，继续等待
+        console.log('文档仍在处理中，继续等待...');
+        return true;
+      }
+
+      // 所有文档已完成处理，清除定时器
+      if (uploadCheckTimer) {
+        window.localStorage.removeItem('uploading_dataset_id')
+      }
+
+      // 重新判断所有文档的最终状态
+      const allSuccess = records.every(record => record.status === SUCCESS);
+      const hasFailure = records.some(record => record.status === FAILURE);
+      const hasRevoked = records.some(record => record.status === REVOKED);
+      const hasRevoke = records.some(record => record.status === REVOKE);
+      console.log('allSuccess:', allSuccess, 'hasFailure:', hasFailure, 'hasRevoked:', hasRevoked, 'hasRevoke:', hasRevoke);
+      if (allSuccess) {
+        ElMessage.success('上传成功：所有文档处理完成');
+      } else if (hasFailure) {
+        ElMessage.error('上传失败：部分或全部文档处理失败');
+      } else if (hasRevoked) {
+        ElMessage.warning('上传已取消');
+      } else if (hasRevoke) {
+        ElMessage.warning('上传正在取消中');
+      } else {
+        ElMessage.info('上传状态未知，请检查文档详情');
+      }
+
+      return false;
+    } else {
+      console.error('获取文档列表失败，响应数据异常');
+      ElMessage.error('获取文档列表失败');
+      window.localStorage.removeItem('uploading_dataset_id')
+      return false;
+    }
+  } catch (error) {
+    console.error('检查上传状态失败:', error);
+    ElMessage.error('检查上传状态失败');
+    return false;
+  }
+};
+
+let uploadCheckTimer: number | null = null
+
+onMounted(()=>{
+  if (uploadCheckTimer) return
+  uploadCheckTimer = window.setInterval(()=>{
+    const uploadDatasetId = window.localStorage.getItem('uploading_dataset_id')
+    console.log(uploadDatasetId, '检查上传状态定时器触发')
+    if (!uploadDatasetId) return
+    checkUploadCompletion(uploadDatasetId)
+  }, 6000)
+})
+
+onBeforeUnmount(()=>{
+  if (uploadCheckTimer) {
+    clearInterval(uploadCheckTimer)
+    uploadCheckTimer = null
+  }
+})
+
 // 更新树形数据
 const updateTreeData = async (categoryId: string, datasets: any[]) => {
   const categoryIndex = treeData.value.findIndex((item) => item.id === categoryId)
@@ -2388,7 +2475,7 @@ const updateTreeData = async (categoryId: string, datasets: any[]) => {
       if (docResponse.data && docResponse.data.length > 0) {
         // 只显示启用状态的文档 (is_active 为 true 的文档)
         datasetNode.children = docResponse.data
-          .filter((doc: any) => doc.is_active !== false)
+          .filter((doc: any) => doc.is_active !== false && doc.status == 'nn2')
           .map((doc: any) => ({
             id: `doc_${doc.id}`,
             label: doc.name,
