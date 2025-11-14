@@ -112,7 +112,7 @@ const openResetPassword = () => {
 
 const logout = () => {
   user.logout().then(() => {
-    router.push({ name: 'oauth_login' })
+    router.push({ name: 'login' })
   })
 }
 
