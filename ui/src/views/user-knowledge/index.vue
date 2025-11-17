@@ -369,9 +369,15 @@
 
                   <!-- AI引导式问答 -->
                   <div v-if="message.role === 'assistant' && guides.length > 0">
-                    <div style="display: flex; gap: 5px">
+                    <div style="display: flex; gap: 5px; cursor: pointer">
                       <span v-for="(guide, index) in guides" :key="index">
-                        <el-tag size="small" class="guide-tag" :key="index">
+                        <el-tag
+                          size="small"
+                          class="guide-tag"
+                          :key="index"
+                          @click="handleGuideTagClick(guide)"
+                          style="cursor: pointer;"
+                        >
                           {{ guide }}
                         </el-tag>
                       </span>
@@ -434,7 +440,7 @@
                               }}
                             </span>
                             <span class="paragraph-dataset"
-                              >知识库名称: {{ paragraph.dataset_name }}</span
+                            >知识库名称: {{ paragraph.dataset_name }}</span
                             >
                           </div>
                         </div>
@@ -1192,8 +1198,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, watch, type Ref, ref, onBeforeMount, onBeforeUnmount } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import {computed, nextTick, onMounted, onUnmounted, watch, type Ref, ref, onBeforeMount, onBeforeUnmount} from 'vue'
+import {ElMessage, ElMessageBox} from 'element-plus'
 import useStore from '@/stores'
 import {
   ArrowDown,
@@ -1225,7 +1231,7 @@ import {
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
-import modelApi, { postModelChat, postModelChatStream } from '@/api/model'
+import modelApi, {postModelChat, postModelChatStream} from '@/api/model'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
 import DocumentParagraphsDialog from './components/DocumentParagraphsDialog.vue'
@@ -1234,8 +1240,8 @@ import userApi from '@/api/user-manage'
 import Recorder from 'recorder-core'
 import 'recorder-core/src/engine/mp3'
 import 'recorder-core/src/engine/mp3-engine'
-import { MsgAlert } from '@/utils/message'
-import { marked } from 'marked'
+import {MsgAlert} from '@/utils/message'
+import {marked} from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import useGuide from '@/utils/useGuide'
@@ -1435,7 +1441,7 @@ const selectedSTTModelId = ref('')
 // 不再需要临时应用ID
 
 // 用户权限
-const { user } = useStore()
+const {user} = useStore()
 const userRole = computed(() => user.getRole())
 const isAdmin = computed(() => userRole.value === 'ADMIN')
 
@@ -1871,7 +1877,7 @@ const getSelectedDocuments = (): TreeNode[] => {
 
 // 处理一级目录的三个点菜单操作
 const handleLevel1Action = (command: { action: string; data: TreeNode }) => {
-  const { action, data } = command
+  const {action, data} = command
 
   switch (action) {
     case 'refresh':
@@ -2101,7 +2107,7 @@ const sortSharedKBs = async () => {
 
 // 处理知识库操作
 const handleKBAction = async (command: { action: string; data: TreeNode }) => {
-  const { action, data } = command
+  const {action, data} = command
 
   try {
     switch (action) {
@@ -2266,7 +2272,7 @@ const formatFileSize = (bytes: number) => {
 // 加载机构知识库
 const loadOrganizationKBs = async () => {
   try {
-    const page = { current_page: 1, page_size: 100 }
+    const page = {current_page: 1, page_size: 100}
     const response = await datasetApi.getOrganizationDataset(page, {})
 
     console.log('机构知识库API响应:', response)
@@ -2296,7 +2302,7 @@ const loadOrganizationKBs = async () => {
 // 加载共享知识库
 const loadSharedKBs = async () => {
   try {
-    const page = { current_page: 1, page_size: 100 }
+    const page = {current_page: 1, page_size: 100}
     const response = await datasetApi.getSharedToMeDataset(page, {})
 
     console.log('共享知识库API响应:', response)
@@ -2341,7 +2347,7 @@ const loadSharedKBs = async () => {
 // 加载个人知识库
 const loadPersonalKBs = async () => {
   try {
-    const page = { current_page: 1, page_size: 100 }
+    const page = {current_page: 1, page_size: 100}
     const response = await datasetApi.getDataset(page, {})
 
     if (response.data) {
@@ -2374,7 +2380,7 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
     };
     const response = await documentApi.getDocument(
       datasetId,
-      { current_page: 1, page_size: 10 },
+      {current_page: 1, page_size: 10},
       params
     );
 
@@ -2398,7 +2404,7 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
       }
 
       // 重新判断所有文档的最终状态
-      const allSuccess = records.every((record:any) => record.status === SUCCESS);
+      const allSuccess = records.every((record: any) => record.status === SUCCESS);
       const hasFailure = records.some((record: any) => record.status === FAILURE);
       const hasRevoked = records.some((record: any) => record.status === REVOKED);
       const hasRevoke = records.some((record: any) => record.status === REVOKE);
@@ -2431,9 +2437,9 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
 
 let uploadCheckTimer: number | null = null
 
-onMounted(()=>{
+onMounted(() => {
   if (uploadCheckTimer) return
-  uploadCheckTimer = window.setInterval(()=>{
+  uploadCheckTimer = window.setInterval(() => {
     const uploadDatasetId = window.localStorage.getItem('uploading_dataset_id')
     console.log(uploadDatasetId, '检查上传状态定时器触发')
     if (!uploadDatasetId) return
@@ -2441,7 +2447,7 @@ onMounted(()=>{
   }, 6000)
 })
 
-onBeforeUnmount(()=>{
+onBeforeUnmount(() => {
   if (uploadCheckTimer) {
     clearInterval(uploadCheckTimer)
     uploadCheckTimer = null
@@ -2733,7 +2739,7 @@ function tryNormalizeJsObjectToJson(str: string) {
   s = s.replace(/([{,]\s*)([A-Za-z0-9_$]+)\s*:/g, '$1"$2":');
 
   // 2) 把单引号字符串改为双引号（处理转义情况）
-  s = s.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, function(_, content) {
+  s = s.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, function (_, content) {
     // 将内部的双引号转义（防止原来有 "）
     const escaped = content.replace(/"/g, '\\"');
     return '"' + escaped + '"';
@@ -2868,7 +2874,7 @@ const sendMessage = async () => {
 
     // 基于选中知识库进行检索
     const searchResponse = await performKnowledgeSearch(userQuestion)
-    const { results: searchResults, hasEmbeddingError, hasConnectionError } = searchResponse
+    const {results: searchResults, hasEmbeddingError, hasConnectionError} = searchResponse
     console.log('知识检索结果:', searchResults)
     // 保存搜索结果，稍后添加到AI回答消息中
     let searchResultsForAI: any[] = []
@@ -3098,7 +3104,8 @@ ${context}
 
 历史对话记录：
 ${chatMessages.value}
-`}
+`
+    }
 
     // AI翻译模式、AI摘要模式，以及AI写作模式下的扩写/润写模式不使用对话历史上下文，每次都是独立的任务
     // 注意：AI摘要模式的历史记录通过 systemPrompt 传入（在 getSummaryPrompt 中格式化），不在 messages 数组中
@@ -3123,16 +3130,16 @@ ${chatMessages.value}
         content: systemPrompt
       },
       ...(shouldSkipHistory ? [] : chatMessages.value.slice(-10)), // 根据需要决定是否保留对话历史
-      { role: 'user', content: userQuestion }
+      {role: 'user', content: userQuestion}
     ]
 
-    const { getGuideQuestions } = useGuide()
+    const {getGuideQuestions} = useGuide()
 
     const guideQuestions = getGuideQuestions(modelId, mode, userQuestion, documentDoc)
 
     // 调用模型API进行流式对话
     try {
-      const resp = await postModelChatStream(modelId, { messages })
+      const resp = await postModelChatStream(modelId, {messages})
 
       if (resp?.body && typeof resp.body.getReader === 'function') {
         const reader = resp.body.getReader()
@@ -3140,7 +3147,7 @@ ${chatMessages.value}
         let currentAssistantMessage = ''
 
         while (isStreaming.value) {
-          const { value, done } = await reader.read()
+          const {value, done} = await reader.read()
           if (done) break
 
           const chunk = decoder.decode(value)
@@ -3220,7 +3227,7 @@ ${chatMessages.value}
             const content = replaceQuickChartWithEncodedUrl(currentAssistantMessage)
             console.log('替换 quickchart URL 后的内容:', content)
             chatMessages.value[chatMessages.value.length - 1].content = content
-            setTimeout(()=>{
+            setTimeout(() => {
               console.log(chatMessages.value[chatMessages.value.length - 1].content)
 
             }, 1000)
@@ -3411,7 +3418,7 @@ renderer.code = function (code: string, language: string | undefined, isEscaped:
 
   if (language && hljs.getLanguage(language)) {
     try {
-      const highlighted = hljs.highlight(code, { language }).value
+      const highlighted = hljs.highlight(code, {language}).value
       return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`
     } catch (err) {
       console.error('代码高亮失败:', err)
@@ -3426,7 +3433,7 @@ renderer.code = function (code: string, language: string | undefined, isEscaped:
   }
 }
 
-marked.use({ renderer })
+marked.use({renderer})
 
 // 格式化消息内容（支持完整的 Markdown 渲染）
 const formatMessageContent = (content: string) => {
@@ -4009,12 +4016,12 @@ ${userInput}
 
 请只返回一个词：writing、polish、expand 或 chat`
 
-    const messages = [{ role: 'user', content: intentPrompt }]
+    const messages = [{role: 'user', content: intentPrompt}]
 
     console.log('发送意图识别请求到AI模型...')
 
     // 调用模型进行意图识别
-    const response = await postModelChat(modelId, { messages })
+    const response = await postModelChat(modelId, {messages})
 
     console.log('收到AI模型响应:', response)
 
@@ -4921,7 +4928,7 @@ const createKnowledgeBase = async () => {
     // 获取默认的embedding模型ID
     let embeddingModeId = ''
     try {
-      const modelRes = await modelApi.getModel({ model_type: 'EMBEDDING' })
+      const modelRes = await modelApi.getModel({model_type: 'EMBEDDING'})
       const modelList = modelRes?.data || []
       // 自动选择名为 maxkb-embedding 的模型作为默认
       const defaultModel = modelList.find(
@@ -5068,7 +5075,8 @@ const confirmRename = async () => {
 }
 
 // 取消录音控制台日志
-Recorder.CLog = function () {}
+Recorder.CLog = function () {
+}
 
 // 语音录制管理类
 class RecorderManage {
@@ -5331,6 +5339,23 @@ const copyMessage = (message: string) => {
       console.error('复制失败:', err)
       ElMessage.error('复制失败，请手动复制')
     })
+}
+
+// 处理引导式问题标签点击
+const handleGuideTagClick = async (guide: string) => {
+  // 将引导问题填充到输入框
+  currentMessage.value = guide
+
+  // 自动滚动到输入框
+  await nextTick()
+  const inputElement = document.querySelector('.chat-input textarea') as HTMLTextAreaElement
+  if (inputElement) {
+    inputElement.focus()
+  }
+
+  // 自动发送消息
+  await nextTick()
+  await sendMessage()
 }
 
 // 监听消息数组变化，当消息被清空时自动重置当前聊天历史ID
@@ -6574,27 +6599,24 @@ onUnmounted(() => {
         user-select: none;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         position: relative;
-        box-shadow:
-          0 2px 8px rgba(0, 0, 0, 0.06),
-          0 1px 3px rgba(0, 0, 0, 0.04),
-          inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06),
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
         &:hover {
           background: #f9fafb;
           border-color: #d1d5db;
           transform: translateY(-2px);
-          box-shadow:
-            0 6px 16px rgba(0, 0, 0, 0.1),
-            0 3px 8px rgba(0, 0, 0, 0.06),
-            inset 0 1px 0 rgba(255, 255, 255, 0.9);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1),
+          0 3px 8px rgba(0, 0, 0, 0.06),
+          inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         &:active {
           transform: translateY(0);
           background: #f3f4f6;
-          box-shadow:
-            0 2px 4px rgba(0, 0, 0, 0.08),
-            inset 0 2px 4px rgba(0, 0, 0, 0.06);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08),
+          inset 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
         .ai-icon {
@@ -6922,6 +6944,27 @@ onUnmounted(() => {
   .translation-divider {
     height: 16px;
     background: transparent;
+  }
+}
+
+/* 引导式问题标签样式 */
+.guide-tag {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+
+  &:hover {
+    background-color: #409eff !important;
+    color: white !important;
+    border-color: #409eff !important;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(64, 158, 255, 0.2);
   }
 }
 </style>
