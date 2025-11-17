@@ -434,18 +434,11 @@ class DocumentSerializers(ApiMixin, serializers.Serializer):
                 status = self.data.get(
                     'status')
                 if task_type is not None:
-                    if status == '-1':
-                        query_set = query_set.annotate(
-                            reversed_status=Reverse('status'),
-                            task_type_status=Substr('reversed_status', TaskType(task_type).value,
-                                                    1),
-                        ).exclude(task_type_status=State.SUCCESS.value).values('id')
-                    else:
-                        query_set = query_set.annotate(
-                            reversed_status=Reverse('status'),
-                            task_type_status=Substr('reversed_status', TaskType(task_type).value,
-                                                    1),
-                        ).filter(task_type_status=State(status).value).values('id')
+                    query_set = query_set.annotate(
+                        reversed_status=Reverse('status'),
+                        task_type_status=Substr('reversed_status', TaskType(task_type).value,
+                                                1),
+                    ).filter(task_type_status=State(status).value).values('id')
                 else:
                     if status != State.SUCCESS.value:
                         query_set = query_set.filter(status__icontains=status)

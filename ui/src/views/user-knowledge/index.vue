@@ -2375,16 +2375,15 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
   try {
     const params = {
       current_page: 1,
-      page_size: 10,
-      status: '-1'
+      page_size: 50,
     };
     const response = await documentApi.getDocument(
       datasetId,
-      {current_page: 1, page_size: 10},
+      params,
       params
     );
 
-    if (response.data && response.data.records) {
+    if (response.data && response.data.records.length > 0) {
       const records = response.data.records;
 
       // 检查是否有任何文档仍在等待或执行中
@@ -2424,8 +2423,8 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
       return false;
     } else {
       console.error('获取文档列表失败，响应数据异常');
-      ElMessage.error('获取文档列表失败');
-      window.localStorage.removeItem('uploading_dataset_id')
+      // ElMessage.error('获取文档列表失败');
+      // window.localStorage.removeItem('uploading_dataset_id')
       return false;
     }
   } catch (error) {

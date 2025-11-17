@@ -487,6 +487,7 @@ const getList = async (isPolling = false) => {
       documentData.value = response.data.records || []
       paginationConfig.total = response.data.total || 0
     }
+    console.log('model获取文档列表:', response.data)
   } catch (error) {
     // 轮询时的错误不显示给用户，避免频繁弹窗
     if (!isPolling) {
