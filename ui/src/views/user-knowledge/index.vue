@@ -369,7 +369,7 @@
 
                   <!-- AI引导式问答 -->
                   <div v-if="message.role === 'assistant' && guides.length > 0">
-                    <div style="display: flex; gap: 5px; cursor: pointer">
+                    <div style="display: grid; gap: 5px; cursor: pointer; margin-top: 10px">
                       <span v-for="(guide, index) in guides" :key="index">
                         <el-tag
                           size="small"
@@ -618,14 +618,20 @@
                     v-if="selectedInfo && selectedInfo.type === 'documents'"
                     class="selected-items"
                   >
-                    <el-tag
+
+                    <el-tooltip
+                      :content="item"
+                      placement="top"
                       v-for="(item, index) in selectedInfo.items.slice(0, 4)"
                       :key="index"
-                      size="small"
-                      class="item-tag document-tag"
                     >
-                      {{ item }}
-                    </el-tag>
+                      <el-tag
+                        size="small"
+                        class="item-tag document-tag"
+                      >
+                        <div class="ellipsis">{{item}}</div>
+                      </el-tag>
+                    </el-tooltip>
                     <el-tag
                       v-if="selectedInfo.items.length > 4"
                       size="small"
@@ -3134,8 +3140,6 @@ ${chatMessages.value}
 
     const {getGuideQuestions} = useGuide()
 
-    const guideQuestions = getGuideQuestions(modelId, mode, userQuestion, documentDoc)
-
     // 调用模型API进行流式对话
     try {
       const resp = await postModelChatStream(modelId, {messages})
@@ -3185,11 +3189,6 @@ ${chatMessages.value}
         // 流式输出结束后处理
         const lastMessage = chatMessages.value[chatMessages.value.length - 1]
         console.log('流式输出结束，当前AI消息内容:', currentAssistantMessage)
-        try {
-          guides.value = await guideQuestions
-        } catch (e) {
-          console.log('获取引导问题失败:', e)
-        }
         if (lastMessage && lastMessage.role === 'assistant') {
           // 直接使用原始内容
           lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
@@ -3233,6 +3232,14 @@ ${chatMessages.value}
               console.log(newParagraphs, lastMessage.paragraphs)
               lastMessage.paragraphs = newParagraphs;
             }
+          }
+
+
+          const guideQuestions = getGuideQuestions(modelId, mode, userQuestion, currentAssistantMessage)
+          try {
+            guides.value = await guideQuestions
+          } catch (e) {
+            console.log('获取引导问题失败:', e)
           }
 
           // 问数解析
@@ -5786,6 +5793,14 @@ onUnmounted(() => {
   }
 }
 
+.ellipsis {
+  width: 80px;              /* 只显示 10px */
+  overflow: hidden;         /* 超出隐藏 */
+  white-space: nowrap;      /* 不换行 */
+  text-overflow: ellipsis;  /* 超出用省略号 */
+  display: inline-block;    /* 必须为块或行内块 */
+}
+
 .knowledge-main {
   flex: 1;
   display: flex;
@@ -5827,9 +5842,10 @@ onUnmounted(() => {
     .selected-items {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 4px;
 
       .item-tag {
+
         &.document-tag {
           background: #e6f3ff;
           border-color: #3370ff;
@@ -6347,7 +6363,7 @@ onUnmounted(() => {
   }
 
   .integrated-chat-input {
-    padding: 16px 20px;
+    padding: 10px 14px;
     background: white;
     flex-shrink: 0;
     min-height: 120px; /* 设置最小高度，确保输入组件有足够空间 */
@@ -6440,7 +6456,7 @@ onUnmounted(() => {
         background: #ffffff;
         border: 1px solid var(--el-border-color-light);
         border-radius: 12px;
-        padding: 12px 16px;
+        padding: 6px 9px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         transition: all 0.3s ease;
 
@@ -6596,14 +6612,14 @@ onUnmounted(() => {
       display: flex;
       justify-content: center;
       gap: 16px;
-      margin-top: 20px;
-      padding: 0 20px;
+      margin-top: 10px;
+      padding: 0 10px;
 
       .ai-button {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 12px 20px;
+        padding: 6px 8px;
         background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 24px;
