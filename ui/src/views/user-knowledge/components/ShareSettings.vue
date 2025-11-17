@@ -190,7 +190,6 @@ const addUser = (item: any) => {
       permission: item.type === 'TEAM' ? 'MANAGE' : 'READ', // 团队默认辅助管理权限，其他默认只读
       showDropdown: false
     }
-    alert('1')
     memberList.value.push(newMember)
   }
 
