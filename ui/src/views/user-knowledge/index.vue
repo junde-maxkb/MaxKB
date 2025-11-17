@@ -2590,6 +2590,10 @@ const performKnowledgeSearch = async (query: string) => {
     let hasConnectionError = false
     let hasEmbeddingError = false
     const isDocumentSearch = selectedDocuments.length > 0
+    const MAX_TOTAL_RESULTS = 200
+    const MAX_RESULTS_PER_DOCUMENT = 3
+    const MIN_RESULTS_PER_DOCUMENT = 3
+    let reachedMaxResults = false
 
     // 如果选中了具体文档，优先基于文档进行检索
     if (isDocumentSearch) {
@@ -2612,6 +2616,10 @@ const performKnowledgeSearch = async (query: string) => {
         const datasetName = datasetNode?.label || '未知知识库'
 
         for (const doc of docs) {
+          if (reachedMaxResults) {
+            break
+          }
+
           if (!doc.documentId) {
             continue
           }
@@ -2619,7 +2627,7 @@ const performKnowledgeSearch = async (query: string) => {
           try {
             const searchData = {
               query_text: query,
-              top_number: 6, // 每个文档最多返回6个分段
+              top_number: 50, // 预取一定数量，后续限制为3-6条
               similarity: 0.3, // 相似度阈值设置为0.3，只返回相似度高于0.3的结果
               search_mode: 'blend',
               // 单独对每个文档执行命中测试
@@ -2628,6 +2636,7 @@ const performKnowledgeSearch = async (query: string) => {
 
             const response = await datasetApi.getDatasetHitTest(datasetId, searchData)
             if (response.code === 200 && response.data) {
+              const rawCount = Array.isArray(response.data) ? response.data.length : 0
               const formattedResults = response.data
                 .map((item: any) => ({
                   ...item,
@@ -2641,12 +2650,36 @@ const performKnowledgeSearch = async (query: string) => {
                 .sort((a: any, b: any) => b._score - a._score)
                 .map(({_score, ...rest}: any) => rest)
 
-              const sliceCount = formattedResults.length >= 3
-                ? Math.min(formattedResults.length, 6)
-                : formattedResults.length
+              if (formattedResults.length > 0) {
+                const sliceCount = formattedResults.length >= MIN_RESULTS_PER_DOCUMENT
+                  ? Math.min(formattedResults.length, MAX_RESULTS_PER_DOCUMENT)
+                  : formattedResults.length
 
-              if (sliceCount > 0) {
-                searchResults.push(...formattedResults.slice(0, sliceCount))
+                let accepted = formattedResults.slice(0, sliceCount)
+
+                if (accepted.length > 0) {
+                  const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
+                  if (remainingSlots <= 0) {
+                    reachedMaxResults = true
+                    console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`)
+                    break
+                  }
+
+                  if (accepted.length > remainingSlots) {
+                    accepted = accepted.slice(0, remainingSlots)
+                    reachedMaxResults = true
+                  }
+
+                  searchResults.push(...accepted)
+                  if (searchResults.length >= MAX_TOTAL_RESULTS) {
+                    reachedMaxResults = true
+                  }
+                  console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: ${accepted.length} 条`)
+                } else {
+                  console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (候选不足)`)
+                }
+              } else {
+                console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: 0 条, 采纳: 0 条`)
               }
             } else if (response.code === 500) {
               // 检查是否是嵌入模型连接错误
@@ -2670,6 +2703,14 @@ const performKnowledgeSearch = async (query: string) => {
               hasConnectionError = true
             }
           }
+
+          if (reachedMaxResults) {
+            break
+          }
+        }
+
+        if (reachedMaxResults) {
+          break
         }
       }
     }
@@ -2684,19 +2725,38 @@ const performKnowledgeSearch = async (query: string) => {
         try {
           const searchData = {
             query_text: query,
-            top_number: isAIWritingMode.value ? 30 : 10, // AI写作模式取前30条结果，普通模式取前10条
+            top_number: 300, // 每个知识库最多返回500个结果
             similarity: 0.3, // 相似度阈值设置为0.3，只返回相似度高于0.3的结果
             search_mode: 'blend'
           }
 
           const response = await datasetApi.getDatasetHitTest(dataset.datasetId, searchData)
           if (response.code === 200 && response.data) {
-            const results = response.data.map((item: any) => ({
+            const rawCount = Array.isArray(response.data) ? response.data.length : 0
+            let results = response.data.map((item: any) => ({
               ...item,
               dataset_name: dataset.label,
               source: dataset.label
             }))
-            searchResults.push(...results)
+            if (results.length > 0) {
+              const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
+              if (remainingSlots <= 0) {
+                reachedMaxResults = true
+                console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`)
+              } else {
+                if (results.length > remainingSlots) {
+                  results = results.slice(0, remainingSlots)
+                  reachedMaxResults = true
+                }
+                console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: ${results.length} 条`)
+                searchResults.push(...results)
+                if (searchResults.length >= MAX_TOTAL_RESULTS) {
+                  reachedMaxResults = true
+                }
+              }
+            } else {
+              console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: 0 条, 采纳: 0 条`)
+            }
           } else if (response.code === 500) {
             // 检查是否是嵌入模型连接错误
             if (
@@ -2719,6 +2779,10 @@ const performKnowledgeSearch = async (query: string) => {
             hasConnectionError = true
           }
         }
+
+        if (reachedMaxResults) {
+          break
+        }
       }
     } else {
       console.log('未选中任何文档或知识库')
@@ -2737,9 +2801,8 @@ const performKnowledgeSearch = async (query: string) => {
         return sb - sa
       })
 
-      const maxResults = isAIWritingMode.value ? 30 : 10
       return {
-        results: searchResults.slice(0, maxResults),
+        results: searchResults,
         hasEmbeddingError,
         hasConnectionError
       }
