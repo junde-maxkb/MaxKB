@@ -3195,6 +3195,7 @@ ${chatMessages.value}
           lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
         }
 
+
         // 如果没有接收到内容，显示默认错误消息
         if (!currentAssistantMessage) {
           if (!isStreaming.value) {
@@ -3217,7 +3218,20 @@ ${chatMessages.value}
           if (searchResultsForAI.length > 0) {
             const lastMessage = chatMessages.value[chatMessages.value.length - 1]
             if (lastMessage && lastMessage.role === 'assistant') {
-              lastMessage.paragraphs = searchResultsForAI
+
+              // paragraphs 显示去重
+              const documentMap = new Map();
+              const newParagraphs: any[] = []
+              searchResultsForAI.forEach((item)=>{
+                if (documentMap.has(item.document_name)) {
+                  return
+                } else {
+                  documentMap.set(item.document_name, 1)
+                  newParagraphs.push(item)
+                }
+              })
+              console.log(newParagraphs, lastMessage.paragraphs)
+              lastMessage.paragraphs = newParagraphs;
             }
           }
 
