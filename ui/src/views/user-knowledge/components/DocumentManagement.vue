@@ -650,7 +650,7 @@ const deleteMulDocument = async () => {
       const ids = multipleSelection.value.map(doc => doc.id)
       await documentApi.delMulDocument(props.datasetId, ids)
       ElMessage.success('批量删除成功')
-      multipleSelection.value = []
+      multipleTableRef.value?.clearSelection()
       await getList()
       // 通知父组件文档发生变化
       emit('documentChanged')
