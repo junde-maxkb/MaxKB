@@ -63,7 +63,9 @@
       <router-view />
     </div>
 
-    <el-drawer v-model="drawer" :beforeClose="()=>loadMessages(false)" title="消息中心" :direction="'rtl'">
+    <el-drawer
+      v-model="drawer"
+      :beforeClose="closeDrawer" title="消息中心" :direction="'rtl'">
       <div
         v-loading="msgLoading"
         style="display: flex; flex-direction: column; gap: 12px; min-height: 100px"
@@ -124,6 +126,12 @@ const { loading: notRead, setLoading: setNotRead } = useLoading()
 const openDrawer = async () => {
   drawer.value = true
   await loadMessages(true)
+}
+
+// 关闭消息通知抽屉
+const closeDrawer = () => {
+  drawer.value = false
+  loadMessages(false)
 }
 
 const loadMessages = async (isLoading: boolean) => {
