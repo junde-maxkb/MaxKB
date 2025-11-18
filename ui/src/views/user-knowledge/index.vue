@@ -1800,9 +1800,16 @@ const newChat = () => {
   // 重置已保存的消息数量
   savedMessageCount.value = 0
   // 取消所有选中的文档和知识库
+  clearKnowledgeSelection()
+}
+
+// 清空知识库勾选
+const clearKnowledgeSelection = () => {
   if (treeRef.value) {
     treeRef.value.setCheckedKeys([])
   }
+  selectedNode.value = null
+  selectedKB.value = null
 }
 
 // 方法
@@ -2623,9 +2630,14 @@ const performKnowledgeSearch = async (query: string) => {
     let searchResults: any[] = []
     let hasConnectionError = false
     let hasEmbeddingError = false
+    const isDocumentSearch = selectedDocuments.length > 0
+    const MAX_TOTAL_RESULTS = 200
+    const MAX_RESULTS_PER_DOCUMENT = 3
+    const MIN_RESULTS_PER_DOCUMENT = 3
+    let reachedMaxResults = false
 
     // 如果选中了具体文档，优先基于文档进行检索
-    if (selectedDocuments.length > 0) {
+    if (isDocumentSearch) {
       console.log('基于选中的文档进行检索:', selectedDocuments)
 
       // 按知识库分组文档
@@ -2641,52 +2653,105 @@ const performKnowledgeSearch = async (query: string) => {
 
       // 对每个知识库的选中文档进行检索
       for (const [datasetId, docs] of documentsByDataset) {
-        try {
-          const searchData = {
-            query_text: query,
-            top_number: isAIWritingMode.value ? 30 : 10, // AI写作模式取前30条结果，普通模式取前10条结果
-            similarity: 0.3, // 相似度阈值设置为0.3，只返回相似度高于0.3的结果
-            search_mode: 'blend',
-            // 添加文档ID列表，限制检索范围
-            document_ids: docs
-              .map((doc) => doc.documentId)
-              .filter(Boolean)
-              .join(',')
+        const datasetNode = findDatasetNode(datasetId)
+        const datasetName = datasetNode?.label || '未知知识库'
+
+        for (const doc of docs) {
+          if (reachedMaxResults) {
+            break
           }
 
-          // 从treeData中查找知识库节点以获取正确的知识库名称
-          const datasetNode = findDatasetNode(datasetId)
-          const datasetName = datasetNode?.label || '未知知识库'
+          if (!doc.documentId) {
+            continue
+          }
 
-          const response = await datasetApi.getDatasetHitTest(datasetId, searchData)
-          if (response.code === 200 && response.data) {
-            const results = response.data.map((item: any) => ({
-              ...item,
-              dataset_name: datasetName,
-              source: item.document_name || item.source
-            }))
-            searchResults.push(...results)
-          } else if (response.code === 500) {
-            // 检查是否是嵌入模型连接错误
+          try {
+            const searchData = {
+              query_text: query,
+              top_number: 50, // 预取一定数量，后续限制为3-6条
+              similarity: 0.3, // 相似度阈值设置为0.3，只返回相似度高于0.3的结果
+              search_mode: 'blend',
+              // 单独对每个文档执行命中测试
+              document_ids: `${doc.documentId}`
+            }
+
+            const response = await datasetApi.getDatasetHitTest(datasetId, searchData)
+            if (response.code === 200 && response.data) {
+              const rawCount = Array.isArray(response.data) ? response.data.length : 0
+              const formattedResults = response.data
+                .map((item: any) => ({
+                  ...item,
+                  dataset_name: datasetName,
+                  dataset_id: datasetId,
+                  document_name: doc.label || item.document_name || item.source,
+                  document_id: item.document_id ?? doc.documentId,
+                  source: doc.label || item.document_name || item.source,
+                  _score: item.similarity ?? item.comprehensive_score ?? 0
+                }))
+                .sort((a: any, b: any) => b._score - a._score)
+                .map(({_score, ...rest}: any) => rest)
+
+              if (formattedResults.length > 0) {
+                const sliceCount = formattedResults.length >= MIN_RESULTS_PER_DOCUMENT
+                  ? Math.min(formattedResults.length, MAX_RESULTS_PER_DOCUMENT)
+                  : formattedResults.length
+
+                let accepted = formattedResults.slice(0, sliceCount)
+
+                if (accepted.length > 0) {
+                  const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
+                  if (remainingSlots <= 0) {
+                    reachedMaxResults = true
+                    console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`)
+                    break
+                  }
+
+                  if (accepted.length > remainingSlots) {
+                    accepted = accepted.slice(0, remainingSlots)
+                    reachedMaxResults = true
+                  }
+
+                  searchResults.push(...accepted)
+                  if (searchResults.length >= MAX_TOTAL_RESULTS) {
+                    reachedMaxResults = true
+                  }
+                  console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: ${accepted.length} 条`)
+                } else {
+                  console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (候选不足)`)
+                }
+              } else {
+                console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: 0 条, 采纳: 0 条`)
+              }
+            } else if (response.code === 500) {
+              // 检查是否是嵌入模型连接错误
+              if (
+                response.message?.includes('Failed to establish a new connection') ||
+                response.message?.includes('Connection refused')
+              ) {
+                hasEmbeddingError = true
+              }
+            }
+          } catch (error: any) {
+            console.warn(`文档 ${doc.label || doc.documentId} 检索失败:`, error)
+
+            // 检测连接错误类型
             if (
-              response.message?.includes('Failed to establish a new connection') ||
-              response.message?.includes('Connection refused')
+              error.message?.includes('Failed to establish a new connection') ||
+              error.message?.includes('Connection refused')
             ) {
               hasEmbeddingError = true
+            } else {
+              hasConnectionError = true
             }
           }
-        } catch (error: any) {
-          console.warn(`文档检索失败:`, error)
 
-          // 检测连接错误类型
-          if (
-            error.message?.includes('Failed to establish a new connection') ||
-            error.message?.includes('Connection refused')
-          ) {
-            hasEmbeddingError = true
-          } else {
-            hasConnectionError = true
+          if (reachedMaxResults) {
+            break
           }
+        }
+
+        if (reachedMaxResults) {
+          break
         }
       }
     }
@@ -2701,19 +2766,38 @@ const performKnowledgeSearch = async (query: string) => {
         try {
           const searchData = {
             query_text: query,
-            top_number: isAIWritingMode.value ? 30 : 10, // AI写作模式取前30条结果，普通模式取前10条
+            top_number: 300, // 每个知识库最多返回500个结果
             similarity: 0.3, // 相似度阈值设置为0.3，只返回相似度高于0.3的结果
             search_mode: 'blend'
           }
 
           const response = await datasetApi.getDatasetHitTest(dataset.datasetId, searchData)
           if (response.code === 200 && response.data) {
-            const results = response.data.map((item: any) => ({
+            const rawCount = Array.isArray(response.data) ? response.data.length : 0
+            let results = response.data.map((item: any) => ({
               ...item,
               dataset_name: dataset.label,
               source: dataset.label
             }))
-            searchResults.push(...results)
+            if (results.length > 0) {
+              const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
+              if (remainingSlots <= 0) {
+                reachedMaxResults = true
+                console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`)
+              } else {
+                if (results.length > remainingSlots) {
+                  results = results.slice(0, remainingSlots)
+                  reachedMaxResults = true
+                }
+                console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: ${results.length} 条`)
+                searchResults.push(...results)
+                if (searchResults.length >= MAX_TOTAL_RESULTS) {
+                  reachedMaxResults = true
+                }
+              }
+            } else {
+              console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: 0 条, 采纳: 0 条`)
+            }
           } else if (response.code === 500) {
             // 检查是否是嵌入模型连接错误
             if (
@@ -2736,6 +2820,10 @@ const performKnowledgeSearch = async (query: string) => {
             hasConnectionError = true
           }
         }
+
+        if (reachedMaxResults) {
+          break
+        }
       }
     } else {
       console.log('未选中任何文档或知识库')
@@ -2747,15 +2835,22 @@ const performKnowledgeSearch = async (query: string) => {
     }
 
     // 按相似度排序，AI写作模式取前30条，普通模式取前10条
-    searchResults.sort((a, b) => {
-      const sa = a.similarity ?? a.comprehensive_score ?? 0
-      const sb = b.similarity ?? b.comprehensive_score ?? 0
-      return sb - sa
-    })
+    if (!isDocumentSearch) {
+      searchResults.sort((a, b) => {
+        const sa = a.similarity ?? a.comprehensive_score ?? 0
+        const sb = b.similarity ?? b.comprehensive_score ?? 0
+        return sb - sa
+      })
 
-    const maxResults = isAIWritingMode.value ? 30 : 10
+      return {
+        results: searchResults,
+        hasEmbeddingError,
+        hasConnectionError
+      }
+    }
+
     return {
-      results: searchResults.slice(0, maxResults),
+      results: searchResults,
       hasEmbeddingError,
       hasConnectionError
     }
@@ -3540,6 +3635,7 @@ const formatMessageContent = (content: string) => {
 
 // 清除模式状态
 const switchMode = (mode: Ref<boolean, boolean>) => {
+  const previousModeLabel = getCurrentModeLabel()
   mode.value = !mode.value
 
   isAIWritingMode.value = mode === isAIWritingMode ? mode.value : false
@@ -3565,6 +3661,11 @@ const switchMode = (mode: Ref<boolean, boolean>) => {
   questionDocumentName.value = ''
   // 切换模式时清空输入框内容，避免混淆
   currentMessage.value = ''
+
+  const currentModeLabel = getCurrentModeLabel()
+  if (currentModeLabel !== previousModeLabel) {
+    clearKnowledgeSelection()
+  }
 }
 
 // AI写作功能

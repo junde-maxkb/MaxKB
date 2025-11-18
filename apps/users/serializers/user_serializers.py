@@ -942,28 +942,49 @@ class ChatHistorySerializer(ApiMixin, serializers.Serializer):
         def list(self, with_valid=True):
             if with_valid:
                 self.is_valid(raise_exception=True)
-            return [{
-                'id': str(history.id),
-                'user_id': str(history.user_id),
-                'application_name': history.application_name,
-                'title': history.title or history.application_name,
-                'message_count': history.message_count,
-                'create_time': history.create_time.strftime('%Y-%m-%d %H:%M:%S') if history.create_time else None
-            } for history in self.get_query_set()]
+            result = []
+            for history in self.get_query_set():
+                # 动态计算实际的消息数量，确保数据准确
+                actual_count = QuerySet(ChatMessage).filter(chat_history_id=history.id).count()
+                # 如果计算出的数量与存储的数量不一致，更新数据库
+                if actual_count != history.message_count:
+                    history.message_count = actual_count
+                    history.save()
+                
+                result.append({
+                    'id': str(history.id),
+                    'user_id': str(history.user_id),
+                    'application_name': history.application_name,
+                    'title': history.title or history.application_name,
+                    'message_count': actual_count,
+                    'create_time': history.create_time.strftime('%Y-%m-%d %H:%M:%S') if history.create_time else None
+                })
+            return result
         
         def page(self, current_page: int, page_size: int, with_valid=True):
             if with_valid:
                 self.is_valid(raise_exception=True)
+            
+            def post_records_handler(h):
+                # 动态计算实际的消息数量，确保数据准确
+                actual_count = QuerySet(ChatMessage).filter(chat_history_id=h.id).count()
+                # 如果计算出的数量与存储的数量不一致，更新数据库
+                if actual_count != h.message_count:
+                    h.message_count = actual_count
+                    h.save()
+                
+                return {
+                    'id': str(h.id),
+                    'user_id': str(h.user_id),
+                    'application_name': h.application_name,
+                    'title': h.title or h.application_name,
+                    'message_count': actual_count,
+                    'create_time': h.create_time.strftime('%Y-%m-%d %H:%M:%S') if h.create_time else None
+                }
+            
             return page_search(current_page, page_size,
                                self.get_query_set(),
-                               post_records_handler=lambda h: {
-                                   'id': str(h.id),
-                                   'user_id': str(h.user_id),
-                                   'application_name': h.application_name,
-                                   'title': h.title or h.application_name,
-                                   'message_count': h.message_count,
-                                   'create_time': h.create_time.strftime('%Y-%m-%d %H:%M:%S') if h.create_time else None
-                               })
+                               post_records_handler=post_records_handler)
     
     class Instance(ApiMixin, serializers.Serializer):
         user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
@@ -1083,6 +1104,12 @@ class ChatMessageSerializer(ApiMixin, serializers.Serializer):
                 message_index=message_index
             )
             chat_message.save()
+            
+            # 更新聊天记录的消息数量
+            actual_count = QuerySet(ChatMessage).filter(chat_history_id=chat_history_id).count()
+            chat_history.message_count = actual_count
+            chat_history.save()
+            
             return {
                 'id': str(chat_message.id),
                 'chat_history_id': str(chat_message.chat_history_id),
@@ -1155,6 +1182,11 @@ class ChatMessageSerializer(ApiMixin, serializers.Serializer):
                         'message_index': chat_message.message_index,
                         'create_time': chat_message.create_time.strftime('%Y-%m-%d %H:%M:%S') if chat_message.create_time else None
                     })
+                
+                # 更新聊天记录的消息数量
+                actual_count = QuerySet(ChatMessage).filter(chat_history_id=chat_history_id).count()
+                chat_history.message_count = actual_count
+                chat_history.save()
             
             return saved_messages
     
