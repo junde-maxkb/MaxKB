@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: yunhai arm64 build
 
 on:
   workflow_dispatch:
