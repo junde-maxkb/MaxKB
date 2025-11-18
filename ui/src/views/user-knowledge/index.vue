@@ -1766,9 +1766,16 @@ const newChat = () => {
   // 重置已保存的消息数量
   savedMessageCount.value = 0
   // 取消所有选中的文档和知识库
+  clearKnowledgeSelection()
+}
+
+// 清空知识库勾选
+const clearKnowledgeSelection = () => {
   if (treeRef.value) {
     treeRef.value.setCheckedKeys([])
   }
+  selectedNode.value = null
+  selectedKB.value = null
 }
 
 // 方法
@@ -3594,6 +3601,7 @@ const formatMessageContent = (content: string) => {
 
 // 清除模式状态
 const switchMode = (mode: Ref<boolean, boolean>) => {
+  const previousModeLabel = getCurrentModeLabel()
   mode.value = !mode.value
 
   isAIWritingMode.value = mode === isAIWritingMode ? mode.value : false
@@ -3619,6 +3627,11 @@ const switchMode = (mode: Ref<boolean, boolean>) => {
   questionDocumentName.value = ''
   // 切换模式时清空输入框内容，避免混淆
   currentMessage.value = ''
+
+  const currentModeLabel = getCurrentModeLabel()
+  if (currentModeLabel !== previousModeLabel) {
+    clearKnowledgeSelection()
+  }
 }
 
 // AI写作功能
