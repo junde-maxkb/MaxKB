@@ -3333,9 +3333,8 @@ ${chatMessages.value}
           }
 
 
-          const guideQuestions = getGuideQuestions(modelId, mode, userQuestion, currentAssistantMessage)
           try {
-            guides.value = await guideQuestions
+            guides.value = await getGuideQuestions(modelId, mode, userQuestion, currentAssistantMessage)
           } catch (e) {
             console.log('获取引导问题失败:', e)
           }
