@@ -72,6 +72,11 @@ export const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/oauth-login/index.vue')
   },
   {
+    path: '/oauth-callback',
+    name: 'oauth-callback',
+    component: () => import('@/views/oauth-callback/index.vue')
+  },
+  {
     path: '/animation-demo',
     name: 'AnimationDemo',
     component: () => import('@/views/animation-demo/index.vue')

@@ -28,6 +28,20 @@ const login: (
   return post('/user/login', request, undefined, loading)
 }
 /**
+ * OAuth登录
+ * @param auth_type
+ * @param code 登录接口请求表单
+ * @param loading 接口加载器
+ * @returns 认证数据
+ */
+const oauthLogin: (
+  code: string,
+  loading?: Ref<boolean>
+) => Promise<Result<string>> = (code, loading) => {
+  return post(`/sso_callback/`, { code }, loading)
+}
+
+/**
  * 登出
  * @param loading 接口加载器
  * @returns
@@ -226,5 +240,6 @@ export default {
   postLanguage,
   getDingOauth2Callback,
   getlarkCallback,
-  getQrSource
+  getQrSource,
+  oauthLogin
 }

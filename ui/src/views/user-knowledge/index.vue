@@ -1530,6 +1530,40 @@ const filteredTreeData = computed(() => {
   return filterTree(treeData.value)
 })
 
+// 计算属性：根据搜索文本过滤树形数据
+const filteredTreeData = computed(() => {
+  if (!searchText.value.trim()) {
+    return treeData.value
+  }
+
+  const searchLower = searchText.value.toLowerCase()
+
+  // 递归过滤树形数据
+  const filterTree = (nodes: TreeNode[]): TreeNode[] => {
+    return nodes
+      .map((node) => {
+        // 检查当前节点是否匹配
+        const labelMatch = node.label?.toLowerCase().includes(searchLower)
+
+        // 递归过滤子节点
+        const filteredChildren = node.children ? filterTree(node.children) : []
+
+        // 如果当前节点匹配或有子节点匹配，则保留该节点
+        if (labelMatch || filteredChildren.length > 0) {
+          return {
+            ...node,
+            children: filteredChildren
+          }
+        }
+
+        return null
+      })
+      .filter((node) => node !== null) as TreeNode[]
+  }
+
+  return filterTree(treeData.value)
+})
+
 // 判断是否有聊天消息
 const hasMessages = computed(() => {
   return chatMessages.value.length > 0

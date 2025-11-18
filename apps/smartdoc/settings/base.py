@@ -220,3 +220,11 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+SSO_CONFIG = {
+    "client_id": "your_client_id",
+    "client_secret": "your_client_secret",
+    "redirect_uri": "https://your-frontend.com/oauth/callback",  # 前端页面地址！不是后端
+    "sso_base": "https://sso.xxx.edu.cn/sso",  # 你们学校的真实域名
+}

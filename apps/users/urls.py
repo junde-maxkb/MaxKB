@@ -1,7 +1,7 @@
 from django.urls import path
 
 from . import views
-from .views import OauthCallbackView, AuthConnect
+from .views import OauthCallbackView, AuthConnect, SSOLoginCallbackView
 
 app_name = "user"
 urlpatterns = [
@@ -27,6 +27,8 @@ urlpatterns = [
     path('user/list/<str:type>', views.UserListView.as_view()),
     path('github_auth/', AuthConnect.as_view(), name='github_auth'),
     path('oauth_callback/', OauthCallbackView.as_view(), name='oauth_callback'),
+    path('sso_callback/', SSOLoginCallbackView.as_view(), name='sso_callback'),
+
     path('chat_history/<str:user_id>', views.ChatHistoryView.List.as_view(), name='chat_history_list'),
     path('chat_history/<str:user_id>/<int:current_page>/<int:page_size>', views.ChatHistoryView.Page.as_view(),
          name='chat_history_page'),

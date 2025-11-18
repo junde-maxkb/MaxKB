@@ -8,7 +8,9 @@
 """
 import secrets
 
+import jwt
 from django.core import cache, signing
+from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -486,6 +488,68 @@ class OauthCallbackView(APIView):
 
         token_cache.set(token, user, timeout=JWT_AUTH['JWT_EXPIRATION_DELTA'])
         return redirect(f"{settings.base.MAXKB_HOME_URL}?token={token}")
+
+
+class SSOLoginCallbackView(APIView):
+    def post(self, request):
+        code = request.data.get('code')
+        if not code:
+            return result.error("缺少code")
+
+        # 1. 用 code 换 id_token
+        token_url = f"{settings.SSO_CONFIG['sso_base']}/oauth2/token"
+        token_data = {
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': settings.SSO_CONFIG['redirect_uri'],
+            'client_id': settings.SSO_CONFIG['client_id'],
+            'client_secret': settings.SSO_CONFIG['client_secret'],
+            'scope': 'openid',
+        }
+        token_resp = requests.post(token_url, data=token_data)
+        if token_resp.status_code != 200:
+            return result.error("换token失败")
+
+        token_json = token_resp.json()
+        id_token = token_json.get('id_token')
+        if not id_token:
+            return result.error("未返回id_token")
+
+        # 2. 解析 id_token（正式环境要校验签名！）
+        try:
+            public_key = requests.get(f"{settings.SSO_CONFIG['sso_base']}/oauth2/certs").json()["keys"][0]
+            payload = jwt.decode(id_token, public_key, algorithms=["RS256"])
+        except jwt.PyJWTError:
+            return result.error("id_token解析失败")
+
+        account = payload.get('account')  # ← 学工号！！！
+        name = payload.get('name', '')
+        principal = payload.get('principal', '')  # student/teacher
+        email = payload.get('email')
+
+        if not email:
+            return result.error("未获取到邮箱")
+        from users.models.user import User as UserModel
+        # 3. 创建或获取用户
+        user, created = QuerySet(UserModel).get_or_create(
+            username=account,
+            defaults={
+                'username': name,
+                'email': email,
+                'nick_name': name,
+                'role': 'USER',
+                'source': 'SSO'
+            }
+        )
+
+        # 4. 签发自己的 JWT
+        token = signing.dumps({
+            'username': user.username,
+            'id': str(user.id),
+            'type': AuthenticationType.USER.value
+        })
+        token_cache.set(token, user, timeout=JWT_AUTH['JWT_EXPIRATION_DELTA'])
+        return result.success(token)
 
 
 class ChatHistoryView(APIView):
