@@ -2412,6 +2412,7 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
 
       // 所有文档已完成处理，清除定时器
       if (uploadCheckTimer) {
+        await loadPersonalKBs()
         window.localStorage.removeItem('uploading_dataset_id')
       }
 
@@ -2422,8 +2423,10 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
       const hasRevoke = records.some((record: any) => record.status === REVOKE);
       console.log('allSuccess:', allSuccess, 'hasFailure:', hasFailure, 'hasRevoked:', hasRevoked, 'hasRevoke:', hasRevoke);
       if (allSuccess) {
+        await loadPersonalKBs()
         ElMessage.success('上传成功：所有文档处理完成');
       } else if (hasFailure) {
+        await loadPersonalKBs()
         ElMessage.error('上传失败：部分或全部文档处理失败');
       } else if (hasRevoked) {
         ElMessage.warning('上传已取消');
