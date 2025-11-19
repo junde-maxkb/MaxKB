@@ -225,6 +225,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SSO_CONFIG = {
     "client_id": "DKnyIj4hSvWHC8mtA7Me",
     "client_secret": "3DA816577FE69D1C7C70EC91588046C880A8E9464C25D629",
-    "redirect_uri": "https://127.0.0.1:3000/ui/oauth-login",  # 前端页面地址！不是后端
+    "redirect_uri": "http://127.0.0.1:3000/ui/oauth-callback/",  # 前端页面地址！不是后端
     "sso_base": "https://passport.cnaes.edu.cn/sso",  # 你们学校的真实域名
 }

@@ -6,6 +6,7 @@
     @date：2023/9/4 10:57
     @desc:
 """
+import json
 import secrets
 
 import jwt
@@ -506,25 +507,22 @@ class SSOLoginCallbackView(APIView):
             'client_secret': settings.SSO_CONFIG['client_secret'],
             'scope': 'openid',
         }
-        token_resp = requests.post(token_url, data=token_data)
+        token_resp = requests.post(token_url, data=token_data, headers={'Content-Type': 'application/x-www-form-urlencoded'})
         if token_resp.status_code != 200:
-            return result.error("换token失败")
+            return result.error("认证失败")
 
         token_json = token_resp.json()
         id_token = token_json.get('id_token')
         if not id_token:
-            return result.error("未返回id_token")
+            return result.error("认证失败，未返回认证信息")
 
         # 2. 解析 id_token（正式环境要校验签名！）
         try:
-            public_key = requests.get(f"{settings.SSO_CONFIG['sso_base']}/oauth2/certs").json()["keys"][0]
-            payload = jwt.decode(id_token, public_key, algorithms=["RS256"])
-        except jwt.PyJWTError:
-            return result.error("id_token解析失败")
+            payload = jwt.decode(id_token, options={"verify_signature": False}, algorithms=["RS256"])
+        except jwt.PyJWTError as e:
+            return result.error("认证信息解析失败")
 
-        account = payload.get('account')  # ← 学工号！！！
         name = payload.get('name', '')
-        principal = payload.get('principal', '')  # student/teacher
         email = payload.get('email')
 
         if not email:
@@ -532,7 +530,7 @@ class SSOLoginCallbackView(APIView):
         from users.models.user import User as UserModel
         # 3. 创建或获取用户
         user, created = QuerySet(UserModel).get_or_create(
-            username=account,
+            email=email,
             defaults={
                 'username': name,
                 'email': email,
