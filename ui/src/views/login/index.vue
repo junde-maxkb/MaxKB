@@ -40,9 +40,9 @@
           >{{ $t('views.login.buttons.login') }}
         </el-button>
         <div class="operate-container flex-between mt-12">
-          <!-- <el-button class="register" @click="router.push('/register')" link type="primary">
-          注册
-        </el-button> -->
+          <el-button class="register" @click="router.push('/oauth-callback/')" link type="primary">
+            教科院统一认证登录
+          </el-button>
           <el-button
             class="forgot-password"
             @click="router.push('/forgot_password')"
