@@ -1216,7 +1216,7 @@ class Operate(serializers.Serializer):
             # 删除相关数据
             from application.models import Chat, ChatRecord
             QuerySet(Chat).filter(application=application).delete()
-            QuerySet(ChatRecord).filter(application_id=application.id).delete()
+            QuerySet(ChatRecord).filter(chat__application_id=application.id).delete()
             # 永久删除应用
             application.delete()
             return True
