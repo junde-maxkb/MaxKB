@@ -12,7 +12,7 @@
       </div>
       
       <!-- 右侧用户管理内容 -->
-      <div class="user-manage__content">
+      <div class="user-manage__content" style="width: 100%">
         <div class="p-24">
           <div class="flex-between">
             <div class="flex align-center">

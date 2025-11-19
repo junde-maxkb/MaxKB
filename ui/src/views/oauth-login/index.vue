@@ -11,12 +11,12 @@ import { onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 
 // ===== 请改成你自己的配置 =====
-const CLIENT_ID = 'your_client_id'  // 学校给的 AppKey
+const CLIENT_ID = 'DKnyIj4hSvWHC8mtA7Me'  // 学校给的 AppKey
 const REDIRECT_URI = encodeURIComponent(
   // 重要：这里必须是你前端的完整回调地址，且已在学校后台白名单！
   `${window.location.origin}/oauth/callback`
 )
-const SSO_AUTHORIZE_URL = 'https://sso.xxx.edu.cn/sso/oauth2/authorize'  // 改成你们学校的
+const SSO_AUTHORIZE_URL = 'https://passport.cnaes.edu.cn/sso'  // 改成你们学校的
 
 onMounted(() => {
   // 1. 生成随机 state（防 CSRF）
