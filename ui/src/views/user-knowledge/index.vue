@@ -1684,9 +1684,9 @@ const handleInputFocus = () => {
 const getInputPlaceholder = () => {
   if (isAIWritingMode.value) {
     if (uploadedDocumentName.value) {
-      return '请输入写作主题或上传文档，AI将为您提供论文写作、申报书写作、论文续写、文字润色等服务。'
+      return '请输入写作主题或上传文档，AI将为您提供论文写作、申报书写作、论文续写、润色等服务。'
     }
-    return '请输入写作主题或上传文档，AI将为您提供论文写作、申报书写作、论文续写、文字润色等服务。'
+    return '请输入写作主题或上传文档，AI将为您提供论文写作、申报书写作、论文续写、润色等服务。'
   }
   if (isAITranslateMode.value) {
     if (translateDocumentName.value) {

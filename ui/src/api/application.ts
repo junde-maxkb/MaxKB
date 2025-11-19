@@ -172,7 +172,7 @@ const postAppAuthentication: (
   authentication_value?: any
 ) => Promise<any> = (access_token, loading, authentication_value) => {
   return post(
-    `/api${prefix}/authentication`,
+    `${prefix}/authentication`,
     { access_token: access_token, authentication_value },
     undefined,
     loading
