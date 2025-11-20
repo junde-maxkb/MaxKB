@@ -369,16 +369,17 @@
 
                   <!-- AI引导式问答 -->
                   <div v-if="message.role === 'assistant' && guides.length > 0">
+                    <div>我觉得您可能会对以下几个方向感兴趣：</div>
                     <div style="display: grid; gap: 5px; cursor: pointer; margin-top: 10px">
                       <span v-for="(guide, index) in guides" :key="index">
                         <el-tag
                           size="small"
                           class="guide-tag"
                           :key="index"
-                          @click="handleGuideTagClick(guide)"
-                          style="cursor: pointer;"
+                          @click="handleGuideTagClick(guide.submit)"
+                          style="cursor: pointer"
                         >
-                          {{ guide }}
+                          {{ guide.display }}
                         </el-tag>
                       </span>
                     </div>
@@ -403,7 +404,7 @@
                         <el-icon>
                           <Document />
                         </el-icon>
-                        找到 {{ message.paragraphs.length }} 个相关分段
+                        已阅读 {{ message.paragraphs.length }} 篇文档
                         <el-icon :class="{ rotate: isParagraphsExpanded(index) }">
                           <ArrowDown />
                         </el-icon>
@@ -411,40 +412,18 @@
                     </div>
 
                     <div v-show="isParagraphsExpanded(index)" class="paragraphs-list">
-                      <div
-                        v-for="(paragraph, pIndex) in message.paragraphs"
-                        :key="pIndex"
-                        class="paragraph-item"
-                      >
-                        <div class="paragraph-header">
-                          <span class="paragraph-index">{{ pIndex + 1 }}</span>
-                          <!--                          <span class="paragraph-score">-->
-                          <!--                            相关度:-->
-                          <!--                            {{-->
-                          <!--                              (-->
-                          <!--                                (paragraph.similarity || paragraph.comprehensive_score || 0) * 100-->
-                          <!--                              ).toFixed(1)-->
-                          <!--                            }}%-->
-                          <!--                          </span>-->
-                          <div class="paragraph-meta">
-                            <span
-                              class="paragraph-source clickable"
-                              @click="openDocumentParagraphs(paragraph)"
-                              :title="`点击查看 ${paragraph.document_name || paragraph.source || paragraph.dataset_name} 的分段内容`"
-                            >
-                              文档名称:
-                              {{
-                                paragraph.document_name ||
-                                paragraph.source ||
-                                paragraph.dataset_name
-                              }}
-                            </span>
-                            <span class="paragraph-dataset"
-                            >知识库名称: {{ paragraph.dataset_name }}</span
-                            >
-                          </div>
+                      <div class="avatar-group">
+                        <div
+                          v-for="(paragraph, pIndex) in message.paragraphs"
+                          :key="pIndex"
+                          class="paragraph-item"
+                        >
+                          <el-tag type="info">
+                            {{
+                              paragraph.document_name || paragraph.source || paragraph.dataset_name
+                            }}
+                          </el-tag>
                         </div>
-                        <!--                        <div class="paragraph-content">{{ paragraph.content }}</div>-->
                       </div>
                     </div>
                   </div>
@@ -472,8 +451,7 @@
                   </div>
                 </div>
               </div>
-              <div style="height: 100px">
-              </div>
+              <div style="height: 100px"></div>
             </div>
 
             <!-- 集成聊天输入组件 -->
@@ -618,18 +596,14 @@
                     v-if="selectedInfo && selectedInfo.type === 'documents'"
                     class="selected-items"
                   >
-
                     <el-tooltip
                       :content="item"
                       placement="top"
                       v-for="(item, index) in selectedInfo.items.slice(0, 4)"
                       :key="index"
                     >
-                      <el-tag
-                        size="small"
-                        class="item-tag document-tag"
-                      >
-                        <div class="ellipsis">{{item}}</div>
+                      <el-tag size="small" class="item-tag document-tag">
+                        <div class="ellipsis">{{ item }}</div>
                       </el-tag>
                     </el-tooltip>
                     <el-tag
@@ -1204,8 +1178,18 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, onMounted, onUnmounted, watch, type Ref, ref, onBeforeMount, onBeforeUnmount} from 'vue'
-import {ElMessage, ElMessageBox} from 'element-plus'
+import {
+  computed,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  watch,
+  type Ref,
+  ref,
+  onBeforeMount,
+  onBeforeUnmount
+} from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import useStore from '@/stores'
 import {
   ArrowDown,
@@ -1237,7 +1221,7 @@ import {
 } from '@element-plus/icons-vue'
 import datasetApi from '@/api/dataset'
 import documentApi from '@/api/document'
-import modelApi, {postModelChat, postModelChatStream} from '@/api/model'
+import modelApi, { postModelChat, postModelChatStream } from '@/api/model'
 import DocumentManagement from './components/DocumentManagement.vue'
 import ShareSettings from './components/ShareSettings.vue'
 import DocumentParagraphsDialog from './components/DocumentParagraphsDialog.vue'
@@ -1246,8 +1230,8 @@ import userApi from '@/api/user-manage'
 import Recorder from 'recorder-core'
 import 'recorder-core/src/engine/mp3'
 import 'recorder-core/src/engine/mp3-engine'
-import {MsgAlert} from '@/utils/message'
-import {marked} from 'marked'
+import { MsgAlert } from '@/utils/message'
+import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import useGuide from '@/utils/useGuide'
@@ -1296,7 +1280,7 @@ interface KBForm {
 }
 
 // 响应式数据
-const guides = ref<string[]>([])
+const guides = ref<{submit: string, display: string}[]>([])
 const searchText = ref('')
 const selectedKB = ref<TreeNode | null>(null)
 const selectedNode = ref<TreeNode | null>(null)
@@ -1447,7 +1431,7 @@ const selectedSTTModelId = ref('')
 // 不再需要临时应用ID
 
 // 用户权限
-const {user} = useStore()
+const { user } = useStore()
 const userRole = computed(() => user.getRole())
 const isAdmin = computed(() => userRole.value === 'ADMIN')
 
@@ -1890,7 +1874,7 @@ const getSelectedDocuments = (): TreeNode[] => {
 
 // 处理一级目录的三个点菜单操作
 const handleLevel1Action = (command: { action: string; data: TreeNode }) => {
-  const {action, data} = command
+  const { action, data } = command
 
   switch (action) {
     case 'refresh':
@@ -2120,7 +2104,7 @@ const sortSharedKBs = async () => {
 
 // 处理知识库操作
 const handleKBAction = async (command: { action: string; data: TreeNode }) => {
-  const {action, data} = command
+  const { action, data } = command
 
   try {
     switch (action) {
@@ -2285,7 +2269,7 @@ const formatFileSize = (bytes: number) => {
 // 加载机构知识库
 const loadOrganizationKBs = async () => {
   try {
-    const page = {current_page: 1, page_size: 100}
+    const page = { current_page: 1, page_size: 100 }
     const response = await datasetApi.getOrganizationDataset(page, {})
 
     console.log('机构知识库API响应:', response)
@@ -2315,7 +2299,7 @@ const loadOrganizationKBs = async () => {
 // 加载共享知识库
 const loadSharedKBs = async () => {
   try {
-    const page = {current_page: 1, page_size: 100}
+    const page = { current_page: 1, page_size: 100 }
     const response = await datasetApi.getSharedToMeDataset(page, {})
 
     console.log('共享知识库API响应:', response)
@@ -2360,7 +2344,7 @@ const loadSharedKBs = async () => {
 // 加载个人知识库
 const loadPersonalKBs = async () => {
   try {
-    const page = {current_page: 1, page_size: 100}
+    const page = { current_page: 1, page_size: 100 }
     const response = await datasetApi.getDataset(page, {})
 
     if (response.data) {
@@ -2376,38 +2360,33 @@ const loadPersonalKBs = async () => {
 
 // 检查上传文档是否完成
 const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
-
   // 定义状态常量
-  const PENDING = 'nn0';
-  const STARTED = 'nn1';
-  const SUCCESS = 'nn2';
-  const FAILURE = 'nn3';
-  const REVOKE = 'nn4';
-  const REVOKED = 'nn5';
+  const PENDING = 'nn0'
+  const STARTED = 'nn1'
+  const SUCCESS = 'nn2'
+  const FAILURE = 'nn3'
+  const REVOKE = 'nn4'
+  const REVOKED = 'nn5'
 
   try {
     const params = {
       current_page: 1,
-      page_size: 50,
-    };
-    const response = await documentApi.getDocument(
-      datasetId,
-      params,
-      params
-    );
+      page_size: 50
+    }
+    const response = await documentApi.getDocument(datasetId, params, params)
 
     if (response.data && response.data.records.length > 0) {
-      const records = response.data.records;
+      const records = response.data.records
 
       // 检查是否有任何文档仍在等待或执行中
-      const hasPendingOrStarted = records.some((record: any) =>
-        record.status === PENDING || record.status === STARTED
-      );
+      const hasPendingOrStarted = records.some(
+        (record: any) => record.status === PENDING || record.status === STARTED
+      )
 
       if (hasPendingOrStarted) {
         // 仍有文档在处理中，继续等待
-        console.log('文档仍在处理中，继续等待...');
-        return true;
+        console.log('文档仍在处理中，继续等待...')
+        return true
       }
 
       // 所有文档已完成处理，清除定时器
@@ -2417,38 +2396,47 @@ const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
       }
 
       // 重新判断所有文档的最终状态
-      const allSuccess = records.every((record: any) => record.status === SUCCESS);
-      const hasFailure = records.some((record: any) => record.status === FAILURE);
-      const hasRevoked = records.some((record: any) => record.status === REVOKED);
-      const hasRevoke = records.some((record: any) => record.status === REVOKE);
-      console.log('allSuccess:', allSuccess, 'hasFailure:', hasFailure, 'hasRevoked:', hasRevoked, 'hasRevoke:', hasRevoke);
+      const allSuccess = records.every((record: any) => record.status === SUCCESS)
+      const hasFailure = records.some((record: any) => record.status === FAILURE)
+      const hasRevoked = records.some((record: any) => record.status === REVOKED)
+      const hasRevoke = records.some((record: any) => record.status === REVOKE)
+      console.log(
+        'allSuccess:',
+        allSuccess,
+        'hasFailure:',
+        hasFailure,
+        'hasRevoked:',
+        hasRevoked,
+        'hasRevoke:',
+        hasRevoke
+      )
       if (allSuccess) {
         await loadPersonalKBs()
-        ElMessage.success('上传成功：所有文档处理完成');
+        ElMessage.success('上传成功：所有文档处理完成')
       } else if (hasFailure) {
         await loadPersonalKBs()
-        ElMessage.error('上传失败：部分或全部文档处理失败');
+        ElMessage.error('上传失败：部分或全部文档处理失败')
       } else if (hasRevoked) {
-        ElMessage.warning('上传已取消');
+        ElMessage.warning('上传已取消')
       } else if (hasRevoke) {
-        ElMessage.warning('上传正在取消中');
+        ElMessage.warning('上传正在取消中')
       } else {
-        ElMessage.info('上传状态未知，请检查文档详情');
+        ElMessage.info('上传状态未知，请检查文档详情')
       }
 
-      return false;
+      return false
     } else {
-      console.error('获取文档列表失败，响应数据异常');
+      console.error('获取文档列表失败，响应数据异常')
       // ElMessage.error('获取文档列表失败');
       // window.localStorage.removeItem('uploading_dataset_id')
-      return false;
+      return false
     }
   } catch (error) {
-    console.error('检查上传状态失败:', error);
-    ElMessage.error('检查上传状态失败');
-    return false;
+    console.error('检查上传状态失败:', error)
+    ElMessage.error('检查上传状态失败')
+    return false
   }
-};
+}
 
 let uploadCheckTimer: number | null = null
 
@@ -2658,12 +2646,13 @@ const performKnowledgeSearch = async (query: string) => {
                   _score: item.similarity ?? item.comprehensive_score ?? 0
                 }))
                 .sort((a: any, b: any) => b._score - a._score)
-                .map(({_score, ...rest}: any) => rest)
+                .map(({ _score, ...rest }: any) => rest)
 
               if (formattedResults.length > 0) {
-                const sliceCount = formattedResults.length >= MIN_RESULTS_PER_DOCUMENT
-                  ? Math.min(formattedResults.length, MAX_RESULTS_PER_DOCUMENT)
-                  : formattedResults.length
+                const sliceCount =
+                  formattedResults.length >= MIN_RESULTS_PER_DOCUMENT
+                    ? Math.min(formattedResults.length, MAX_RESULTS_PER_DOCUMENT)
+                    : formattedResults.length
 
                 let accepted = formattedResults.slice(0, sliceCount)
 
@@ -2671,7 +2660,9 @@ const performKnowledgeSearch = async (query: string) => {
                   const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
                   if (remainingSlots <= 0) {
                     reachedMaxResults = true
-                    console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`)
+                    console.log(
+                      `文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`
+                    )
                     break
                   }
 
@@ -2684,12 +2675,18 @@ const performKnowledgeSearch = async (query: string) => {
                   if (searchResults.length >= MAX_TOTAL_RESULTS) {
                     reachedMaxResults = true
                   }
-                  console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: ${accepted.length} 条`)
+                  console.log(
+                    `文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: ${accepted.length} 条`
+                  )
                 } else {
-                  console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (候选不足)`)
+                  console.log(
+                    `文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (候选不足)`
+                  )
                 }
               } else {
-                console.log(`文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: 0 条, 采纳: 0 条`)
+                console.log(
+                  `文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: 0 条, 采纳: 0 条`
+                )
               }
             } else if (response.code === 500) {
               // 检查是否是嵌入模型连接错误
@@ -2752,20 +2749,26 @@ const performKnowledgeSearch = async (query: string) => {
               const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
               if (remainingSlots <= 0) {
                 reachedMaxResults = true
-                console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`)
+                console.log(
+                  `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`
+                )
               } else {
                 if (results.length > remainingSlots) {
                   results = results.slice(0, remainingSlots)
                   reachedMaxResults = true
                 }
-                console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: ${results.length} 条`)
+                console.log(
+                  `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: ${results.length} 条`
+                )
                 searchResults.push(...results)
                 if (searchResults.length >= MAX_TOTAL_RESULTS) {
                   reachedMaxResults = true
                 }
               }
             } else {
-              console.log(`知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: 0 条, 采纳: 0 条`)
+              console.log(
+                `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: 0 条, 采纳: 0 条`
+              )
             }
           } else if (response.code === 500) {
             // 检查是否是嵌入模型连接错误
@@ -2835,35 +2838,34 @@ const performKnowledgeSearch = async (query: string) => {
 
 // 尝试将类似JS对象的字符串规范化为JSON字符串
 function tryNormalizeJsObjectToJson(str: string) {
-  let s = str.trim();
+  let s = str.trim()
 
   // 1) 把对象属性名用双引号包起来： {a: => {"a":
   // 处理规则：在 { 或 , 后出现的未加引号的属性名
-  s = s.replace(/([{,]\s*)([A-Za-z0-9_$]+)\s*:/g, '$1"$2":');
+  s = s.replace(/([{,]\s*)([A-Za-z0-9_$]+)\s*:/g, '$1"$2":')
 
   // 2) 把单引号字符串改为双引号（处理转义情况）
   s = s.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, function (_, content) {
     // 将内部的双引号转义（防止原来有 "）
-    const escaped = content.replace(/"/g, '\\"');
-    return '"' + escaped + '"';
-  });
+    const escaped = content.replace(/"/g, '\\"')
+    return '"' + escaped + '"'
+  })
 
-  return s;
+  return s
 }
 
 // 替换文本中的 quickchart 标记为编码后的 URL
 function replaceQuickChartWithEncodedUrl(text: string) {
   return text.replace(/\[quickchart\]\(([^)]+)\)/g, (match, jsonStr) => {
     try {
-
-      const encodedParam = encodeURIComponent(jsonStr.replace('https://quickchart.io/chart?c=', ''));
-      let qualifiedUrl = `https://quickchart.io/chart?c=${encodedParam}`;
-      return `![quickchart-over](${qualifiedUrl})`;
+      const encodedParam = encodeURIComponent(jsonStr.replace('https://quickchart.io/chart?c=', ''))
+      let qualifiedUrl = `https://quickchart.io/chart?c=${encodedParam}`
+      return `![quickchart-over](${qualifiedUrl})`
     } catch (e) {
-      console.log('JSON解析失败:', e, jsonStr);
-      return match; // JSON 无效则保留原样
+      console.log('JSON解析失败:', e, jsonStr)
+      return match // JSON 无效则保留原样
     }
-  });
+  })
 }
 
 // 获取当前模式的标签名称
@@ -2977,7 +2979,7 @@ const sendMessage = async () => {
 
     // 基于选中知识库进行检索
     const searchResponse = await performKnowledgeSearch(userQuestion)
-    const {results: searchResults, hasEmbeddingError, hasConnectionError} = searchResponse
+    const { results: searchResults, hasEmbeddingError, hasConnectionError } = searchResponse
     console.log('知识检索结果:', searchResults)
     // 保存搜索结果，稍后添加到AI回答消息中
     let searchResultsForAI: any[] = []
@@ -3172,9 +3174,9 @@ ${savedUploadedDocContent}`
         systemPrompt = getQuestionPrompt(userQuestion, '', '', context, contextNote)
       }
     } else {
-      console.log("知识库问答")
-      console.log("历史对话记录:", chatMessages.value)
-      mode = "无特定要求"
+      console.log('知识库问答')
+      console.log('历史对话记录:', chatMessages.value)
+      mode = '无特定要求'
       // 普通对话模式的系统提示
       systemPrompt =
         hasEmbeddingError || hasConnectionError
@@ -3200,7 +3202,8 @@ ${savedUploadedDocContent}`
 不包含未经验证、敏感或主观内容。由于技术问题，当前无法检索知识库内容，请基于你的通用知识回答用户问题。请诚实告知用户当前情况，并尽力提供有帮助的一般性回答；
 最后请结合用户对话记录，提供个性化建议和指导。
 
-用户提问：${userQuestion}` : `
+用户提问：${userQuestion}`
+          : `
 
 检索到的相关内容：
 ${context}
@@ -3233,14 +3236,14 @@ ${chatMessages.value}
         content: systemPrompt
       },
       ...(shouldSkipHistory ? [] : chatMessages.value.slice(-10)), // 根据需要决定是否保留对话历史
-      {role: 'user', content: userQuestion}
+      { role: 'user', content: userQuestion }
     ]
 
-    const {getGuideQuestions} = useGuide()
+    const { getGuideQuestions } = useGuide()
 
     // 调用模型API进行流式对话
     try {
-      const resp = await postModelChatStream(modelId, {messages})
+      const resp = await postModelChatStream(modelId, { messages })
 
       if (resp?.body && typeof resp.body.getReader === 'function') {
         const reader = resp.body.getReader()
@@ -3248,7 +3251,7 @@ ${chatMessages.value}
         let currentAssistantMessage = ''
 
         while (isStreaming.value) {
-          const {value, done} = await reader.read()
+          const { value, done } = await reader.read()
           if (done) break
 
           const chunk = decoder.decode(value)
@@ -3292,7 +3295,6 @@ ${chatMessages.value}
           lastMessage.content = transformWhenAltIsQuickChart(currentAssistantMessage)
         }
 
-
         // 如果没有接收到内容，显示默认错误消息
         if (!currentAssistantMessage) {
           if (!isStreaming.value) {
@@ -3315,11 +3317,10 @@ ${chatMessages.value}
           if (searchResultsForAI.length > 0) {
             const lastMessage = chatMessages.value[chatMessages.value.length - 1]
             if (lastMessage && lastMessage.role === 'assistant') {
-
               // paragraphs 显示去重
-              const documentMap = new Map();
+              const documentMap = new Map()
               const newParagraphs: any[] = []
-              searchResultsForAI.forEach((item)=>{
+              searchResultsForAI.forEach((item) => {
                 if (documentMap.has(item.document_name)) {
                   return
                 } else {
@@ -3328,13 +3329,17 @@ ${chatMessages.value}
                 }
               })
               console.log(newParagraphs, lastMessage.paragraphs)
-              lastMessage.paragraphs = newParagraphs;
+              lastMessage.paragraphs = newParagraphs
             }
           }
 
-
           try {
-            guides.value = await getGuideQuestions(modelId, mode, userQuestion, currentAssistantMessage)
+            guides.value = await getGuideQuestions(
+              modelId,
+              mode,
+              userQuestion,
+              currentAssistantMessage
+            )
           } catch (e) {
             console.log('获取引导问题失败:', e)
           }
@@ -3346,7 +3351,6 @@ ${chatMessages.value}
             chatMessages.value[chatMessages.value.length - 1].content = content
             setTimeout(() => {
               console.log(chatMessages.value[chatMessages.value.length - 1].content)
-
             }, 1000)
           }
         }
@@ -3530,12 +3534,12 @@ const originalCodeRenderer = renderer.code.bind(renderer)
 renderer.code = function (code: string, language: string | undefined, isEscaped: boolean) {
   if (language === 'mermaid') {
     const uniqueId = `mermaid-${Date.now()}`
-    return `<div class="mermaid" id="${uniqueId}" style="white-space: break-spaces">${code}</div>`;
+    return `<div class="mermaid" id="${uniqueId}" style="white-space: break-spaces">${code}</div>`
   }
 
   if (language && hljs.getLanguage(language)) {
     try {
-      const highlighted = hljs.highlight(code, {language}).value
+      const highlighted = hljs.highlight(code, { language }).value
       return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`
     } catch (err) {
       console.error('代码高亮失败:', err)
@@ -3550,7 +3554,7 @@ renderer.code = function (code: string, language: string | undefined, isEscaped:
   }
 }
 
-marked.use({renderer})
+marked.use({ renderer })
 
 // 格式化消息内容（支持完整的 Markdown 渲染）
 const formatMessageContent = (content: string) => {
@@ -4139,12 +4143,12 @@ ${userInput}
 
 请只返回一个词：writing、polish、expand 或 chat`
 
-    const messages = [{role: 'user', content: intentPrompt}]
+    const messages = [{ role: 'user', content: intentPrompt }]
 
     console.log('发送意图识别请求到AI模型...')
 
     // 调用模型进行意图识别
-    const response = await postModelChat(modelId, {messages})
+    const response = await postModelChat(modelId, { messages })
 
     console.log('收到AI模型响应:', response)
 
@@ -4696,15 +4700,15 @@ const getReviewPrompt = (
       ? `\n\n用户附加要求：${userQuestion}, 如果用户未标明字数，需要足够详细不低于2000字，如果标明了字数则需要完全遵守用户的要求，且尽可能使用专业术语来表达\n`
       : ''
     return `# 角色定位
-你是一位专业的双语文档综述专家，擅长从复杂文档中提炼核心信息，生成结构清晰、逻辑严谨的中英文综述报告。
+你是一位专业的知识综合分析专家，擅长处理多来源检索结果，能够从复杂与冗长的信息中提炼核心知识，形成结构严谨、逻辑通顺、重点明确的综述报告。你的任务是对输入的检索内容进行深入整合与系统分析，生成高质量的中文综述。
 
 ---
 
 # 输入信息
 
-## 文档基本信息
-- **文档名称**: ${documentName}
-- **综述范围**: ${noteSection}
+## 文档元数据
+- 文档名称：${documentName}
+- 综述范围：${noteSection}
 
 ## 文档内容
 ${documentContent}
@@ -4713,32 +4717,61 @@ ${documentContent}
 
 # 综述要求
 
-## 质量标准
-1. **准确性**: 精准提取文档的核心观点和关键信息，不偏离原意
-2. **逻辑性**: 保持内容的逻辑连贯性和结构完整性
-3. **简洁性**: 语言精炼明了，避免冗余，突出重点
-4. **一致性**: 综述内容的语言保持和对话一样一致，语言选择其中一种即可
-5. **适度性**: 综述长度至少 1000 字
-6. **规范性**: 使用标准 Markdown 格式输出
+## 质量要求
+1. **准确性**：忠实反映原文内容，不夸大、不遗漏核心观点。
+2. **逻辑性**：内容结构清晰，章节之间衔接自然，论述条理分明。
+3. **简洁性**：语言凝练，避免重复与无效信息，突出重点。
+4. **一致性**：全篇保持统一语言（中文或英文），与当前对话语言风格一致。
+5. **篇幅要求**：全文长度需 **≥ 2000 字**，内容全面详尽。
+6. **格式规范**：使用 **标准 Markdown** 输出，包含标题、列表、段落等结构。
 
-## 内容层次
-综述应包含以下核心要素：
-- **主题概述**: 文档的主要主题和背景
-- **核心内容**: 关键论点、数据、发现或方法
-- **重要细节**: 支撑性信息和具体案例
-- **结论要点**: 总结性观点或建议
+---
 
+# 内容结构
+
+综述需按照以下四个层次展开：
+
+## 1. 主题概述
+- 提炼文档的主要主题、研究背景或业务场景
+- 明确文档所关注的问题域与总体目标
+
+## 2. 核心内容（重点章节）
+- 按主题分类提炼至少 **五个核心板块**
+- 对每个核心板块进行：
+  - 关键观点总结
+  - 方法、数据、论点或机制概述
+  - 文档中的重要证据或细节说明
+- 保持条理清晰、结构稳定
+
+## 3. 重要细节
+- 集中呈现支撑文档主张的重要技术细节、数据指标、实验发现或关键案例
+- 对重要公式、流程、模型、框架等做简要但清晰的说明
+
+## 4. 结论要点
+- 总结文档的主要贡献或关键结论
+- 提炼文档可能给出的建议、启示或应用价值
+
+---
 
 # 执行指令
 
-请确保：
+请严格遵循以下执行要求：
 
-1. **完整覆盖**: 涵盖文档的所有核心主题（通常至少 5 个）
-2. **数据支撑**: 引用文档中的关键数据、案例或证据
-3. **层次清晰**: 区分概览、核心内容、发现和结论四个层次
-4. **字数控制**: 综述至少 2000字，需要特别详细的描述内容越多越好
-5. 中文内容结构和信息点完全对应
-6. **格式规范**: 使用标准 Markdown 语法，包含适当的标题层级和列表
+1. **全面覆盖**：综述需覆盖文档中所有重要主题，不得遗漏关键板块（通常至少五类）。
+2. **证据引用**：在综述中体现文档中的关键数据、关键场景、重要案例或重要证据。
+3. **结构清晰**：确保综述的四大内容层次之间逻辑强、分界清晰。
+4. **篇幅达标**：内容必须达到 **至少 2000 字**，可根据文档复杂度进一步扩展。
+5. **双语对应（如必要）**：当用户需要双语时，确保中文和英文结构完全一致，否则默认单语。
+6. **输出格式**：完整使用 Markdown，包括：
+   - 标题层级
+   - 列表
+   - 段落
+   - 必要的引用区块或加粗强调
+
+---
+
+# 最终输出
+请根据上述要求，生成一份高质量文档综述。
 `
   }
 
@@ -4748,11 +4781,12 @@ ${documentContent}
       ? `\n\n用户问题：${userQuestion}, 如果用户未标明字数，需要足够详细不低于2000字，如果标明了字数则需要完全遵守用户的要求，且尽可能使用专业术语来表达\n`
       : ''
     return `# 角色定位
-你是一位专业的知识综合分析专家,擅长从知识库检索结果中提取核心信息,并生成结构清晰、逻辑严谨的中英文综述报告。
+你是一位专业的知识综合分析专家，擅长处理多来源检索结果，能够从复杂与冗长的信息中提炼核心知识，形成结构严谨、逻辑通顺、重点明确的综述报告。你的任务是对输入的检索内容进行深入整合与系统分析，生成高质量的中文综述。
 
 ---
 
 # 输入内容
+
 ## 检索范围
 ${noteSection}
 
@@ -4766,28 +4800,61 @@ ${contextNote}
 # 综述要求
 
 ## 核心原则
-1. **全面性**: 综合分析所有检索到的内容,不遗漏关键信息
-2. **相关性**: 提取与主题最相关和最重要的信息
-3. **逻辑性**: 保持内容的逻辑连贯性和结构完整性
-4. **简洁性**: 语言精炼明了,避免冗余,突出重点
-5. **可读性**: 使用 Markdown 格式,层次分明
+1. **全面性**：整合所有检索到的内容，不遗漏任何关键观点、定义或信息块。
+2. **相关性**：优先提炼与主题高度相关的概念、理论、过程、机制或结论。
+3. **逻辑性**：确保综述内部结构严密，各部分之间逻辑清晰、有明确的上下文衔接。
+4. **简洁性**：在保持信息完整的前提下，语言简练，不堆砌内容，避免重复。
+5. **可读性**：采用正式、清晰、易读的 Markdown 结构，包括标题、列表、段落等排版元素。
+6. **一致性**：综述使用中文（如需英文版本，可镜像生成），语言风格统一连贯。
+7. **篇幅要求**：综述需 **≥ 2000 字**，在信息丰富处可延展分析，越详尽越好。
 
-## 综述结构
-按以下层次组织内容:
-- **核心概念**: 定义和基本原理
-- **关键要点**: 主要观点和发现
-- **逻辑关系**: 各部分之间的联系
-- **重要结论**: 总结性见解
+---
 
+# 综述结构
+
+请按照以下四大层次组织内容，并确保每层次内容充分展开：
+
+## 1. 核心概念
+- 定义检索主题与核心术语
+- 解释关键理论、工作机制、背景知识或基础原理
+- 用清晰严谨的语言为全篇建立知识框架
+
+## 2. 关键要点（不少于 5 项）
+- 提炼检索内容中最重要的观点、事实、发现、机制或模型
+- 每个要点需独立成段，包含：
+  - 要点主旨
+  - 内容来源中的关键信息
+  - 涵盖细节、案例、数据或示例（如果提供了）
+- 要点应覆盖该主题的主要维度
+
+## 3. 逻辑关系
+- 分析关键要点之间的联系、层次、因果关系或依赖结构
+- 说明这些信息如何共同构成一个完整的知识体系
+- 必要时可使用列表、图示式结构（用文字描述）
+
+## 4. 重要结论
+- 总结检索内容的核心洞察
+- 指出主题的本质特征、关键趋势、意义或实践价值
+- 如有可能，指出主题的局限性、空白点或未来可能的方向
+
+---
 
 # 执行指令
-请确保:
-1. 提取最核心的概念定义
-2. 列出不少于5个关键要点
-3. 阐明要点之间的逻辑关系
-4. 给出具有洞察力的结论
-5. 中文内容结构和信息点完全对应
-6. 综述至少 2000字，需要特别详细的描述内容越多越好
+
+请严格遵循以下要求：
+
+1. **清晰定义核心概念**，确保综述开头建立稳固的认知基础。
+2. **列出不少于 5 个关键要点**，每个要点都需展开详细说明。
+3. **分析关键要点之间的逻辑关系**，体现结构化思维。
+4. **输出具有洞察力的总结性结论**，避免流于表面描述。
+5. **整体内容结构与信息点保持一致性**。
+6. **全文至少 2000 字**，如信息丰富请进一步扩展分析。
+7. 输出必须使用 **标准 Markdown 格式**，标题层级清晰。
+
+---
+
+# 最终输出
+请根据上述要求，对输入的检索内容生成一篇高质量的中文知识综述。
 `
   }
 
@@ -5027,7 +5094,7 @@ const createKnowledgeBase = async () => {
     // 获取默认的embedding模型ID
     let embeddingModeId = ''
     try {
-      const modelRes = await modelApi.getModel({model_type: 'EMBEDDING'})
+      const modelRes = await modelApi.getModel({ model_type: 'EMBEDDING' })
       const modelList = modelRes?.data || []
       // 自动选择名为 maxkb-embedding 的模型作为默认
       const defaultModel = modelList.find(
@@ -5174,8 +5241,7 @@ const confirmRename = async () => {
 }
 
 // 取消录音控制台日志
-Recorder.CLog = function () {
-}
+Recorder.CLog = function () {}
 
 // 语音录制管理类
 class RecorderManage {
@@ -5873,11 +5939,18 @@ onUnmounted(() => {
 }
 
 .ellipsis {
-  width: 80px;              /* 只显示 10px */
-  overflow: hidden;         /* 超出隐藏 */
-  white-space: nowrap;      /* 不换行 */
-  text-overflow: ellipsis;  /* 超出用省略号 */
-  display: inline-block;    /* 必须为块或行内块 */
+  width: 80px; /* 只显示 10px */
+  overflow: hidden; /* 超出隐藏 */
+  white-space: nowrap; /* 不换行 */
+  text-overflow: ellipsis; /* 超出用省略号 */
+  display: inline-block; /* 必须为块或行内块 */
+}
+
+.avatar-group {
+  display: grid;
+  align-items: center;
+  gap: 5px;
+
 }
 
 .knowledge-main {
@@ -5924,7 +5997,6 @@ onUnmounted(() => {
       gap: 4px;
 
       .item-tag {
-
         &.document-tag {
           background: #e6f3ff;
           border-color: #3370ff;
@@ -6327,10 +6399,12 @@ onUnmounted(() => {
         }
 
         .paragraphs-list {
+          display: flex;
+
           .paragraph-item {
             //background: #f8fafc;
             //border: 1px solid #e9ecef;
-            border-radius: 8px;
+            border-radius: 4px;
 
             &:last-child {
               margin-bottom: 0;
@@ -6707,24 +6781,27 @@ onUnmounted(() => {
         user-select: none;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         position: relative;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06),
-        0 1px 3px rgba(0, 0, 0, 0.04),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        box-shadow:
+          0 2px 8px rgba(0, 0, 0, 0.06),
+          0 1px 3px rgba(0, 0, 0, 0.04),
+          inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
         &:hover {
           background: #f9fafb;
           border-color: #d1d5db;
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1),
-          0 3px 8px rgba(0, 0, 0, 0.06),
-          inset 0 1px 0 rgba(255, 255, 255, 0.9);
+          box-shadow:
+            0 6px 16px rgba(0, 0, 0, 0.1),
+            0 3px 8px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         &:active {
           transform: translateY(0);
           background: #f3f4f6;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08),
-          inset 0 2px 4px rgba(0, 0, 0, 0.06);
+          box-shadow:
+            0 2px 4px rgba(0, 0, 0, 0.08),
+            inset 0 2px 4px rgba(0, 0, 0, 0.06);
         }
 
         .ai-icon {

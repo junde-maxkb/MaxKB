@@ -17,6 +17,7 @@ export default function useGuide() {
 6. 禁止使用 emoji、编号、特殊符号（如“？”、“！”、“—”、“/” 等）。
 7. 建议句式保持正式、可读、可归档，便于结构化处理。
 8. 输出仅放入标签 <衍生建议> 中，每行一条。
+9. 每条都需要使用｜分隔符分隔在后方针对该建议提供情绪价值的询问话语，例如 "探讨前端工程化工具链的最佳实践组合｜需要深度探讨前端工程化工具链的最佳实践组合吗"，后面的寻味模仿正常人适当变通，不要固定句式
 
 以下是用户提出的问题：
 <用户问题>
@@ -44,7 +45,13 @@ ${answer}
       const ret = match[1]
         .trim()
         .split('\n')
-        .map((q: string) => q.trim())
+        .map((q: string) => {
+          const parts = q.split('｜');
+          return {
+            submit: parts[0].trim(),
+            display: parts[1] ? parts[1].trim() : '',
+          }
+        })
       console.log(ret, '---引导式问题---', messages);
       return ret
     } else {
