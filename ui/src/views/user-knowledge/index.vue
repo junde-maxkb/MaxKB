@@ -3341,7 +3341,16 @@ ${chatMessages.value}
               currentAssistantMessage
             )
           } catch (e) {
-            console.log('获取引导问题失败:', e)
+            try {
+              guides.value = await getGuideQuestions(
+                modelId,
+                mode,
+                userQuestion,
+                currentAssistantMessage
+              )
+            } catch (e) {
+              console.log('获取引导问题失败:', e)
+            }
           }
 
           // 问数解析
