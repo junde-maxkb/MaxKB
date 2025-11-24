@@ -9,6 +9,6 @@ __all__ = ['BASE_DIR', 'PROJECT_DIR', 'VERSION', 'CONFIG']
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_DIR = os.path.dirname(BASE_DIR)
 VERSION = '1.0.0'
-# CONFIG = ConfigManager.load_user_config(root_path=os.path.abspath('/opt/maxkb/conf'))
-CONFIG = ConfigManager.load_user_config(root_path=os.path.abspath('/Users/yunhai/Documents/CodeData/Project/MaxKB/conf'))
+CONFIG = ConfigManager.load_user_config(root_path=os.path.abspath('/opt/maxkb/conf'))
+# CONFIG = ConfigManager.load_user_config(root_path=os.path.abspath('/Users/yunhai/Documents/CodeData/Project/MaxKB/conf'))
 
