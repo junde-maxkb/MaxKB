@@ -417,6 +417,17 @@ const exportDabase: (
   return post(`${prefix}/${dataset_id}/document/data_source`, data, undefined, loading)
 }
 
+/**
+ * CNKI文献查询
+ * @param 参数
+ * query: string,
+ */
+const cnkiSearch: (
+  query: string
+) => Promise<Result<any>> = (query) => {
+  return get(`${prefix}/external_api/cnki_doc`, { query })
+}
+
 export default {
   postSplitDocument,
   getDocument,
@@ -446,5 +457,6 @@ export default {
   batchCancelTask,
   putLarkDocumentSync,
   delMulLarkSyncDocument,
-  exportDabase
+  exportDabase,
+  cnkiSearch
 }

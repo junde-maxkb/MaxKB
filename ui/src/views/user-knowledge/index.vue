@@ -190,7 +190,7 @@
                   </div>
 
                   <!-- 二级目录 - 知识库 -->
-                  <div v-else-if="data.level === 2" class="node-content level-2-content">
+                  <div v-else-if="data.level === 2 && data.label !='CNKI文献'" class="node-content level-2-content">
                     <div class="node-left">
                       <el-icon class="node-icon">
                         <Folder />
@@ -294,12 +294,12 @@
                   </div>
 
                   <!-- 三级目录 - 文档 -->
-                  <div v-else-if="data.level === 3" class="node-content level-3-content">
+                  <div v-else-if="data.level === 3 || data.label =='CNKI文献'" class="node-content level-3-content">
                     <el-icon class="node-icon">
                       <DocumentCopy />
                     </el-icon>
                     <span class="node-label" :title="data.label">{{ data.label }}</span>
-                    <span class="file-size">{{ formatFileSize(data.size) }}</span>
+                    <span class="file-size">{{ data.label =='CNKI文献' ? '（184912）':formatFileSize(data.size) }}</span>
                   </div>
                 </div>
               </template>
@@ -1895,7 +1895,7 @@ const getSelectedDatasets = (): TreeNode[] => {
 // 获取选中的文档列表
 const getSelectedDocuments = (): TreeNode[] => {
   const checkedNodes = treeRef.value?.getCheckedNodes() || []
-  return checkedNodes.filter((node: TreeNode) => node.level === 3)
+  return checkedNodes.filter((node: TreeNode) => node.level === 3 || node.id === 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505')
 }
 
 // 处理一级目录的三个点菜单操作
@@ -2312,6 +2312,13 @@ const loadOrganizationKBs = async () => {
         }))
       )
 
+      orgKBsList.push({
+        id: "d1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505",
+        name: 'CNKI文献',
+        create_time: '2024-01-01T00:00:00Z',
+        creator: '系统集成'
+      })
+
       organizationKBs.value = orgKBsList
 
       // 加载后立即应用排序
@@ -2605,6 +2612,24 @@ const updateNodeChildren = (nodeId: string, children: TreeNode[]) => {
   findAndUpdate(treeData.value)
 }
 
+// CNKI文献查询
+const performCNKISearch = async (query: string) => {
+  try {
+    const response = await documentApi.cnkiSearch(query)
+
+    if (response.code === 200 && response.data) {
+      console.log('CNKI文献查询结果:', response.data)
+      return response.data // 返回查询结果
+    } else {
+      console.warn('CNKI文献查询失败:', response.message)
+      return []
+    }
+  } catch (error) {
+    console.error('CNKI文献查询异常:', error)
+    return []
+  }
+}
+
 // 基于选中文档进行知识检索
 const performKnowledgeSearch = async (query: string) => {
   try {
@@ -2754,6 +2779,39 @@ const performKnowledgeSearch = async (query: string) => {
       // 对每个选中的知识库进行检索
       for (const dataset of selectedDatasets) {
         if (!dataset.datasetId) continue
+        console.log(query, dataset.datasetId)
+        if (dataset.datasetId === 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505') {
+          // 处理 CNKI 知识库的特殊查询
+          const cnkiResults = await performCNKISearch(query);
+          console.log('CNKI 知识库查询结果数量:', cnkiResults);
+          if (cnkiResults.length > 0) {
+            const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length;
+            let acceptedCNKIResults = cnkiResults;
+            if (remainingSlots <= 0) {
+              reachedMaxResults = true;
+              console.log(
+                `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${cnkiResults.length} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`
+              );
+            } else {
+              if (cnkiResults.length > remainingSlots) {
+                acceptedCNKIResults = cnkiResults.slice(0, remainingSlots);
+                reachedMaxResults = true;
+              }
+              console.log(
+                `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${cnkiResults.length} 条, 采纳: ${acceptedCNKIResults.length} 条`
+              );
+              searchResults.push(...acceptedCNKIResults);
+              if (searchResults.length >= MAX_TOTAL_RESULTS) {
+                reachedMaxResults = true;
+              }
+            }
+          } else {
+            console.log(
+              `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: 0 条, 采纳: 0 条`
+            );
+          }
+          continue; // 跳过后续常规模块
+        }
 
         try {
           const searchData = {
