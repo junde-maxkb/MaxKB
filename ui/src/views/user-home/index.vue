@@ -1,21 +1,52 @@
 <template>
   <div class="home-container">
-    <div class="hero-section">
-      <div class="welcome-content">
-        <h1 class="hero-title">中国教育科学研究院AI知识库</h1>
-        
-        <div class="action-container">
-          <el-button 
-            class="journey-btn"
-            @click="goToKnowledge"
-          >
-            开启智慧之旅
-            <el-icon class="arrow-icon">
-              <ArrowRight />
-            </el-icon>
-          </el-button>
-        </div>
-      </div>
+    <div>
+      <img src="https://picsum.photos/1455/218">
+    </div>
+    <h2 style="margin-top: 24px">
+      您好，欢迎进入AI知识库系统～
+    </h2>
+
+    <div style="margin-top: 20px; color: rgb(146, 146, 146); font-size: 16px;">
+      中国教育科学研究院 AI 知识库系统是一款聚焦教育科研领域的智能知识管理与应用平台，整合三大核心知识库模块，融合 AI 技术赋能高效知识交互。
+    </div>
+    <div class="home-card" >
+      <h2>
+        核心知识库模块
+      </h2>
+      <ul>
+        <li>
+          机构知识库：汇聚中国教育科学研究院各类科研成果、政策文件、研究报告等核心资源，实现机构知识资产的系统化沉淀与管理。
+        </li>
+        <li>
+          共享知识库：搭建开放共享的知识交流空间，支持跨部门、跨领域的知识流通，促进科研经验与成果的共建共用。
+        </li>
+        <li>
+          我的知识库：提供个性化知识存储功能，用户可自定义收藏、整理专属知识内容，打造私人化知识管理中心。
+        </li>
+      </ul>
+    </div>
+    <div class="home-card" >
+      <h2>
+        核心知识库模块
+      </h2>
+      <ul>
+        <li>
+          机构知识库：汇聚中国教育科学研究院各类科研成果、政策文件、研究报告等核心资源，实现机构知识资产的系统化沉淀与管理。
+        </li>
+        <li>
+          共享知识库：搭建开放共享的知识交流空间，支持跨部门、跨领域的知识流通，促进科研经验与成果的共建共用。
+        </li>
+        <li>
+          我的知识库：提供个性化知识存储功能，用户可自定义收藏、整理专属知识内容，打造私人化知识管理中心。
+        </li>
+      </ul>
+    </div>
+
+    <div class="btn">
+      <el-button type="primary">
+        新手指南<el-icon class="el-icon--right"><ArrowRight /></el-icon>
+      </el-button>
     </div>
   </div>
 </template>
@@ -26,133 +57,38 @@ import { ArrowRight } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
-const goToKnowledge = () => {
-  router.push('/user-knowledge')
+const goToHome = () => {
+  router.push('/user-home')
 }
 </script>
 
 <style lang="scss" scoped>
 .home-container {
-  min-height: calc(100vh - 64px);
-  background-color: #e8f3ff; /* 备用背景色 */
-  background-image: url('/images/homepage-bg.webp');
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  position: relative;
+  width: 100%;
   overflow: hidden;
-  
-  .hero-section {
+  .home-card {
+    margin-top: 16px;
+    padding: 10px 18px;
+    border-radius:11px;
+    background:rgba(223, 234, 251, .4);
+  }
+
+  ul {
+    margin-left: 16px;
+    li {
+      list-style: disc;  /* 实心圆点 */
+      color: rgba(146, 146, 146, 1);
+      font-family: SourceHanSansCN-Regular;
+      font-weight: 400;
+      font-size: 16px;
+      line-height: 32px;
+    }
+  }
+
+  .btn {
     display: flex;
-    align-items: center;
     justify-content: center;
-    min-height: calc(100vh - 64px);
-    padding: 40px 20px;
-    text-align: center;
-    position: relative;
-    z-index: 1;
-    
-    .welcome-content {
-      max-width: 900px;
-      margin: 0 auto;
-      
-                  .hero-title {
-                    font-size: 52px;
-                    font-weight: 700;
-                    color: #2c5aa0;
-                    margin-bottom: 80px;
-                    line-height: 1.2;
-                    text-shadow: 
-                      0 2px 8px rgba(255, 255, 255, 0.8),
-                      0 4px 16px rgba(44, 90, 160, 0.3);
-                    letter-spacing: 2px;
-                  }
-      
-      .action-container {
-        .journey-btn {
-          background: rgba(255, 255, 255, 0.9);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          color: #2b77d9;
-          font-size: 18px;
-          font-weight: 600;
-          padding: 16px 40px;
-          border-radius: 50px;
-          box-shadow: 
-            0 8px 32px rgba(0, 0, 0, 0.1),
-            0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-          backdrop-filter: blur(10px);
-          transition: all 0.3s ease;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          
-          &:hover {
-            background: rgba(255, 255, 255, 0.95);
-            transform: translateY(-2px);
-            box-shadow: 
-              0 12px 40px rgba(0, 0, 0, 0.15),
-              0 0 0 1px rgba(255, 255, 255, 0.4) inset;
-            color: #1a5fa0;
-          }
-          
-          .arrow-icon {
-            font-size: 16px;
-            transition: transform 0.3s ease;
-          }
-          
-          &:hover .arrow-icon {
-            transform: translateX(4px);
-          }
-        }
-      }
-    }
+    margin-top: 16px;
   }
 }
-
-@media (max-width: 768px) {
-  .home-container {
-    background-attachment: scroll; // 移动端使用scroll以提高性能
-    
-    .hero-section {
-      padding: 40px 20px;
-      
-      .welcome-content {
-        .hero-title {
-          font-size: 36px;
-          margin-bottom: 60px;
-          letter-spacing: 1px;
-        }
-        
-        .action-container {
-          .journey-btn {
-            font-size: 16px;
-            padding: 14px 32px;
-          }
-        }
-      }
-    }
-  }
-}
-
-@media (max-width: 480px) {
-  .home-container {
-    .hero-section {
-      .welcome-content {
-        .hero-title {
-          font-size: 28px;
-          margin-bottom: 50px;
-        }
-        
-        .action-container {
-          .journey-btn {
-            font-size: 16px;
-            padding: 12px 28px;
-          }
-        }
-      }
-    }
-  }
-}
-
 </style>

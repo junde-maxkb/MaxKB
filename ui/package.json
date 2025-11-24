@@ -16,6 +16,7 @@
     "@antv/layout": "^0.3.1",
     "@codemirror/theme-one-dark": "^6.1.2",
     "@ctrl/tinycolor": "^4.1.0",
+    "@icon-park/vue-next": "^1.4.2",
     "@logicflow/core": "^1.2.27",
     "@logicflow/extension": "^1.2.27",
     "@types/sortablejs": "^1.15.8",
