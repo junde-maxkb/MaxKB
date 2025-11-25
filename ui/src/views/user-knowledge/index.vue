@@ -5749,12 +5749,6 @@ onUnmounted(() => {
     }
   }
 
-  .knowledge-tree {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-height: 0;
-
     /* 自定义滚动条样式 */
     &::-webkit-scrollbar {
       width: 6px;
@@ -5821,8 +5815,8 @@ onUnmounted(() => {
 
       &.active {
         .node-content {
-          background: #e6f3ff;
-          border: 1px solid #3370ff;
+          background: var(--el-button-hover-bg-color);
+          //border: 1px solid #3370ff;
         }
       }
     }
