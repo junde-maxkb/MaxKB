@@ -560,6 +560,7 @@
         </el-header>
         <el-main>
           <HomePage v-if="isHomePage" />
+          <ChatPage v-else />
         </el-main>
       </el-container>
     </el-container>
@@ -600,6 +601,7 @@ import MessageCard from '@/layout/layout-template/MessageCard.vue'
 import modelApi from '@/api/model'
 import { MoreOne, HomeTwo } from '@icon-park/vue-next'
 import HomePage from '@/views/user-home/components/HomePage.vue'
+import ChatPage from '@/views/user-home/components/ChatPage.vue'
 
 // 类型定义
 interface TreeNode {
@@ -623,7 +625,7 @@ interface TreeNode {
 
 const router = useRouter()
 const { user } = useStore()
-const isHomePage = ref(true)
+const isHomePage = ref(false)
 const drawer = ref(false)
 const messages = ref<Message[]>([])
 const userRole = computed(() => user.getRole())
