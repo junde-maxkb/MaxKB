@@ -560,7 +560,15 @@
         </el-header>
         <el-main>
           <HomePage v-if="isHomePage" />
-          <ChatPage v-else />
+          <ChatPage 
+            v-else 
+            :selected-documents="selectedDocuments"
+            :selected-datasets="selectedDatasets"
+            :tree-data="treeData"
+            :selected-model-id="selectedModelId"
+            @manage-selection="handleManageSelection"
+            @clear-selection="handleClearSelection"
+          />
         </el-main>
       </el-container>
     </el-container>
@@ -935,6 +943,84 @@ const getSelectedStats = () => {
   return stats
 }
 
+// 用于触发 computed 重新计算的版本号 (必须在 computed 使用之前定义)
+const checkVersion = ref(0)
+
+// 获取选中的文档节点
+const getSelectedDocuments = (): TreeNode[] => {
+  const checkedNodes = treeRef.value?.getCheckedNodes() || []
+  console.log('所有勾选的节点:', checkedNodes.map((n: TreeNode) => ({ 
+    label: n.label, 
+    level: n.level, 
+    type: n.type,
+    datasetId: n.datasetId, 
+    documentId: n.documentId 
+  })))
+  // 文档节点：level=3 或者特殊的CNKI知识库
+  const docs = checkedNodes.filter((node: TreeNode) => node.level === 3 || node.id === 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505')
+  console.log('过滤后的文档节点:', docs.length, '个')
+  return docs
+}
+
+// 为模板提供 computed 包装 (依赖 checkVersion 触发重新计算)
+const selectedDocuments = computed(() => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _ = checkVersion.value // 依赖此变量触发重新计算
+  return getSelectedDocuments()
+})
+
+// 获取选中的知识库节点
+const getSelectedDatasets = (): TreeNode[] => {
+  const checkedNodes = treeRef.value?.getCheckedNodes() || []
+  // 知识库节点：level=2
+  const datasets = checkedNodes.filter((node: TreeNode) => node.level === 2)
+  console.log('过滤后的知识库节点:', datasets.length, '个')
+  return datasets
+}
+
+// 为模板提供 computed 包装 (依赖 checkVersion 触发重新计算)
+const selectedDatasets = computed(() => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _ = checkVersion.value // 依赖此变量触发重新计算
+  return getSelectedDatasets()
+})
+
+// 处理管理选择
+const handleManageSelection = () => {
+  ElMessage.info('请在左侧知识库树中选择或取消选择')
+}
+
+// 处理清空选择
+const handleClearSelection = () => {
+  if (treeRef.value) {
+    // 获取所有当前选中的节点键
+    const allCheckedKeys = treeRef.value.getCheckedKeys() || []
+    const halfCheckedKeys = treeRef.value.getHalfCheckedKeys() || []
+    
+    console.log('清空前选中的节点:', allCheckedKeys.length, '个', allCheckedKeys)
+    console.log('清空前半选中的节点:', halfCheckedKeys.length, '个', halfCheckedKeys)
+    
+    // 方法1: 遍历所有节点，逐个取消选中
+    const store = treeRef.value.store
+    if (store && store.nodesMap) {
+      Object.values(store.nodesMap).forEach((node: any) => {
+        if (node.checked || node.indeterminate) {
+          node.setChecked(false, false)
+        }
+      })
+    }
+    
+    // 方法2: 使用 setCheckedKeys 清空
+    treeRef.value.setCheckedKeys([], false)
+    
+    // 强制刷新树的状态
+    nextTick(() => {
+      checkVersion.value++ // 清空后也触发更新
+      console.log('清空后选中的节点:', treeRef.value?.getCheckedKeys()?.length || 0, '个')
+    })
+  }
+}
+
 // 处理复选框选择
 const handleNodeCheck = (data: TreeNode, checkInfo: any) => {
   // 获取所有选中的节点
@@ -943,6 +1029,9 @@ const handleNodeCheck = (data: TreeNode, checkInfo: any) => {
 
   // 分类统计选中的项目
   const selectedStats = getSelectedStats()
+  
+  // 触发 computed 重新计算
+  checkVersion.value++
 }
 
 const showRenameDialog = ref(false)

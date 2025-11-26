@@ -1,21 +1,21 @@
 <template>
-  <div class="chat-page" :class="{ 'chat-mode': chatList.length > 0 }">
+  <div class="chat-page" :class="{ 'chat-mode': hasChatMessages }">
     <!-- 聊天内容区域 -->
-    <el-scrollbar ref="scrollRef" class="chat-content-area">
+    <el-scrollbar ref="scrollRef" class="chat-content-area" @scroll="handleScroll">
       <div class="chat-content" ref="chatContentRef">
         
         <!-- 对话列表 (对话模式时显示) -->
-        <div v-if="chatList.length > 0" class="chat-messages">
-          <template v-for="(item, index) in chatList" :key="index">
-            <!-- 用户问题 -->
-            <div class="message-item user-message">
+        <div v-if="hasChatMessages" class="chat-messages">
+          <template v-for="(item, index) in chatMessages" :key="item.id || index">
+            <!-- 用户消息 -->
+            <div v-if="item.role === 'user'" class="message-item user-message">
               <div class="message-content user-content">
-                <span>{{ item.problem_text }}</span>
+                <span>{{ item.content }}</span>
               </div>
             </div>
 
             <!-- AI 回答 -->
-            <div class="message-item ai-message">
+            <div v-else-if="item.role === 'assistant'" class="message-item ai-message">
               <div class="ai-avatar">
                 <svg width="28" height="28" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="30" cy="30" r="28" stroke="#5E56DD" stroke-width="2" fill="none"/>
@@ -23,7 +23,7 @@
                 </svg>
               </div>
               <div class="message-content ai-content">
-                <div class="ai-answer" v-if="item.write_ed || item.answer_text">
+                <div class="ai-answer" v-if="item.write_ed || item.content">
                   <div class="answer-content">
                     <MdRenderer
                       :source="getAnswerText(item)"
@@ -55,21 +55,29 @@
                   </div>
                 </div>
                 <div v-else class="loading-text">
-                  正在思考中 <span class="dotting"></span>
+                  正在思考中<span class="dotting"></span><span class="dotting"></span><span class="dotting"></span>
                 </div>
 
-                <!-- 推荐问题 -->
-                <div class="recommend-questions" v-if="item.write_ed && item.suggest_questions?.length">
-                  <p class="recommend-title">推荐问题：</p>
-                  <div 
-                    v-for="(question, qIndex) in item.suggest_questions" 
-                    :key="qIndex"
-                    class="recommend-item"
-                    @click="sendRecommendQuestion(question)"
-                  >
-                    <span>{{ question }}</span>
-                    <el-icon><ArrowRight /></el-icon>
+                <!-- 推荐问题 - 只在最后一条AI消息且已完成时显示 -->
+                <div class="recommend-questions" v-if="item.write_ed && isLastAssistantMessage(index)">
+                  <!-- 加载中状态 -->
+                  <div v-if="guidesLoading" class="recommend-loading">
+                    <el-icon class="is-loading"><Loading /></el-icon>
+                    <span>正在生成推荐问题...</span>
                   </div>
+                  <!-- 推荐问题列表 -->
+                  <template v-else-if="guides?.length">
+                    <p class="recommend-title">推荐问题：</p>
+                    <div 
+                      v-for="(question, qIndex) in guides" 
+                      :key="qIndex"
+                      class="recommend-item"
+                      @click="sendRecommendQuestion(question.submit || question.display)"
+                    >
+                      <span>{{ question.display || question.submit }}</span>
+                      <el-icon><ArrowRight /></el-icon>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -83,7 +91,7 @@
     <div class="input-area-wrapper">
       <!-- Logo 和问候语 (欢迎模式时显示) -->
       <Transition name="header-fade">
-        <div v-if="chatList.length === 0" class="welcome-header">
+        <div v-if="!hasChatMessages" class="welcome-header">
           <div class="logo-container">
             <div class="ai-logo">
               <svg width="70" height="70" viewBox="0 0 70 70" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -105,7 +113,7 @@
 
       <!-- 开启新对话按钮 (对话模式时显示) -->
       <Transition name="btn-fade">
-        <div v-if="chatList.length > 0" class="new-chat-btn-container">
+        <div v-if="hasChatMessages" class="new-chat-btn-container">
           <el-button 
             type="primary" 
             plain
@@ -120,13 +128,19 @@
 
       <!-- 输入框 - 始终存在 -->
       <div class="input-box">
-        <div class="input-wrapper">
+        <div class="input-wrapper" :class="{ 'is-uploading': isUploading }">
+          <!-- 上传中遮罩 -->
+          <div v-if="isUploading" class="upload-loading-overlay">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>文档解析中...</span>
+          </div>
           <el-input
             ref="inputRef"
             v-model="inputValue"
             type="textarea"
-            :autosize="{ minRows: chatList.length > 0 ? 1 : 3, maxRows: 6 }"
-            placeholder="请输入您的问题..."
+            :autosize="{ minRows: hasChatMessages ? 1 : 3, maxRows: 6 }"
+            :placeholder="getInputPlaceholder()"
+            :disabled="isUploading"
             @keydown.enter="handleEnter"
             class="chat-input"
           />
@@ -134,36 +148,53 @@
           <!-- 输入框底部工具栏 -->
           <div class="input-toolbar">
             <div class="toolbar-left">
-              <el-dropdown trigger="click" @command="handleKBCommand">
-                <el-button type="primary" size="small" class="selected-kb-btn">
-                  已选{{ selectedCount }}项
-                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="manage">管理选择</el-dropdown-item>
-                    <el-dropdown-item command="clear">清空选择</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <span class="selected-kb-text">已选{{ selectedCount }}项</span>
+
+              <!-- 翻译模式：目标语言选择器 -->
+              <el-select
+                v-if="isAITranslateMode"
+                v-model="targetLanguage"
+                size="small"
+                class="language-select"
+                placeholder="目标语言"
+              >
+                <el-option
+                  v-for="lang in TRANSLATION_LANGUAGES"
+                  :key="lang.value"
+                  :label="lang.label"
+                  :value="lang.value"
+                />
+              </el-select>
+
+              <!-- 已上传文档标签 -->
+              <el-tag
+                v-if="currentUploadedDocumentName"
+                size="small"
+                closable
+                @close="clearCurrentDocument"
+                class="document-tag"
+              >
+                <el-icon class="document-icon"><Document /></el-icon>
+                <span class="document-name">{{ currentUploadedDocumentName }}</span>
+              </el-tag>
             </div>
 
             <div class="toolbar-right">
-              <el-button text class="tool-btn" @click="startVoice">
-                <el-icon :size="20"><Microphone /></el-icon>
-              </el-button>
               <el-upload
                 action="#"
                 :auto-upload="false"
                 :show-file-list="false"
                 @change="handleFileChange"
+                v-if="shouldShowToolButtons"
               >
                 <el-button text class="tool-btn">
                   <el-icon :size="20"><Paperclip /></el-icon>
                 </el-button>
               </el-upload>
-              <el-divider direction="vertical" />
+              <el-divider direction="vertical" v-if="shouldShowToolButtons" />
+              <!-- 发送按钮 -->
               <el-button 
+                v-if="!isStreaming"
                 type="primary" 
                 circle 
                 class="send-btn"
@@ -172,17 +203,28 @@
               >
                 <el-icon><Position /></el-icon>
               </el-button>
+              <!-- 停止按钮 -->
+              <el-button 
+                v-else
+                type="danger" 
+                circle 
+                class="send-btn stop-btn"
+                @click="handleStopGeneration"
+              >
+                <el-icon><VideoPause /></el-icon>
+              </el-button>
             </div>
           </div>
         </div>
 
         <!-- 快捷操作按钮 (欢迎模式时显示) -->
         <Transition name="actions-fade">
-          <div v-if="chatList.length === 0" class="quick-actions">
+          <div v-if="!hasChatMessages" class="quick-actions">
             <el-button 
               v-for="action in quickActions" 
               :key="action.key"
               class="quick-action-btn"
+              :class="{ active: currentMode === action.key }"
               @click="handleQuickAction(action)"
             >
               <component :is="action.icon" class="action-icon" />
@@ -196,7 +238,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, reactive, h } from 'vue'
+import { ref, computed, onMounted, nextTick, h, watch, inject } from 'vue'
 import { 
   ArrowDown, 
   Microphone, 
@@ -207,9 +249,33 @@ import {
   ArrowRight,
   DocumentAdd,
   Document,
+  VideoPause,
   DataLine,
-  PieChart
+  PieChart,
+  Close,
+  Loading
 } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import MdRenderer from '@/components/markdown/MdRenderer.vue'
+import { postModelChatStream } from '@/api/model'
+
+// 导入 composables
+import { useChat } from '../composables/useChat'
+import { useKnowledgeSearch } from '../composables/useKnowledgeSearch'
+import { useAIMode, TRANSLATION_LANGUAGES } from '../composables/useAIMode'
+import { useDocumentUpload } from '../composables/useDocumentUpload'
+import useGuide from '@/utils/useGuide'
+import {
+  getTranslatePrompt,
+  getSummaryPrompt,
+  getReviewPrompt,
+  getQuestionPrompt,
+  getPromptByIntent,
+  getChatSystemPrompt,
+  replaceQuickChartWithEncodedUrl
+} from '../composables/usePrompts'
+import type { TreeNode, ChatMessage, SearchResult } from '../types/chat'
+
 // 自定义点赞/踩图标
 const Good = () => h('svg', { 
   width: '1em', height: '1em', viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg'
@@ -222,21 +288,6 @@ const Bad = () => h('svg', {
 }, [
   h('path', { d: 'M17 2V13M22 11V4C22 2.89543 21.1046 2 20 2H6.57376C5.09299 2 3.83381 3.08033 3.60855 4.54379L2.53168 11.5438C2.25212 13.3611 3.65822 15 5.49684 15H9C9.55228 15 10 15.4477 10 16V19.5342C10 20.896 11.104 22 12.4658 22C12.7907 22 13.085 21.8087 13.2169 21.5119L16.7361 13.5939C16.8966 13.2327 17.2547 13 17.6499 13H20C21.1046 13 22 12.1046 22 11Z', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
 ])
-import { ElMessage } from 'element-plus'
-import MdRenderer from '@/components/markdown/MdRenderer.vue'
-
-// 定义聊天记录类型
-interface ChatRecord {
-  id: string
-  problem_text: string
-  answer_text: string
-  answer_text_list: any[]
-  write_ed: boolean
-  is_stop: boolean
-  vote_status: string
-  reasoning_content?: string
-  suggest_questions?: string[]
-}
 
 // AI写作图标组件
 const AIWriteIcon = () => h('svg', { 
@@ -252,22 +303,149 @@ const AITranslateIcon = () => h('svg', {
   h('path', { d: 'M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z', fill: 'currentColor' })
 ])
 
+// 定义 Props
+const props = defineProps<{
+  selectedDocuments?: TreeNode[]
+  selectedDatasets?: TreeNode[]
+  treeData?: TreeNode[]
+  selectedModelId?: string
+}>()
+
+// 定义 Emits
+const emit = defineEmits<{
+  (e: 'manageSelection'): void
+  (e: 'clearSelection'): void
+}>()
+
+// 使用 composables
+const {
+  chatMessages,
+  isStreaming,
+  guides,
+  addUserMessage,
+  addAssistantMessage,
+  stopGeneration,
+  newChat,
+  copyText,
+  handleLike,
+  handleDislike,
+  scrollToBottom: chatScrollToBottom
+} = useChat()
+
+const {
+  isSearching,
+  showServiceWarning,
+  serviceWarningMessage,
+  performKnowledgeSearch,
+  buildSearchContext,
+  formatSearchResultsForAI,
+  deduplicateParagraphs
+} = useKnowledgeSearch()
+
+const {
+  currentMode,
+  isAIWritingMode,
+  isAITranslateMode,
+  isAISummaryMode,
+  isAIReviewMode,
+  isAIQuestionMode,
+  currentModeLabel,
+  targetLanguage,
+  translateDocumentContent,
+  translateDocumentName,
+  summaryDocumentContent,
+  summaryDocumentName,
+  reviewDocumentContent,
+  reviewDocumentName,
+  questionDocumentContent,
+  questionDocumentName,
+  uploadedDocumentContent,
+  uploadedDocumentName,
+  setMode,
+  detectWritingIntent,
+  shouldSkipHistory,
+  clearTranslateDocument,
+  clearSummaryDocument,
+  clearReviewDocument,
+  clearQuestionDocument,
+  resetModeState,
+  getCurrentDocumentContent
+} = useAIMode()
+
+const { handleDocumentUpload, isUploading } = useDocumentUpload()
+
 // 状态
 const inputValue = ref('')
 const loading = ref(false)
-const chatList = ref<ChatRecord[]>([])
 const scrollRef = ref()
 const chatContentRef = ref()
 const inputRef = ref()
-const selectedCount = ref(2) // 已选择的知识库数量
+const guidesLoading = ref(false) // 推荐问题加载状态
+const userScrolledUp = ref(false) // 用户是否向上滚动了
+const userStoppedGeneration = ref(false) // 用户是否主动停止了生成
+
+// 计算已选择的数量（只统计叶子节点）
+const selectedCount = computed(() => {
+  const countLeafNodes = (nodes: TreeNode[]): number => {
+    let count = 0
+    for (const node of nodes) {
+      if (!node.children || node.children.length === 0) {
+        // 只有叶子节点才计数
+        count++
+      }
+      // 枝干节点不计数
+    }
+    return count
+  }
+
+  const docCount = props.selectedDocuments ? countLeafNodes(props.selectedDocuments) : 0
+  const datasetCount = props.selectedDatasets ? countLeafNodes(props.selectedDatasets) : 0
+  const total = docCount + datasetCount
+
+  return total
+})// 计算当前已上传的文档名称
+const currentUploadedDocumentName = computed(() => {
+  if (isAITranslateMode.value && translateDocumentName.value) {
+    return translateDocumentName.value
+  }
+  if (isAISummaryMode.value && summaryDocumentName.value) {
+    return summaryDocumentName.value
+  }
+  if (isAIReviewMode.value && reviewDocumentName.value) {
+    return reviewDocumentName.value
+  }
+  if (isAIQuestionMode.value && questionDocumentName.value) {
+    return questionDocumentName.value
+  }
+  if (isAIWritingMode.value && uploadedDocumentName.value) {
+    return uploadedDocumentName.value
+  }
+  return ''
+})
+
+// 计算是否有聊天消息
+const hasChatMessages = computed(() => chatMessages.value.length > 0)
+
+// 计算是否应该显示工具按钮（文件上传和语音）
+const shouldShowToolButtons = computed(() => {
+  // 在普通聊天模式下不显示工具按钮
+  return isAIWritingMode.value || isAITranslateMode.value || isAISummaryMode.value || isAIReviewMode.value || isAIQuestionMode.value
+})
+
+// 判断是否是最后一条AI消息
+const isLastAssistantMessage = (index: number): boolean => {
+  // 检查当前消息是否是最后一条消息，且是AI消息
+  const lastIndex = chatMessages.value.length - 1
+  return index === lastIndex && chatMessages.value[index]?.role === 'assistant'
+}
 
 // 快捷操作配置
 const quickActions = [
-  { key: 'write', label: 'AI写作', icon: AIWriteIcon },
+  { key: 'writing', label: 'AI写作', icon: AIWriteIcon },
   { key: 'translate', label: 'AI翻译', icon: AITranslateIcon },
   { key: 'summary', label: 'AI摘要', icon: Document },
-  { key: 'overview', label: 'AI综述', icon: DataLine },
-  { key: 'ask', label: 'AI问数', icon: PieChart }
+  { key: 'review', label: 'AI综述', icon: DataLine },
+  { key: 'question', label: 'AI问数', icon: PieChart }
 ]
 
 // 计算问候语
@@ -282,61 +460,304 @@ const greeting = computed(() => {
   return '晚上好'
 })
 
-// 获取回答文本
-const getAnswerText = (item: ChatRecord) => {
-  if (item.answer_text) return item.answer_text
-  if (item.answer_text_list?.length > 0) {
-    const lastList = item.answer_text_list[item.answer_text_list.length - 1]
-    if (Array.isArray(lastList)) {
-      return lastList.map((t: any) => typeof t === 'string' ? t : t.content || '').join('')
-    }
-    return typeof lastList === 'string' ? lastList : lastList.content || ''
-  }
-  return ''
-}
-
-// 生成唯一ID
-const generateId = () => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2)
+// 获取回答文本（兼容旧格式）
+const getAnswerText = (item: ChatMessage) => {
+  return item.content || ''
 }
 
 // 发送消息
 const sendMessage = async () => {
-  if (!inputValue.value.trim() || loading.value) return
+  const hasTranslateDocument = isAITranslateMode.value && translateDocumentContent.value
+  const hasSummaryDocument = isAISummaryMode.value && summaryDocumentContent.value
+  const hasReviewDocument = isAIReviewMode.value && reviewDocumentContent.value
 
-  const question = inputValue.value.trim()
-  inputValue.value = ''
-  loading.value = true
-
-  // 添加用户消息和AI占位
-  const chatRecord: ChatRecord = {
-    id: generateId(),
-    problem_text: question,
-    answer_text: '',
-    answer_text_list: [],
-    write_ed: false,
-    is_stop: false,
-    vote_status: '-1',
-    suggest_questions: []
+  if (
+    (!inputValue.value.trim() && !hasTranslateDocument && !hasSummaryDocument && !hasReviewDocument) ||
+    isStreaming.value ||
+    !props.selectedModelId
+  ) {
+    if (!props.selectedModelId) {
+      ElMessage.warning('请先选择对话模型')
+    }
+    return
   }
-  chatList.value.push(chatRecord)
 
-  // 滚动到底部
+  // 检查是否选中了文档或知识库（部分模式下可以不选择）
+  if (
+    !isAIWritingMode.value &&
+    !isAITranslateMode.value &&
+    !isAISummaryMode.value &&
+    !isAIReviewMode.value &&
+    !isAIQuestionMode.value &&
+    selectedCount.value === 0
+  ) {
+    ElMessage.warning('请先选择要查询的文档或知识库')
+    return
+  }
+
+  // 清除已有的推荐问题
+  guides.value = []
+  guidesLoading.value = true
+
+  const userQuestion = inputValue.value.trim()
+
+  // 保存文档内容
+  const savedTranslateDocContent = translateDocumentContent.value
+  const savedTranslateDocName = translateDocumentName.value
+  const savedSummaryDocContent = summaryDocumentContent.value
+  const savedSummaryDocName = summaryDocumentName.value
+  const savedReviewDocContent = reviewDocumentContent.value
+  const savedReviewDocName = reviewDocumentName.value
+  const savedQuestionDocContent = questionDocumentContent.value
+  const savedQuestionDocName = questionDocumentName.value
+  const savedUploadedDocContent = uploadedDocumentContent.value
+  const savedUploadedDocName = uploadedDocumentName.value
+
+  // 添加用户消息
+  let displayUserMessage = userQuestion
+  if (hasTranslateDocument && !userQuestion) {
+    displayUserMessage = `翻译文档：${savedTranslateDocName}`
+  } else if (hasSummaryDocument && !userQuestion) {
+    displayUserMessage = `摘要文档：${savedSummaryDocName}`
+  }
+
+  addUserMessage(displayUserMessage)
+
+  // 重置用户滚动状态，允许新消息自动滚动到底部
+  userScrolledUp.value = false
+  // 重置用户停止标记
+  userStoppedGeneration.value = false
+
+  // 清空输入框
+  inputValue.value = ''
+
+  // 不再自动清除文档，保留显示直到用户手动关闭
+
+  loading.value = true
+  isStreaming.value = true
+
+  // 立即添加空的 AI 消息，显示"正在思考中"状态
+  addAssistantMessage('')
+  const assistantMsgIndex = chatMessages.value.length - 1
+
   await nextTick()
   scrollToBottom()
 
-  // 模拟 AI 回答（实际项目中应调用 API）
-  setTimeout(() => {
-    chatRecord.answer_text = `这是对"${question}"的回答。\n\n**核心特点**\n- 信息结构化：将文本、数据等转化为 AI 可理解的格式（如知识图谱、向量数据）。\n- 动态更新：可通过新数据、反馈持续迭代，优化 AI 的知识储备。\n- 高效检索：支持快速匹配查询，为 AI 生成回答、解决问题提供依据。`
-    chatRecord.write_ed = true
-    chatRecord.suggest_questions = [
-      'AI知识库的搭建需要哪些技术支持？',
-      'AI知识库搭建的成功案例',
-      '如何保证AI知识库的信息准确性？'
+  try {
+    const modelId = props.selectedModelId
+
+    // 执行知识库检索
+    console.log('=== 开始知识检索 ===')
+    console.log('用户问题:', userQuestion)
+    console.log('选中的文档:', props.selectedDocuments)
+    console.log('选中的知识库:', props.selectedDatasets)
+    console.log('树形数据:', props.treeData?.length, '个顶级节点')
+    
+    const searchResponse = await performKnowledgeSearch(
+      userQuestion,
+      props.selectedDocuments || [],
+      props.selectedDatasets || [],
+      props.treeData || []
+    )
+
+    const { results: searchResults, hasEmbeddingError, hasConnectionError } = searchResponse
+    console.log('知识检索结果:', searchResults.length, '条')
+    console.log('嵌入错误:', hasEmbeddingError, '连接错误:', hasConnectionError)
+
+    // 构建搜索上下文
+    const { context, contextNote } = buildSearchContext(searchResults, hasEmbeddingError, hasConnectionError)
+    const searchResultsForAI = formatSearchResultsForAI(searchResults)
+    
+    console.log('=== 构建上下文 ===')
+    console.log('context:', context.substring(0, 300))
+    console.log('contextNote:', contextNote)
+
+    // 构建系统提示词
+    let systemPrompt = ''
+    let currentIntent: 'writing' | 'polish' | 'expand' | 'chat' | null = null
+    const documentDoc = `
+上传文档内容（${savedTranslateDocName || savedUploadedDocName || savedSummaryDocName || savedReviewDocName || savedQuestionDocName}）：
+${savedTranslateDocContent || savedUploadedDocContent || savedSummaryDocContent || savedReviewDocContent || savedQuestionDocContent}
+知识库内容：
+${context}
+${contextNote}`
+
+    if (isAITranslateMode.value) {
+      if (savedTranslateDocContent) {
+        systemPrompt = getTranslatePrompt(
+          targetLanguage.value,
+          '',
+          savedTranslateDocContent,
+          savedTranslateDocName,
+          userQuestion
+        )
+      } else {
+        systemPrompt = getTranslatePrompt(targetLanguage.value, userQuestion)
+      }
+    } else if (isAIWritingMode.value) {
+      const intent = await detectWritingIntent(userQuestion, modelId)
+      currentIntent = intent
+
+      if (intent === 'chat') {
+        systemPrompt = getChatSystemPrompt(context, contextNote, hasEmbeddingError || hasConnectionError, chatMessages.value)
+      } else {
+        let documentContext = ''
+        if (savedUploadedDocContent) {
+          documentContext = `\n\n上传文档内容（${savedUploadedDocName}）：\n${savedUploadedDocContent}`
+        }
+        systemPrompt = getPromptByIntent(intent, userQuestion, context, documentContext, contextNote)
+      }
+    } else if (isAISummaryMode.value) {
+      if (savedSummaryDocContent) {
+        systemPrompt = getSummaryPrompt('中英文', userQuestion, savedSummaryDocContent, savedSummaryDocName, '', '', chatMessages.value.slice(-10))
+      } else {
+        systemPrompt = getSummaryPrompt('中英文', userQuestion, '', '', context, contextNote, chatMessages.value.slice(-10))
+      }
+    } else if (isAIReviewMode.value) {
+      if (savedReviewDocContent) {
+        systemPrompt = getReviewPrompt(userQuestion, savedReviewDocContent, savedReviewDocName)
+      } else {
+        systemPrompt = getReviewPrompt(userQuestion, '', '', context, contextNote)
+      }
+    } else if (isAIQuestionMode.value) {
+      if (savedQuestionDocContent) {
+        systemPrompt = getQuestionPrompt(userQuestion, savedQuestionDocContent, savedQuestionDocName)
+      } else {
+        systemPrompt = getQuestionPrompt(userQuestion, '', '', context, contextNote)
+      }
+    } else {
+      systemPrompt = getChatSystemPrompt(context, contextNote, hasEmbeddingError || hasConnectionError, chatMessages.value)
+    }
+
+    // 构建消息数组
+    const skipHistory = shouldSkipHistory(currentIntent || undefined)
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...(skipHistory ? [] : chatMessages.value.slice(-10).map(m => ({ role: m.role, content: m.content }))),
+      { role: 'user', content: userQuestion }
     ]
+    
+    console.log('=== 准备调用 AI API ===')
+    console.log('模型ID:', modelId)
+    console.log('系统提示词:', systemPrompt.substring(0, 500))
+    console.log('用户问题:', userQuestion)
+    console.log('消息数组:', messages.length, '条')
+
+    // 调用流式 API
+    const resp = await postModelChatStream(modelId, { messages })
+    console.log('API 响应:', resp ? '成功获取响应体' : '响应为空')
+
+    if (resp?.body && typeof resp.body.getReader === 'function') {
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let currentAssistantMessage = ''
+
+      // 使用前面已添加的 AI 消息索引
+
+      while (isStreaming.value) {
+        const { value, done } = await reader.read()
+        if (done) {
+          console.log('流式读取完成')
+          break
+        }
+
+        const chunk = decoder.decode(value)
+        console.log('收到原始数据块:', chunk.substring(0, 200)) // 只打印前200字符
+        
+        // 尝试多种格式匹配
+        const parts = chunk.match(/data:.*?\n\n/gs) || chunk.match(/data:[^\n]+/g)
+
+        if (parts) {
+          console.log('匹配到', parts.length, '个数据块')
+          for (const part of parts) {
+            try {
+              const jsonStr = part.replace(/^data:\s*/, '').replace(/\n\n$/, '').trim()
+              if (!jsonStr) continue
+              
+              console.log('解析JSON:', jsonStr.substring(0, 100))
+              const json = JSON.parse(jsonStr)
+              
+              // 检查是否有内容（包括空字符串的情况也记录）
+              console.log('JSON内容:', JSON.stringify(json))
+              
+              if (json?.content !== undefined && json.content !== '') {
+                currentAssistantMessage += json.content
+                // 直接修改数组中的对象，确保响应式更新
+                chatMessages.value[assistantMsgIndex].content = currentAssistantMessage
+                console.log('累计内容长度:', currentAssistantMessage.length)
+                await nextTick()
+                scrollToBottom()
+              }
+              
+              // 检查是否结束
+              if (json?.is_end === true) {
+                console.log('收到结束标记')
+              }
+            } catch (e) {
+              console.warn('解析流式数据失败:', e, '原始数据:', part.substring(0, 100))
+            }
+          }
+        } else {
+          console.log('未匹配到数据块格式')
+        }
+      }
+
+      console.log('流式处理结束，总内容长度:', currentAssistantMessage.length)
+      console.log('最终内容:', currentAssistantMessage.substring(0, 200))
+
+      // 流式输出完成后处理
+      if (currentAssistantMessage) {
+        chatMessages.value[assistantMsgIndex].content = replaceQuickChartWithEncodedUrl(currentAssistantMessage)
+        chatMessages.value[assistantMsgIndex].write_ed = true
+
+        // 添加分段信息
+        if (searchResultsForAI.length > 0) {
+          chatMessages.value[assistantMsgIndex].paragraphs = deduplicateParagraphs(searchResultsForAI)
+        }
+        
+        // 如果用户没有主动停止生成，才获取推荐问题
+        if (!userStoppedGeneration.value) {
+          try {
+            const { getGuideQuestions } = useGuide()
+            const guideQuestions = await getGuideQuestions(
+              modelId,
+              currentModeLabel.value,
+              userQuestion,
+              currentAssistantMessage
+            )
+            guides.value = guideQuestions
+            console.log('获取到推荐问题:', guideQuestions)
+          } catch (e) {
+            console.warn('获取推荐问题失败:', e)
+          } finally {
+            guidesLoading.value = false
+          }
+        } else {
+          guidesLoading.value = false
+          console.log('用户主动停止生成，跳过推荐问题')
+        }
+      } else {
+        chatMessages.value[assistantMsgIndex].content = isStreaming.value ? '抱歉，模型服务暂时不可用，请稍后重试。' : '回答已中断。'
+        chatMessages.value[assistantMsgIndex].write_ed = true
+        guidesLoading.value = false
+      }
+    } else {
+      // API 响应无效，更新已存在的 AI 消息
+      chatMessages.value[assistantMsgIndex].content = '抱歉，模型服务暂时不可用，请稍后重试。'
+      chatMessages.value[assistantMsgIndex].write_ed = true
+    }
+  } catch (error) {
+    console.error('发送消息失败:', error)
+    // 更新已存在的 AI 消息显示错误
+    chatMessages.value[assistantMsgIndex].content = '抱歉，发送消息时发生错误，请稍后重试。'
+    chatMessages.value[assistantMsgIndex].write_ed = true
+  } finally {
     loading.value = false
-    nextTick(() => scrollToBottom())
-  }, 1500)
+    isStreaming.value = false
+    guidesLoading.value = false
+    await nextTick()
+    scrollToBottom()
+  }
 }
 
 // 处理回车发送
@@ -349,7 +770,7 @@ const handleEnter = (event: KeyboardEvent) => {
 
 // 滚动到底部
 const scrollToBottom = () => {
-  if (scrollRef.value) {
+  if (scrollRef.value && !userScrolledUp.value) {
     const scrollWrap = scrollRef.value.wrapRef
     if (scrollWrap) {
       scrollWrap.scrollTop = scrollWrap.scrollHeight
@@ -357,30 +778,21 @@ const scrollToBottom = () => {
   }
 }
 
-// 重新生成回答
-const regenerate = (item: ChatRecord) => {
-  ElMessage.info('正在重新生成...')
-  // 实际实现中调用 API 重新生成
-}
-
-// 复制文本
-const copyText = async (text: string) => {
-  try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success('已复制到剪贴板')
-  } catch {
-    ElMessage.error('复制失败')
+// 监听滚动事件
+const handleScroll = () => {
+  if (scrollRef.value) {
+    const scrollWrap = scrollRef.value.wrapRef
+    if (scrollWrap) {
+      const isAtBottom = scrollWrap.scrollTop + scrollWrap.clientHeight >= scrollWrap.scrollHeight - 10
+      userScrolledUp.value = !isAtBottom
+    }
   }
 }
 
-// 点赞
-const handleLike = (item: ChatRecord) => {
-  item.vote_status = item.vote_status === '1' ? '-1' : '1'
-}
-
-// 点踩
-const handleDislike = (item: ChatRecord) => {
-  ElMessage.info('感谢您的反馈')
+// 重新生成回答
+const regenerate = (item: ChatMessage) => {
+  ElMessage.info('正在重新生成...')
+  // 实际实现中调用 API 重新生成
 }
 
 // 发送推荐问题
@@ -391,41 +803,133 @@ const sendRecommendQuestion = (question: string) => {
 
 // 开启新对话
 const startNewChat = () => {
-  chatList.value = []
+  newChat()
   inputValue.value = ''
+  resetModeState()
+  userScrolledUp.value = false // 重置滚动状态
+}
+
+// 清除当前上传的文档
+const clearCurrentDocument = () => {
+  if (isAITranslateMode.value) {
+    clearTranslateDocument()
+  } else if (isAISummaryMode.value) {
+    clearSummaryDocument()
+  } else if (isAIReviewMode.value) {
+    clearReviewDocument()
+  } else if (isAIQuestionMode.value) {
+    // 问数模式没有清除函数，需要手动清除
+    questionDocumentContent.value = ''
+    questionDocumentName.value = ''
+  } else if (isAIWritingMode.value) {
+    // 写作模式也没有清除函数，需要手动清除
+    uploadedDocumentContent.value = ''
+    uploadedDocumentName.value = ''
+  }
+  ElMessage.success('已清除上传的文档')
+}
+
+// 获取输入框占位符文本
+const getInputPlaceholder = () => {
+  if (isAIWritingMode.value) {
+    if (uploadedDocumentName.value) {
+      return '请输入写作主题或上传文档，AI将为您提供论文写作、申报书写作、论文续写、润色等服务。'
+    }
+    return '请输入写作主题或上传文档，AI将为您提供论文写作、申报书写作、论文续写、润色等服务。'
+  }
+  if (isAITranslateMode.value) {
+    if (translateDocumentName.value) {
+      return `点击发送开始翻译文档，或输入附加说明...`
+    }
+    return `请输入内容或上传文档，AI将为您翻译成${targetLanguage.value}。`
+  }
+  if (isAISummaryMode.value) {
+    if (summaryDocumentName.value) {
+      return '请输入内容或上传文档，AI将为您提炼要点或生成中英文摘要。'
+    }
+    return '请输入内容或上传文档，AI将为您提炼要点或生成中英文摘要。'
+  }
+  if (isAIReviewMode.value) {
+    if (reviewDocumentName.value) {
+      return '请勾选知识库或上传文档，AI将为您生成文献综述。'
+    }
+    return '请勾选知识库或上传文档，AI将为您生成文献综述。'
+  }
+  if (isAIQuestionMode.value) {
+    if (questionDocumentName.value) {
+      return '请上传Excel文档或输入数据，AI将为您提供数据解读与可视化图表。'
+    }
+    return '请上传Excel文档或输入数据，AI将为您提供数据解读与可视化图表。'
+  }
+  if (!selectedCount.value) {
+    return '请先勾选知识库或文档，再与AI进行对话。'
+  }
+  return '请输入您的问题...'
 }
 
 // 处理知识库下拉命令
 const handleKBCommand = (command: string) => {
   if (command === 'manage') {
-    ElMessage.info('打开知识库管理')
+    emit('manageSelection')
   } else if (command === 'clear') {
-    selectedCount.value = 0
+    emit('clearSelection')
     ElMessage.success('已清空选择')
   }
 }
 
-// 语音输入
-const startVoice = () => {
-  ElMessage.info('语音输入功能开发中...')
-}
+// 文件上传处理
+const handleFileChange = async (uploadFile: any) => {
+  const file = uploadFile.raw || uploadFile
+  
+  const onSuccess = (content: string, fileName: string) => {
+    switch (currentMode.value) {
+      case 'translate':
+        translateDocumentContent.value = content
+        translateDocumentName.value = fileName
+        break
+      case 'summary':
+        summaryDocumentContent.value = content
+        summaryDocumentName.value = fileName
+        break
+      case 'review':
+        reviewDocumentContent.value = content
+        reviewDocumentName.value = fileName
+        break
+      case 'question':
+        questionDocumentContent.value = content
+        questionDocumentName.value = fileName
+        break
+      case 'writing':
+        uploadedDocumentContent.value = content
+        uploadedDocumentName.value = fileName
+        break
+    }
+  }
 
-// 文件上传
-const handleFileChange = (file: any) => {
-  ElMessage.info(`已选择文件: ${file.name}`)
+  await handleDocumentUpload(file, currentMode.value, onSuccess)
 }
 
 // 快捷操作
 const handleQuickAction = (action: any) => {
-  const prompts: Record<string, string> = {
-    write: '请帮我写一篇关于',
-    translate: '请帮我翻译以下内容：',
-    summary: '请帮我总结以下内容的要点：',
-    overview: '请帮我综述以下主题：',
-    ask: '请根据数据回答以下问题：'
-  }
-  inputValue.value = prompts[action.key] || ''
+  console.log('点击了快捷操作:', action.key, action.label)
+  setMode(action.key)
+  console.log('当前模式已切换为:', currentMode.value)
   inputRef.value?.focus()
+}
+
+// 停止生成
+const handleStopGeneration = () => {
+  userStoppedGeneration.value = true // 标记用户主动停止
+  stopGeneration()
+  guidesLoading.value = false // 停止推荐问题加载
+  // 更新最后一条消息的状态
+  const lastMsg = chatMessages.value[chatMessages.value.length - 1]
+  if (lastMsg && lastMsg.role === 'assistant') {
+    lastMsg.write_ed = true
+    if (!lastMsg.content) {
+      lastMsg.content = '回答已中断。'
+    }
+  }
 }
 
 onMounted(() => {
@@ -545,6 +1049,34 @@ onMounted(() => {
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     overflow: hidden;
+    position: relative;
+
+    &.is-uploading {
+      .chat-input {
+        opacity: 0.5;
+        pointer-events: none;
+      }
+    }
+
+    .upload-loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 10;
+      color: #5E56DD;
+      font-size: 14px;
+
+      .el-icon {
+        font-size: 20px;
+      }
+    }
 
     .chat-input {
       :deep(.el-textarea__inner) {
@@ -567,17 +1099,72 @@ onMounted(() => {
       padding: 10px 16px;
 
       .toolbar-left {
-        .selected-kb-btn {
-          border-radius: 4px;
-          font-size: 13px;
-          padding: 6px 12px;
-          background-color: #f0eeff;
-          border-color: #f0eeff;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .selected-kb-text {
+          font-size: 12px;
           color: #5E56DD;
+          padding: 0 8px;
+          background-color: #f0eeff;
+          border-radius: 4px;
+          height: 24px;
+          line-height: 24px;
+        }
+
+        .language-select {
+          width: 100px;
+
+          :deep(.el-input__wrapper) {
+            height: 24px;
+            background-color: #f0eeff;
+            border: 1px solid #e4e1ff;
+            box-shadow: none;
+
+            .el-input__inner {
+              font-size: 12px;
+              color: #5E56DD;
+            }
+
+            &:hover {
+              background-color: #e4e1ff;
+            }
+          }
+        }
+
+        .document-tag {
+          background-color: #f0eeff;
+          border-color: #e4e1ff;
+          color: #5E56DD;
+          font-size: 12px;
+          max-width: 180px;
+          display: inline-flex;
+          align-items: center;
+          height: 24px;
+
+          :deep(.el-tag__content) {
+            display: inline-flex;
+            align-items: center;
+            line-height: 1;
+          }
+
+          .document-icon {
+            font-size: 12px;
+            margin-right: 4px;
+            flex-shrink: 0;
+          }
+
+          .document-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+          }
 
           &:hover {
             background-color: #e4e1ff;
-            border-color: #e4e1ff;
           }
         }
       }
@@ -614,6 +1201,14 @@ onMounted(() => {
           &:disabled {
             background: #e4e7ed;
           }
+          
+          &.stop-btn {
+            background: linear-gradient(135deg, #f56c6c, #e74c3c);
+            
+            &:hover {
+              background: linear-gradient(135deg, #e74c3c, #c0392b);
+            }
+          }
         }
       }
     }
@@ -644,6 +1239,17 @@ onMounted(() => {
         border-color: #5E56DD;
         color: #5E56DD;
         background: #f8f7ff;
+      }
+
+      &.active {
+        border-color: #5E56DD;
+        color: #fff;
+        background: #5E56DD;
+
+        &:hover {
+          background: #4a45b8;
+          border-color: #4a45b8;
+        }
       }
 
       .action-icon {
@@ -740,6 +1346,19 @@ onMounted(() => {
         .recommend-questions {
           margin-top: 16px;
 
+          .recommend-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            color: #8f959e;
+            font-size: 13px;
+
+            .el-icon {
+              color: #5E56DD;
+            }
+          }
+
           .recommend-title {
             font-size: 13px;
             color: #8f959e;
@@ -778,24 +1397,33 @@ onMounted(() => {
 }
 
 // 加载动画
+
 .dotting {
   display: inline-block;
-  min-width: 2px;
-  min-height: 2px;
-  animation: dotting 1s infinite step-start;
+  width: 6px;
+  height: 6px;
+  background-color: currentColor;
+  border-radius: 50%;
+  margin: 0 2px;
+  opacity: 0.3;
+  animation: dotting-blink 1.4s infinite both;
+}
+.dotting:nth-child(1) {
+  animation-delay: 0s;
+}
+.dotting:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.dotting:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
-@keyframes dotting {
-  25% {
-    box-shadow: 2px 0 0 currentColor;
+@keyframes dotting-blink {
+  0%, 80%, 100% {
+    opacity: 0.3;
   }
-
-  50% {
-    box-shadow: 2px 0 0 currentColor, 6px 0 0 currentColor;
-  }
-
-  75% {
-    box-shadow: 2px 0 0 currentColor, 6px 0 0 currentColor, 10px 0 0 currentColor;
+  40% {
+    opacity: 1;
   }
 }
 
