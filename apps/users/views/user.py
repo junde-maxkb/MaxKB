@@ -568,8 +568,9 @@ class ChatHistoryView(APIView):
             [PermissionConstants.USER_READ],
             compare=CompareConstants.AND))
         def get(self, request: Request, user_id, current_page, page_size):
+            keyword = request.query_params.get('keyword', None)
             d = ChatHistorySerializer.Query(
-                data={'user_id': user_id})
+                data={'user_id': user_id, 'keyword': keyword})
             return result.success(d.page(current_page, page_size))
 
     class List(APIView):

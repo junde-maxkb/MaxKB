@@ -100,11 +100,13 @@ const getChatHistory: (
 const getChatHistoryPage: (
   user_id: string,
   page: pageRequest,
+  keyword?: string,
   loading?: Ref<boolean>
-) => Promise<Result<any>> = (user_id, page, loading) => {
+) => Promise<Result<any>> = (user_id, page, keyword, loading) => {
+  const params = keyword && keyword.trim() ? { keyword } : undefined
   return get(
     `/chat_history/${user_id}/${page.current_page}/${page.page_size}`,
-    undefined,
+    params,
     loading
   )
 }

@@ -906,6 +906,8 @@ class ChatHistorySerializer(ApiMixin, serializers.Serializer):
     
     class Query(ApiMixin, serializers.Serializer):
         user_id = serializers.UUIDField(required=True, error_messages=ErrMessage.uuid(_("User ID")))
+        keyword = serializers.CharField(required=False, allow_blank=True, allow_null=True,
+                                        error_messages=ErrMessage.char(_("Search Keyword")))
         
         @staticmethod
         def get_request_params_api():
@@ -913,7 +915,12 @@ class ChatHistorySerializer(ApiMixin, serializers.Serializer):
                                       in_=openapi.IN_QUERY,
                                       type=openapi.TYPE_STRING,
                                       required=True,
-                                      description=_("User ID"))]
+                                      description=_("User ID")),
+                    openapi.Parameter(name='keyword',
+                                      in_=openapi.IN_QUERY,
+                                      type=openapi.TYPE_STRING,
+                                      required=False,
+                                      description=_("Search Keyword"))]
         
         @staticmethod
         def get_response_body_api():
@@ -935,7 +942,16 @@ class ChatHistorySerializer(ApiMixin, serializers.Serializer):
         
         def get_query_set(self):
             user_id = self.data.get('user_id')
+            keyword = self.data.get('keyword')
+            
             query_set = QuerySet(ChatHistory).filter(user_id=user_id)
+            
+            # 如果有搜索关键词，搜索标题和应用名称
+            if keyword and keyword.strip():
+                query_set = query_set.filter(
+                    Q(title__icontains=keyword) | Q(application_name__icontains=keyword)
+                )
+            
             query_set = query_set.order_by("-create_time")
             return query_set
         

@@ -212,13 +212,24 @@ function getChatHistory() {
     current_page: paginationConfig.current_page,
     page_size: paginationConfig.page_size
   }
+  console.log('搜索关键词:', searchKeyword.value)
+  console.log('分页参数:', page)
   userApi
-    .getChatHistoryPage(props.userId, page, loading)
+    .getChatHistoryPage(props.userId, page, searchKeyword.value, loading)
     .then((res: any) => {
+      console.log('API响应:', res)
       if (res.code === 200) {
+        console.log('返回的记录数:', res.data?.records?.length || 0)
+        console.log('总数:', res.data?.total || 0)
         chatHistoryList.value = res.data.records || []
         paginationConfig.total = res.data.total || 0
+        console.log('chatHistoryList更新后:', chatHistoryList.value)
+      } else {
+        console.error('API返回错误:', res)
       }
+    })
+    .catch((error) => {
+      console.error('API请求失败:', error)
     })
     .finally(() => {
       loading.value = false
