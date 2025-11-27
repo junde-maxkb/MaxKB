@@ -24,43 +24,6 @@
                 <el-button style="width: 240px" type="primary" :icon="Plus">新建知识库</el-button>
               </div>
 
-              <div class="home-item" @click="goToHome">
-                <div class="home-item-box">
-                  <div class="item-icon">
-                    <svg
-                      width="18px"
-                      height="18px"
-                      viewBox="0 0 20 20"
-                      version="1.1"
-                      xmlns="http://www.w3.org/2000/svg"
-                      xmlns:xlink="http://www.w3.org/1999/xlink"
-                    >
-                      <g id="页面-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-                        <g id="首页" transform="translate(-49, -272)" fill="#1979FF">
-                          <g id="编组" transform="translate(49, 269)">
-                            <g transform="translate(0, 3)" fill-rule="nonzero" id="路径">
-                              <path
-                                d="M12.4888781,19.9662251 C12.4888781,18.9742128 12.4919481,17.6434591 12.4880129,16.7099758 C12.4845242,15.9519092 12.327981,15.7883857 11.5955852,15.7851498 C10.5064528,15.7806083 9.41734837,15.7810624 8.328216,15.7849511 C7.58175395,15.7875909 7.43980727,15.9222189 7.42794583,16.7007792 C7.41354463,17.6329284 7.42445717,18.9630009 7.42445717,19.937727 C7.21840283,19.9619106 7.07427923,19.9928498 6.92993234,19.9935027 C5.94286427,19.997732 4.95565663,20.0060486 3.96870019,19.9928498 C2.79737493,19.9772099 2.52079382,19.6792855 2.52908288,18.5120837 C2.53639511,17.4569725 2.5201519,12.966988 2.54859148,11.9124445 C2.55436869,11.7023419 2.66274049,11.4391034 2.81264133,11.2972941 C4.78091653,9.43577739 6.76203004,7.5883394 8.74685544,5.74501716 C9.53867008,5.0097717 10.4731012,5.00102924 11.266116,5.74391016 C13.2558534,7.60752737 15.2342597,9.48366217 17.2039304,11.3690219 C17.3425,11.5016347 17.4389825,11.7495738 17.4430014,11.946137 C17.4481367,12.2010588 17.4699339,16.7445199 17.4508718,18.7034524 C17.4436712,19.4361149 17.0884696,19.9265435 16.4223585,19.9519193 C15.1344003,20.0009394 13.8434837,19.9662251 12.4888781,19.9662251 L12.4888781,19.9662251 Z"
-                              ></path>
-                              <path
-                                d="M9.76872641,0 C10.7387698,-0.00197791032 11.2439839,0.325324523 11.6977333,0.772267948 C13.4459716,2.49376363 15.1973915,4.21236406 16.9466346,5.9328379 C17.7540506,6.7270381 18.5594849,7.52348071 19.3652542,8.31946916 C19.4506288,8.40394162 19.5354451,8.48966303 19.614261,8.58046525 C20.0626796,9.09703601 20.1229637,9.65144338 19.7802934,10.0855286 C19.4190075,10.5430027 18.6950125,10.6500976 18.1560003,10.3139108 C18.0127418,10.2244427 17.883466,10.1075834 17.7604697,9.98950359 C15.7692252,8.07507801 13.778176,6.16056727 11.7909503,4.24174209 C10.3198234,2.82129315 9.7565022,2.80974062 8.2704438,4.21389684 C6.28813023,6.08705127 4.3216133,7.97763379 2.3236984,9.83338847 C2.04187033,10.0952645 1.63827399,10.2752226 1.26161014,10.3641515 C0.767196968,10.4807837 0.358911856,10.2253226 0.128548534,9.76185937 C-0.102791621,9.29652276 -0.0107746855,8.84691121 0.315429174,8.45971731 C0.502616833,8.23740938 0.723379366,8.04359954 0.934429451,7.84292064 C3.38369347,5.51405197 5.83644616,3.18949777 8.28155171,0.8560876 C8.79438496,0.366794395 9.35312907,0.00656584007 9.76872641,0 L9.76872641,0 Z"
-                              ></path>
-                            </g>
-                          </g>
-                        </g>
-                      </g>
-                    </svg>
-                    <div>
-                      <span>主页</span>
-                    </div>
-                  </div>
-
-                  <div class="arrow-icon">
-                    <el-icon><ArrowRightBold /></el-icon>
-                  </div>
-                </div>
-              </div>
-
               <div class="line-split"></div>
             </div>
 
@@ -500,20 +463,18 @@
       <el-container>
         <el-header class="header">
           <div style="height: 100%; display: flex; align-items: center">
-            <div class="history-icon" @click="openDrawer">
-              <el-icon :size="20"><Timer /></el-icon>
+            <div class="history-icon" @click="openHistoryPanel">
+              <history theme="outline" size="18" fill="#333" style="height: 18px;"/>
             </div>
 
             <span style="display: flex; align-items: center; width: 100%">
-              <el-dropdown trigger="click" @command="handleUserCommand" style="height: fit-content">
+              <el-dropdown trigger="click" @command="handleUserCommand">
                 <div class="user-info">
-                  <div style="display: flex; align-items: center; margin-left: 8px">
-                    <el-badge is-dot v-show="notRead">
-                      <span class="username">{{ user.userInfo?.username }}</span>
-                    </el-badge>
+                  <el-badge is-dot v-show="notRead" style="display: flex; align-items: center;">
+                    <span class="username">{{ user.userInfo?.username }}</span>
+                  </el-badge>
 
-                    <span class="username" v-show="!notRead">{{ user.userInfo?.username }}</span>
-                  </div>
+                  <span class="username" v-show="!notRead">{{ user.userInfo?.username }}</span>
 
                   <el-icon class="dropdown-icon">
                     <ArrowDown />
@@ -541,7 +502,8 @@
             v-model="drawer"
             :beforeClose="closeDrawer"
             title="消息中心"
-            :direction="'rtl'"
+            direction="rtl"
+            class="message-drawer"
           >
             <div
               v-loading="msgLoading"
@@ -556,6 +518,22 @@
                 :log-read="item.log_read"
               />
             </div>
+          </el-drawer>
+
+          <!-- 历史对话面板 -->
+          <el-drawer
+            v-model="showHistoryPanel"
+            :title="`历史聊天记录 - ${currentUsername}`"
+            direction="rtl"
+            :before-close="closeHistoryPanel"
+            class="history-drawer"
+          >
+            <ChatHistoryPanel
+              v-if="showHistoryPanel && currentUserId"
+              ref="ChatHistoryPanelRef"
+              :user-id="currentUserId"
+              :username="currentUsername"
+            />
           </el-drawer>
         </el-header>
         <el-main>
@@ -598,7 +576,7 @@ import {
   Timer,
   View
 } from '@element-plus/icons-vue'
-import { computed, onBeforeMount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeMount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import documentApi from '@/api/document'
@@ -607,9 +585,10 @@ import useStore from '@/stores'
 import { getMessages, type Message, readMessage } from '@/api/messages'
 import MessageCard from '@/layout/layout-template/MessageCard.vue'
 import modelApi from '@/api/model'
-import { MoreOne, HomeTwo } from '@icon-park/vue-next'
+import { MoreOne, HomeTwo, History } from '@icon-park/vue-next'
 import HomePage from '@/views/user-home/components/HomePage.vue'
 import ChatPage from '@/views/user-home/components/ChatPage.vue'
+import ChatHistoryPanel from '@/views/user-manage/component/ChatHistoryPanel.vue'
 
 // 类型定义
 interface TreeNode {
@@ -1559,6 +1538,20 @@ const selectedModelId = ref('')
 const currentUserId = ref('')
 const currentUsername = ref('')
 
+// 历史对话相关状态
+const showHistoryPanel = ref(false)
+const ChatHistoryPanelRef = ref<any>(null)
+
+// 打开历史对话面板
+const openHistoryPanel = () => {
+  showHistoryPanel.value = true
+}
+
+// 关闭历史对话面板
+const closeHistoryPanel = () => {
+  showHistoryPanel.value = false
+}
+
 // 获取当前用户信息
 const getCurrentUserInfo = () => {
   const userInfo = user.userInfo
@@ -1753,12 +1746,20 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 :deep(.el-button--primary) {
-  --el-color-primary: #5f55e5;
-  --el-button-hover-bg-color: #edf2fe;
+  --el-color-primary: v-bind('user.themeInfo?.theme || "#5f55e5"');
+  --el-button-bg-color: v-bind('user.themeInfo?.theme || "#5f55e5"');
+  --el-button-border-color: v-bind('user.themeInfo?.theme || "#5f55e5"');
+  
+  &:hover,
+  &:focus {
+    --el-button-hover-bg-color: v-bind('user.themeInfo?.theme || "#5f55e5"');
+    --el-button-hover-border-color: v-bind('user.themeInfo?.theme || "#5f55e5"');
+    opacity: 0.8;
+  }
 }
 
 * {
-  --text-hover-color: rgb(95, 85, 229);
+  --text-hover-color: v-bind('user.themeInfo?.theme || "rgb(95, 85, 229)"');
 }
 
 .line-split {
@@ -1871,14 +1872,17 @@ onMounted(async () => {
     .user-info {
       height: fit-content;
       display: flex;
+      align-items: center;
 
       .dropdown-icon {
         margin-left: 14px;
+        display: flex;
+        align-items: center;
       }
     }
 
     .history-icon {
-      height: 100%;
+      height: fit-content;
       display: flex;
       align-items: center;
       margin-right: 10px;
@@ -2216,5 +2220,36 @@ onMounted(async () => {
 .slide-fade-leave-to {
   transform: translateX(-100%);
   opacity: 0;
+}
+</style>
+
+<!-- 抽屉统一样式 -->
+<style lang="scss">
+.message-drawer,
+.history-drawer {
+  .el-drawer__header {
+    background: linear-gradient(135deg, #554BDB 0%, #7B6FE8 100%);
+    margin-bottom: 0;
+    padding: 16px 20px;
+    
+    .el-drawer__title {
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    
+    .el-drawer__close-btn {
+      color: rgba(255, 255, 255, 0.85);
+      
+      &:hover {
+        color: #ffffff;
+      }
+    }
+  }
+  
+  .el-drawer__body {
+    padding: 16px;
+    background: #ffffff;
+  }
 }
 </style>

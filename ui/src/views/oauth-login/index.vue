@@ -11,7 +11,7 @@ import { onMounted } from 'vue'
 
 // ===== 请改成你自己的配置 =====
 const CLIENT_ID = 'DKnyIj4hSvWHC8mtA7Me' // 学校给的 AppKey
-const REDIRECT_URI = `http://127.0.0.1:3000/ui/oauth-callback/`
+const REDIRECT_URI = `http://172.16.99.49:8080/ui/oauth-callback/`
 
 const SSO_AUTHORIZE_URL = 'https://passport.cnaes.edu.cn/sso/oauth2/authorize' // 改成你们学校的
 

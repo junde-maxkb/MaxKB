@@ -1,8 +1,9 @@
 <template>
   <login-layout v-if="!loading" v-loading="loading">
-    <LoginContainer :subTitle="user.themeInfo?.slogan || $t('views.system.theme.defaultSlogan')">
-      <h2 class="mb-24" v-if="!showQrCodeTab">{{ loginMode || $t('views.login.title') }}</h2>
-      <div v-if="!showQrCodeTab">
+    <LoginContainer>
+      <h2 class="login-title" v-if="!showQrCodeTab">{{ loginMode || '登录' }}</h2>
+      <p class="login-subtitle" v-if="!showQrCodeTab">{{ user.themeInfo?.slogan || $t('views.system.theme.defaultSlogan') }}</p>
+      <div v-if="!showQrCodeTab" class="login-form-wrapper">
         <el-form
           class="login-form"
           :rules="rules"
@@ -17,6 +18,7 @@
                 class="input-item"
                 v-model="loginForm.username"
                 :placeholder="$t('views.user.userForm.form.username.placeholder')"
+                :prefix-icon="User"
               >
               </el-input>
             </el-form-item>
@@ -30,16 +32,17 @@
                 v-model="loginForm.password"
                 :placeholder="$t('views.user.userForm.form.password.placeholder')"
                 show-password
+                :prefix-icon="Lock"
               >
               </el-input>
             </el-form-item>
           </div>
         </el-form>
 
-        <el-button size="large" type="primary" class="w-full" @click="login"
-          >{{ $t('views.login.buttons.login') }}
+        <el-button size="large" type="primary" class="login-btn w-full" @click="login">
+          <span class="login-btn-text">{{ $t('views.login.buttons.login') }}</span>
         </el-button>
-        <div class="operate-container flex-between mt-12">
+        <div class="operate-container flex-between mt-16">
           <el-button class="register" @click="router.push('/oauth_login/')" link type="primary">
             教科院统一认证登录
           </el-button>
@@ -102,6 +105,7 @@
 </template>
 <script setup lang="ts">
 import { onMounted, ref, onBeforeMount } from 'vue'
+import { User, Lock } from '@element-plus/icons-vue'
 import type { LoginRequest } from '@/api/type/user'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -361,26 +365,126 @@ onMounted(() => {
 })
 </script>
 <style lang="scss" scoped>
+// 主题色变量
+$theme-primary: #554BDB;
+$theme-primary-light: rgba(85, 75, 219, 0.1);
+$theme-gradient: linear-gradient(135deg, #554BDB 0%, #7B6FE8 100%);
+
+.login-title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 8px 0;
+}
+
+.login-subtitle {
+  text-align: center;
+  font-size: 14px;
+  color: #718096;
+  margin: 0 0 24px 0;
+  letter-spacing: 0.5px;
+}
+
+.login-form-wrapper {
+  :deep(.el-input) {
+    .el-input__wrapper {
+      border-radius: 10px;
+      padding: 4px 15px;
+      box-shadow: 0 2px 8px rgba(85, 75, 219, 0.08);
+      border: 1px solid #e2e8f0;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        border-color: rgba(85, 75, 219, 0.4);
+      }
+      
+      &.is-focus {
+        border-color: $theme-primary;
+        box-shadow: 0 0 0 3px rgba(85, 75, 219, 0.12);
+      }
+    }
+    
+    .el-input__prefix {
+      color: $theme-primary;
+      font-size: 18px;
+    }
+    
+    .el-input__inner {
+      &::placeholder {
+        color: #a0aec0;
+      }
+    }
+  }
+  
+  :deep(.el-form-item) {
+    margin-bottom: 0;
+    
+    .el-form-item__error {
+      padding-top: 4px;
+    }
+  }
+}
+
+.login-btn {
+  height: 48px;
+  border-radius: 10px;
+  background: $theme-gradient;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 15px rgba(85, 75, 219, 0.35);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(85, 75, 219, 0.45);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  .login-btn-text {
+    display: inline-block;
+  }
+}
+
+.operate-container {
+  .register,
+  .forgot-password {
+    color: #718096;
+    font-size: 13px;
+    transition: color 0.3s ease;
+    
+    &:hover {
+      color: $theme-primary;
+    }
+  }
+}
+
 .login-gradient-divider {
   position: relative;
   text-align: center;
-  color: var(--el-color-info);
+  color: #a0aec0;
+  font-size: 13px;
 
-  ::before {
+  &::before {
     content: '';
-    width: 25%;
+    width: 30%;
     height: 1px;
-    background: linear-gradient(90deg, rgba(222, 224, 227, 0) 0%, #dee0e3 100%);
+    background: linear-gradient(90deg, rgba(85, 75, 219, 0) 0%, rgba(85, 75, 219, 0.3) 100%);
     position: absolute;
     left: 16px;
     top: 50%;
   }
 
-  ::after {
+  &::after {
     content: '';
-    width: 25%;
+    width: 30%;
     height: 1px;
-    background: linear-gradient(90deg, #dee0e3 0%, rgba(222, 224, 227, 0) 100%);
+    background: linear-gradient(90deg, rgba(85, 75, 219, 0.3) 0%, rgba(85, 75, 219, 0) 100%);
     position: absolute;
     right: 16px;
     top: 50%;
@@ -389,9 +493,19 @@ onMounted(() => {
 
 .login-button-circle {
   padding: 20px !important;
-  margin: 0 4px;
-  width: 32px;
-  height: 32px;
+  margin: 0 6px;
+  width: 40px;
+  height: 40px;
   text-align: center;
+  border: 1px solid rgba(85, 75, 219, 0.2);
+  background: #ffffff;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: $theme-primary;
+    background: $theme-primary-light;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(85, 75, 219, 0.2);
+  }
 }
 </style>

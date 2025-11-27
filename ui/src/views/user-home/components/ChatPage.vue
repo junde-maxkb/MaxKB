@@ -87,29 +87,18 @@
       </div>
     </el-scrollbar>
 
-    <!-- 底部输入区域 - 始终存在，通过CSS控制位置 -->
-    <div class="input-area-wrapper">
+    <!-- 底部输入区域 - 始终存在，通过GSAP控制位置 -->
+    <div ref="inputAreaRef" class="input-area-wrapper">
       <!-- Logo 和问候语 (欢迎模式时显示) -->
-      <Transition name="header-fade">
-        <div v-if="!hasChatMessages" class="welcome-header">
+      <div v-if="!hasChatMessages" ref="welcomeHeaderRef" class="welcome-header">
           <div class="logo-container">
             <div class="ai-logo">
-              <svg width="70" height="70" viewBox="0 0 70 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#7B74E8;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#5E56DD;stop-opacity:1" />
-                  </linearGradient>
-                </defs>
-                <circle cx="35" cy="35" r="32" stroke="url(#logoGradient)" stroke-width="2" fill="none"/>
-                <text x="35" y="44" text-anchor="middle" fill="url(#logoGradient)" font-size="28" font-weight="500" font-family="Arial, sans-serif">Ai</text>
-              </svg>
+              <img src="/images/ai-agent.png" alt="">
             </div>
           </div>
           <h1 class="greeting">{{ greeting }}，有什么我可以帮助你的吗？</h1>
           <p class="hint-text">请从左侧选择知识库或文档开始问答</p>
         </div>
-      </Transition>
 
       <!-- 开启新对话按钮 (对话模式时显示) -->
       <Transition name="btn-fade">
@@ -188,7 +177,7 @@
                 v-if="shouldShowToolButtons"
               >
                 <el-button text class="tool-btn">
-                  <el-icon :size="20"><Paperclip /></el-icon>
+                  <UploadCloudIcon />
                 </el-button>
               </el-upload>
               <el-divider direction="vertical" v-if="shouldShowToolButtons" />
@@ -218,20 +207,22 @@
         </div>
 
         <!-- 快捷操作按钮 (欢迎模式时显示) -->
-        <Transition name="actions-fade">
-          <div v-if="!hasChatMessages" class="quick-actions">
-            <el-button 
-              v-for="action in quickActions" 
-              :key="action.key"
-              class="quick-action-btn"
-              :class="{ active: currentMode === action.key }"
-              @click="handleQuickAction(action)"
-            >
-              <component :is="action.icon" class="action-icon" />
-              <span>{{ action.label }}</span>
-            </el-button>
-          </div>
-        </Transition>
+        <div v-if="!hasChatMessages" ref="quickActionsRef" class="quick-actions">
+          <el-button 
+            v-for="action in quickActions" 
+            :key="action.key"
+            class="quick-action-btn"
+            :class="{ active: currentMode === action.key }"
+            @click="handleQuickAction(action)"
+          >
+            <AIWriteIcon v-if="action.icon === 'AIWriteIcon'" class="action-icon" />
+            <AITranslateIcon v-else-if="action.icon === 'AITranslateIcon'" class="action-icon" />
+            <AISummaryIcon v-else-if="action.icon === 'AISummaryIcon'" class="action-icon" />
+            <AIReviewIcon v-else-if="action.icon === 'AIReviewIcon'" class="action-icon" />
+            <AIQuestionIcon v-else-if="action.icon === 'AIQuestionIcon'" class="action-icon" />
+            <span>{{ action.label }}</span>
+          </el-button>
+        </div>
       </div>
     </div>
   </div>
@@ -258,6 +249,13 @@ import {
 import { ElMessage } from 'element-plus'
 import MdRenderer from '@/components/markdown/MdRenderer.vue'
 import { postModelChatStream } from '@/api/model'
+import { gsap } from 'gsap'
+import AIWriteIcon from '@/components/icons/AIWriteIcon.vue'
+import AITranslateIcon from '@/components/icons/AITranslateIcon.vue'
+import AISummaryIcon from '@/components/icons/AISummaryIcon.vue'
+import AIReviewIcon from '@/components/icons/AIReviewIcon.vue'
+import AIQuestionIcon from '@/components/icons/AIQuestionIcon.vue'
+import UploadCloudIcon from '@/components/icons/UploadCloudIcon.vue'
 
 // 导入 composables
 import { useChat } from '../composables/useChat'
@@ -287,20 +285,6 @@ const Bad = () => h('svg', {
   width: '1em', height: '1em', viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg'
 }, [
   h('path', { d: 'M17 2V13M22 11V4C22 2.89543 21.1046 2 20 2H6.57376C5.09299 2 3.83381 3.08033 3.60855 4.54379L2.53168 11.5438C2.25212 13.3611 3.65822 15 5.49684 15H9C9.55228 15 10 15.4477 10 16V19.5342C10 20.896 11.104 22 12.4658 22C12.7907 22 13.085 21.8087 13.2169 21.5119L16.7361 13.5939C16.8966 13.2327 17.2547 13 17.6499 13H20C21.1046 13 22 12.1046 22 11Z', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
-])
-
-// AI写作图标组件
-const AIWriteIcon = () => h('svg', { 
-  width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg'
-}, [
-  h('path', { d: 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z', fill: 'currentColor' })
-])
-
-// AI翻译图标组件
-const AITranslateIcon = () => h('svg', {
-  width: '16', height: '16', viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg'
-}, [
-  h('path', { d: 'M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z', fill: 'currentColor' })
 ])
 
 // 定义 Props
@@ -383,6 +367,9 @@ const inputRef = ref()
 const guidesLoading = ref(false) // 推荐问题加载状态
 const userScrolledUp = ref(false) // 用户是否向上滚动了
 const userStoppedGeneration = ref(false) // 用户是否主动停止了生成
+const inputAreaRef = ref<HTMLElement | null>(null) // 输入区域的 ref
+const welcomeHeaderRef = ref<HTMLElement | null>(null) // 欢迎头部的 ref
+const quickActionsRef = ref<HTMLElement | null>(null) // 快捷操作的 ref
 
 // 计算已选择的数量（只统计叶子节点）
 const selectedCount = computed(() => {
@@ -426,6 +413,65 @@ const currentUploadedDocumentName = computed(() => {
 // 计算是否有聊天消息
 const hasChatMessages = computed(() => chatMessages.value.length > 0)
 
+// 监听聊天模式变化，使用 GSAP 实现流畅动画
+watch(hasChatMessages, async (newVal, oldVal) => {
+  if (newVal && !oldVal && inputAreaRef.value) {
+    // 从欢迎页进入聊天页，执行 GSAP 动画
+    await nextTick()
+    
+    const inputArea = inputAreaRef.value
+    const welcomeHeader = welcomeHeaderRef.value
+    const quickActions = quickActionsRef.value
+    const inputBox = inputArea.querySelector('.input-box') as HTMLElement
+    
+    // 创建动画时间线
+    const timeline = gsap.timeline()
+    
+    // 第一阶段：渐隐欢迎头部和快捷按钮（0.8秒）
+    if (welcomeHeader) {
+      timeline.to(welcomeHeader, {
+        opacity: 0,
+        y: -20,
+        duration: 0.8,
+        ease: 'power2.in'
+      })
+    }
+    if (quickActions) {
+      timeline.to(quickActions, {
+        opacity: 0,
+        y: 10,
+        duration: 0.8,
+        ease: 'power2.in'
+      }, '<') // 与上一个动画同时开始
+    }
+    
+    // 第二阶段：扩展输入框宽度（0.6秒）
+    timeline.to(inputBox, {
+      maxWidth: '860px',
+      duration: 0.6,
+      ease: 'power2.out'
+    })
+    
+    // 第三阶段：移动到底部（1.2秒）
+    timeline.to(inputArea, {
+      top: 'auto',
+      bottom: '0',
+      left: '0',
+      right: '0',
+      xPercent: 0,
+      yPercent: 0,
+      width: 'auto',
+      maxWidth: 'none',
+      paddingTop: '30px',
+      paddingBottom: '24px',
+      paddingLeft: '20px',
+      paddingRight: '20px',
+      duration: 1.2,
+      ease: 'power2.inOut'
+    })
+  }
+})
+
 // 计算是否应该显示工具按钮（文件上传和语音）
 const shouldShowToolButtons = computed(() => {
   // 在普通聊天模式下不显示工具按钮
@@ -441,11 +487,11 @@ const isLastAssistantMessage = (index: number): boolean => {
 
 // 快捷操作配置
 const quickActions = [
-  { key: 'writing', label: 'AI写作', icon: AIWriteIcon },
-  { key: 'translate', label: 'AI翻译', icon: AITranslateIcon },
-  { key: 'summary', label: 'AI摘要', icon: Document },
-  { key: 'review', label: 'AI综述', icon: DataLine },
-  { key: 'question', label: 'AI问数', icon: PieChart }
+  { key: 'writing', label: 'AI写作', icon: 'AIWriteIcon' },
+  { key: 'translate', label: 'AI翻译', icon: 'AITranslateIcon' },
+  { key: 'summary', label: 'AI摘要', icon: 'AISummaryIcon' },
+  { key: 'review', label: 'AI综述', icon: 'AIReviewIcon' },
+  { key: 'question', label: 'AI问数', icon: 'AIQuestionIcon' }
 ]
 
 // 计算问候语
@@ -802,11 +848,82 @@ const sendRecommendQuestion = (question: string) => {
 }
 
 // 开启新对话
-const startNewChat = () => {
+const startNewChat = async () => {
+  // 执行反向动画
+  await playReverseAnimation()
+  
+  // 动画完成后清空数据
   newChat()
   inputValue.value = ''
   resetModeState()
   userScrolledUp.value = false // 重置滚动状态
+}
+
+// 反向动画：从聊天页回到欢迎页
+const playReverseAnimation = async () => {
+  if (!inputAreaRef.value) return
+  
+  await nextTick()
+  
+  const inputArea = inputAreaRef.value
+  const inputBox = inputArea.querySelector('.input-box') as HTMLElement
+  
+  // 创建反向动画时间线
+  const timeline = gsap.timeline()
+  
+  // 第一阶段：缩小输入框宽度（0.4秒）
+  timeline.to(inputBox, {
+    maxWidth: '700px',
+    duration: 0.4,
+    ease: 'power2.in'
+  })
+  
+  // 第二阶段：从底部移回中央（0.6秒）
+  timeline.to(inputArea, {
+    top: '50%',
+    bottom: 'auto',
+    left: '50%',
+    right: 'auto',
+    xPercent: -50,
+    yPercent: -50,
+    width: '100%',
+    maxWidth: '700px',
+    paddingTop: '0px',
+    paddingBottom: '0px',
+    paddingLeft: '20px',
+    paddingRight: '20px',
+    duration: 0.6,
+    ease: 'power2.inOut'
+  })
+  
+  // 等待动画完成
+  await timeline.then()
+  
+  // 动画完成后，让欢迎元素渐入显示
+  await nextTick()
+  
+  const welcomeHeader = welcomeHeaderRef.value
+  const quickActions = quickActionsRef.value
+  
+  if (welcomeHeader) {
+    gsap.set(welcomeHeader, { opacity: 0, y: 20 })
+    gsap.to(welcomeHeader, {
+      opacity: 1,
+      y: 0,
+      duration: 0.5,
+      ease: 'power2.out'
+    })
+  }
+  
+  if (quickActions) {
+    gsap.set(quickActions, { opacity: 0, y: -10 })
+    gsap.to(quickActions, {
+      opacity: 1,
+      y: 0,
+      duration: 0.5,
+      ease: 'power2.out'
+    })
+  }
 }
 
 // 清除当前上传的文档
@@ -912,8 +1029,14 @@ const handleFileChange = async (uploadFile: any) => {
 // 快捷操作
 const handleQuickAction = (action: any) => {
   console.log('点击了快捷操作:', action.key, action.label)
-  setMode(action.key)
-  console.log('当前模式已切换为:', currentMode.value)
+  // 如果点击的是当前已选中的模式，则切换回普通聊天模式
+  if (currentMode.value === action.key) {
+    setMode('chat')
+    console.log('取消选中，切换回普通聊天模式')
+  } else {
+    setMode(action.key)
+    console.log('当前模式已切换为:', currentMode.value)
+  }
   inputRef.value?.focus()
 }
 
@@ -956,7 +1079,6 @@ onMounted(() => {
       max-width: 700px;
       padding: 0 20px;
       box-sizing: border-box;
-      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
   }
 
@@ -964,12 +1086,15 @@ onMounted(() => {
   &.chat-mode {
     .input-area-wrapper {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 30px 20px 24px;
+      top: auto !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      transform: none !important;
+      width: auto !important;
+      max-width: none !important;
+      padding: 30px 20px 24px !important;
       z-index: 100;
-      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .input-box {
@@ -1047,7 +1172,8 @@ onMounted(() => {
   .input-wrapper {
     background: #fff;
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    border: 1px solid #e4e7ed;
     overflow: hidden;
     position: relative;
 
@@ -1225,7 +1351,7 @@ onMounted(() => {
     .quick-action-btn {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       padding: 10px 20px;
       border-radius: 24px;
       border: 1px solid #e4e7ed;
@@ -1254,6 +1380,8 @@ onMounted(() => {
 
       .action-icon {
         font-size: 16px;
+        margin-right: 6px;
+        flex-shrink: 0;
       }
     }
   }
