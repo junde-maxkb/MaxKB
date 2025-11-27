@@ -13,6 +13,7 @@ from setting.serializers.team_serializers import TeamMemberSerializer, get_respo
     UpdateTeamMemberPermissionSerializer
 from django.utils.translation import gettext_lazy as _
 from setting.models.log_management import Log
+from django.utils import timezone
 from setting.views.common import get_member_operation_object, get_member_operation_object_batch
 
 
@@ -52,7 +53,7 @@ class Log2Message(APIView):
 
                     "log_id": str(log_item.id),
                     "log_read": log_item.log_read,
-                    "create_time": log_item.create_time.strftime('%Y-%m-%d %H:%M:%S')
+                    "create_time": timezone.localtime(log_item.create_time).strftime('%Y-%m-%d %H:%M:%S')
                 })
             elif log_item.details['body'].get('share_with_type', None) == "TEAM":
                 team_id = log_item.details['body'].get('user_id', None)
@@ -75,7 +76,7 @@ class Log2Message(APIView):
                     "msg": msg,
                     "log_id": str(log_item.id),
                     "log_read": log_item.log_read,
-                    "create_time": log_item.create_time.strftime('%Y-%m-%d %H:%M:%S')
+                    "create_time": timezone.localtime(log_item.create_time).strftime('%Y-%m-%d %H:%M:%S')
                 })
             elif log_item.details['body'].get('share_with_type', None) == "USER":
                 if str(log_item.details['body'].get('user_id', None)) != str(user.id): continue
@@ -93,7 +94,7 @@ class Log2Message(APIView):
                     "msg": msg,
                     "log_id": str(log_item.id),
                     "log_read": log_item.log_read,
-                    "create_time": log_item.create_time.strftime('%Y-%m-%d %H:%M:%S')
+                    "create_time": timezone.localtime(log_item.create_time).strftime('%Y-%m-%d %H:%M:%S')
                 })
         return result.success(data=messages)
 

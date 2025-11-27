@@ -103,15 +103,17 @@
       <!-- 开启新对话按钮 (对话模式时显示) -->
       <Transition name="btn-fade">
         <div v-if="hasChatMessages" class="new-chat-btn-container">
-          <el-button 
-            type="primary" 
-            plain
-            @click="startNewChat"
-            class="new-chat-btn"
-          >
-            <el-icon><DocumentAdd /></el-icon>
-            开启新对话
-          </el-button>
+          <div class="new-chat-btn-wrapper">
+            <el-button 
+              type="primary" 
+              plain
+              @click="startNewChat"
+              class="new-chat-btn"
+            >
+              <el-icon><DocumentAdd /></el-icon>
+              开启新对话
+            </el-button>
+          </div>
         </div>
       </Transition>
 
@@ -263,6 +265,8 @@ import { useKnowledgeSearch } from '../composables/useKnowledgeSearch'
 import { useAIMode, TRANSLATION_LANGUAGES } from '../composables/useAIMode'
 import { useDocumentUpload } from '../composables/useDocumentUpload'
 import useGuide from '@/utils/useGuide'
+import useStore from '@/stores'
+import userManageApi from '@/api/user-manage'
 import {
   getTranslatePrompt,
   getSummaryPrompt,
@@ -368,6 +372,11 @@ const guidesLoading = ref(false) // 推荐问题加载状态
 const userScrolledUp = ref(false) // 用户是否向上滚动了
 const userStoppedGeneration = ref(false) // 用户是否主动停止了生成
 const inputAreaRef = ref<HTMLElement | null>(null) // 输入区域的 ref
+const currentChatHistoryId = ref('') // 当前聊天记录ID
+const savedMessageCount = ref(0) // 已保存的消息数量
+
+// Store
+const { user } = useStore()
 const welcomeHeaderRef = ref<HTMLElement | null>(null) // 欢迎头部的 ref
 const quickActionsRef = ref<HTMLElement | null>(null) // 快捷操作的 ref
 
@@ -803,6 +812,91 @@ ${contextNote}`
     guidesLoading.value = false
     await nextTick()
     scrollToBottom()
+    
+    // 保存聊天记录到历史记录
+    await saveChatHistory()
+  }
+}
+
+// 保存聊天记录
+const saveChatHistory = async () => {
+  try {
+    const currentUserId = user.userInfo?.id
+    if (!currentUserId || chatMessages.value.length === 0) return
+
+    // 计算消息数量（只计算用户和助手消息，不包括系统消息）
+    const messageCount = chatMessages.value.filter(
+      (msg) => msg.role === 'user' || msg.role === 'assistant'
+    ).length
+
+    // 检测是否是新对话：如果消息数量为2（一条用户消息+一条AI回复）且没有历史记录ID，说明是新对话
+    const isNewConversation = !currentChatHistoryId.value && messageCount >= 2
+
+    if (isNewConversation) {
+      // 获取第一条用户消息作为标题
+      const firstUserMessage = chatMessages.value.find((msg) => msg.role === 'user')
+      const title = firstUserMessage?.content?.substring(0, 50) || '知识库问答'
+
+      // 根据当前模式获取标签名称
+      const modeLabel = currentModeLabel.value || '知识库问答'
+
+      // 保存新的聊天记录
+      const response = await userManageApi.postChatHistory({
+        user_id: currentUserId,
+        application_name: modeLabel,
+        title: title,
+        message_count: messageCount
+      })
+
+      if (response.code === 200 && response.data?.id) {
+        currentChatHistoryId.value = response.data.id
+        // 新对话创建时，重置已保存的消息数量
+        savedMessageCount.value = 0
+        console.log('新聊天记录已保存，ID:', currentChatHistoryId.value)
+      }
+    }
+
+    // 保存消息内容（无论是新对话还是继续对话，都要保存消息）
+    if (currentChatHistoryId.value) {
+      try {
+        // 过滤出需要保存的消息（只保存用户和助手消息，不包括系统消息）
+        const allMessages = chatMessages.value.filter(
+          (msg) => msg.role === 'user' || msg.role === 'assistant'
+        )
+
+        // 只保存新消息（从已保存数量之后的消息）
+        const newMessages = allMessages.slice(savedMessageCount.value)
+
+        if (newMessages.length > 0) {
+          // 计算正确的消息序号（从已保存数量+1开始）
+          const messagesToSave = newMessages.map((msg, index) => ({
+            role: msg.role,
+            content: msg.content || '',
+            message_index: savedMessageCount.value + index + 1
+          }))
+
+          // 使用批量保存API保存新消息
+          const saveResponse = await userManageApi.postChatMessageBatch({
+            chat_history_id: currentChatHistoryId.value,
+            messages: messagesToSave
+          })
+
+          if (saveResponse.code === 200) {
+            // 更新已保存的消息数量
+            savedMessageCount.value = allMessages.length
+            console.log('消息已批量保存，共', messagesToSave.length, '条新消息')
+          } else {
+            console.warn('批量保存消息失败:', saveResponse.message)
+          }
+        }
+      } catch (messageSaveError) {
+        console.error('保存消息内容失败:', messageSaveError)
+        // 不显示错误提示，避免影响用户体验
+      }
+    }
+  } catch (saveError) {
+    console.error('保存聊天记录失败:', saveError)
+    // 不显示错误提示，避免影响用户体验
   }
 }
 
@@ -849,14 +943,50 @@ const sendRecommendQuestion = (question: string) => {
 
 // 开启新对话
 const startNewChat = async () => {
-  // 执行反向动画
+  // 1. 先隐藏聊天内容和新对话按钮，避免动画过程中显示
+  if (chatContentRef.value) {
+    gsap.to(chatContentRef.value, { opacity: 0, duration: 0.3 })
+  }
+  const newChatBtn = document.querySelector('.new-chat-btn-container')
+  if (newChatBtn) {
+    gsap.to(newChatBtn, { opacity: 0, duration: 0.3 })
+  }
+
+  // 2. 执行反向动画
   await playReverseAnimation()
   
-  // 动画完成后清空数据
+  // 3. 动画完成后清空数据
   newChat()
   inputValue.value = ''
   resetModeState()
   userScrolledUp.value = false // 重置滚动状态
+  currentChatHistoryId.value = '' // 重置聊天记录ID
+  savedMessageCount.value = 0 // 重置已保存消息数量
+
+  // 4. 恢复聊天内容区域的透明度（虽然内容已清空，但为下次显示做准备）
+  if (chatContentRef.value) {
+    gsap.set(chatContentRef.value, { opacity: 1 })
+  }
+
+  // 5. 手动触发欢迎元素的进入动画
+  await nextTick() // 等待 DOM 更新，welcomeHeader 被渲染
+  
+  const welcomeHeader = welcomeHeaderRef.value
+  const quickActions = quickActionsRef.value
+  
+  if (welcomeHeader) {
+    gsap.fromTo(welcomeHeader, 
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }
+    )
+  }
+  
+  if (quickActions) {
+    gsap.fromTo(quickActions,
+      { opacity: 0, y: -10 },
+      { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.1 }
+    )
+  }
 }
 
 // 反向动画：从聊天页回到欢迎页
@@ -898,32 +1028,6 @@ const playReverseAnimation = async () => {
   
   // 等待动画完成
   await timeline.then()
-  
-  // 动画完成后，让欢迎元素渐入显示
-  await nextTick()
-  
-  const welcomeHeader = welcomeHeaderRef.value
-  const quickActions = quickActionsRef.value
-  
-  if (welcomeHeader) {
-    gsap.set(welcomeHeader, { opacity: 0, y: 20 })
-    gsap.to(welcomeHeader, {
-      opacity: 1,
-      y: 0,
-      duration: 0.5,
-      ease: 'power2.out'
-    })
-  }
-  
-  if (quickActions) {
-    gsap.set(quickActions, { opacity: 0, y: -10 })
-    gsap.to(quickActions, {
-      opacity: 1,
-      y: 0,
-      duration: 0.5,
-      ease: 'power2.out'
-    })
-  }
 }
 
 // 清除当前上传的文档
@@ -1155,14 +1259,36 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-bottom: 16px;
+  position: relative;
+  z-index: 10;
+
+  .new-chat-btn-wrapper {
+    background: #ffffff;
+    border-radius: 20px;
+    display: inline-block;
+  }
 
   .new-chat-btn {
-    border-radius: 20px;
-    border-color: #5E56DD;
-    color: #5E56DD;
+    border-radius: 20px !important;
+    border: 1px solid #5E56DD !important;
+    background: #ffffff !important;
+    color: #5E56DD !important;
+    padding: 8px 20px !important;
+    font-size: 14px !important;
+    outline: none !important;
+    box-shadow: 0 2px 8px rgba(94, 86, 221, 0.15) !important;
 
-    &:hover {
-      background: #f0eeff;
+    &:hover,
+    &:focus {
+      background: #f0eeff !important;
+      border-color: #5E56DD !important;
+      color: #5E56DD !important;
+      outline: none !important;
+      box-shadow: 0 2px 12px rgba(94, 86, 221, 0.25) !important;
+    }
+    
+    .el-icon {
+      margin-right: 4px;
     }
   }
 }
@@ -1430,6 +1556,7 @@ onMounted(() => {
           padding: 16px;
           padding-bottom: 8px;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+          border: 1px solid #e4e7ed;
 
           .answer-content {
             margin-bottom: 8px;
@@ -1498,7 +1625,7 @@ onMounted(() => {
             align-items: center;
             justify-content: space-between;
             padding: 10px 12px;
-            background: #f5f7fa;
+            background: rgb(245, 247, 250);
             border-radius: 6px;
             margin-bottom: 8px;
             cursor: pointer;

@@ -18,6 +18,7 @@ from django.core.mail import send_mail
 from django.core.mail.backends.smtp import EmailBackend
 from django.db import transaction
 from django.db.models import Q, QuerySet, Prefetch
+from django.utils import timezone
 from drf_yasg import openapi
 from rest_framework import serializers
 
@@ -943,16 +944,22 @@ class ChatHistorySerializer(ApiMixin, serializers.Serializer):
         def get_query_set(self):
             user_id = self.data.get('user_id')
             keyword = self.data.get('keyword')
-            
+
             query_set = QuerySet(ChatHistory).filter(user_id=user_id)
-            
+
             # 如果有搜索关键词，搜索标题和应用名称
             if keyword and keyword.strip():
                 query_set = query_set.filter(
                     Q(title__icontains=keyword) | Q(application_name__icontains=keyword)
                 )
-            
+
+            # 转换为本地时区（假设为 settings.TIME_ZONE）
+            from django.utils import timezone
             query_set = query_set.order_by("-create_time")
+            for obj in query_set:
+                if obj.create_time:
+                    obj.create_time = timezone.localtime(obj.create_time)
+                    print(obj.create_time)
             return query_set
         
         def list(self, with_valid=True):
@@ -966,14 +973,14 @@ class ChatHistorySerializer(ApiMixin, serializers.Serializer):
                 if actual_count != history.message_count:
                     history.message_count = actual_count
                     history.save()
-                
+
                 result.append({
                     'id': str(history.id),
                     'user_id': str(history.user_id),
                     'application_name': history.application_name,
                     'title': history.title or history.application_name,
                     'message_count': actual_count,
-                    'create_time': history.create_time.strftime('%Y-%m-%d %H:%M:%S') if history.create_time else None
+                    'create_time': timezone.localtime(history.create_time).strftime('%Y-%m-%d %H:%M:%S') if history.create_time else None
                 })
             return result
         
@@ -995,7 +1002,7 @@ class ChatHistorySerializer(ApiMixin, serializers.Serializer):
                     'application_name': h.application_name,
                     'title': h.title or h.application_name,
                     'message_count': actual_count,
-                    'create_time': h.create_time.strftime('%Y-%m-%d %H:%M:%S') if h.create_time else None
+                    'create_time': timezone.localtime(h.create_time).strftime('%Y-%m-%d %H:%M:%S') if h.create_time else None
                 }
             
             return page_search(current_page, page_size,
@@ -1047,7 +1054,7 @@ class ChatHistorySerializer(ApiMixin, serializers.Serializer):
                 'application_name': chat_history.application_name,
                 'title': chat_history.title,
                 'message_count': chat_history.message_count,
-                'create_time': chat_history.create_time.strftime('%Y-%m-%d %H:%M:%S') if chat_history.create_time else None
+                'create_time': timezone.localtime(chat_history.create_time).strftime('%Y-%m-%d %H:%M:%S') if chat_history.create_time else None
             }
 
 
