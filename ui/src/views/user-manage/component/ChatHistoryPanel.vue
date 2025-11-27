@@ -790,15 +790,15 @@ $theme-gradient-light: linear-gradient(135deg, rgba(85, 75, 219, 0.08) 0%, rgba(
   overflow: hidden;
   
   .el-dialog__header {
-    background: linear-gradient(135deg, #554BDB 0%, #7B6FE8 100%);
+    background: #ffffff;
     padding: 18px 24px;
     margin-right: 0;
+    border-bottom: 1px solid #e5e7eb;
     
     .el-dialog__title {
-      color: #ffffff;
+      color: #2d3748;
       font-weight: 600;
       font-size: 16px;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
     
     .el-dialog__headerbtn {
@@ -808,11 +808,11 @@ $theme-gradient-light: linear-gradient(135deg, rgba(85, 75, 219, 0.08) 0%, rgba(
       height: 28px;
       
       .el-dialog__close {
-        color: rgba(255, 255, 255, 0.85);
+        color: #909399;
         font-size: 18px;
         
         &:hover {
-          color: #ffffff;
+          color: #554BDB;
         }
       }
     }
