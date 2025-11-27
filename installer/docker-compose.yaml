@@ -1,18 +1,14 @@
 services:
   maxkb:
-    image: maxkb:latest
-    container_name: maxkb
+    image: registry.cn-shanghai.aliyuncs.com/ai_studio/maxkb:test11
+    container_name: maxkb1
     entrypoint: ["/bin/bash"]
     command: ["/usr/bin/run-maxkb.sh"]
     ports:
-      - "8080:8080"
+      - "9870:8080"
     volumes:
-      - maxkb_data:/opt/maxkb/app/data
-      - maxkb_model:/opt/maxkb/model
-      - maxkb_logs:/opt/maxkb/app/logs
+      - /docker-app/maxkb/maxkb_postgresql:/var/lib/postgresql/data
+      - /docker-app/maxkb/data:/opt/maxkb/app/data
+      - /docker-app/maxkb/model:/opt/maxkb/model
+      - /docker-app/maxkb/logs:/opt/maxkb/app/logs
     restart: unless-stopped
-
-volumes:
-  maxkb_data:
-  maxkb_model:
-  maxkb_logs:

@@ -448,20 +448,5 @@ ${chatHistory.map((m) => `${m.role}: ${m.content}`).join('\n')}
 ${contextNote}`
 }
 
-/**
- * 替换文本中的 quickchart 标记为编码后的 URL
- */
-export const replaceQuickChartWithEncodedUrl = (text: string): string => {
-  return text.replace(/\[quickchart\]\(([^)]+)\)/g, (match, jsonStr) => {
-    try {
-      const encodedParam = encodeURIComponent(
-        jsonStr.replace('https://quickchart.io/chart?c=', '')
-      )
-      const qualifiedUrl = `https://quickchart.io/chart?c=${encodedParam}`
-      return `![quickchart-over](${qualifiedUrl})`
-    } catch (e) {
-      console.log('JSON解析失败:', e, jsonStr)
-      return match
-    }
-  })
-}
+// QuickChart 相关函数已移至 @/config/quickchart.ts
+export { replaceQuickChartWithEncodedUrl } from '@/config/quickchart'

@@ -37,7 +37,7 @@
           </div>
           <div class="permission-select" 
                :class="{ 'disabled': !canManageShare }"
-               @click="canManageShare && openDropdown(user)">
+               @click.stop="canManageShare && openDropdown(user)">
             <span>{{ permissionLabel(user.permission) }}</span>
             <div v-if="user.showDropdown && canManageShare" class="permission-dropdown">
               <div
@@ -45,7 +45,7 @@
                 :key="option.value"
                 class="permission-option"
                 :class="{ selected: user.permission === option.value }"
-                @mousedown.prevent="changePermission(user, option.value)"
+                @click.stop="changePermission(user, option.value)"
               >
                 {{ option.label }}
               </div>
@@ -105,7 +105,8 @@ const showDropdown = ref(false)
 const memberList = ref<any[]>([])
 const availableMembers = ref<any[]>([])
 const availableTeams = ref<any[]>([])
-const userPermission = ref('READ')
+// 既然能打开共享设置，说明有管理权限，默认设置为 MANAGE
+const userPermission = ref('MANAGE')
 
 // 权限选项
 const PERMISSION_OPTIONS = [
@@ -222,7 +223,7 @@ const removePermission = async (user: any) => {
 }
 
 const onCancel = () => {
-  getMemberList()
+  emit('close')
 }
 
 const onSave = () => {
@@ -239,6 +240,7 @@ const onSave = () => {
           await datasetApi.putMemberPermission(props.datasetId, params)
         }
         ElMessage.success('权限设置已保存')
+        emit('close')
       } catch (error) {
         console.error('保存权限失败:', error)
         ElMessage.error('保存失败')
@@ -337,8 +339,7 @@ onMounted(async () => {
   try {
     await Promise.all([
       getMemberList(),
-      getAvailableUsersOrTeams(),
-      getCurrentUserPermission()
+      getAvailableUsersOrTeams()
     ])
   } catch (error) {
     console.error('ShareSettings 组件初始化失败:', error)
@@ -352,215 +353,280 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
+$primary-color: #554BDB;
+$primary-hover: #6B62E0;
+$primary-light: #F0EEFA;
+
 .dataset-share {
   .share-container {
     background: #fff;
     border-radius: 12px;
-    box-shadow: 0 2px 12px #0001;
-    padding: 32px 32px 24px 32px;
-    max-width: 600px;
+    padding: 24px;
+    max-width: 700px;
     margin: 0 auto;
+    overflow: visible;
   }
 
   .search-bar {
     position: relative;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
 
   .search-input {
     width: 100%;
-    border: 1px solid #e5e6eb;
+    border: 1px solid #DCDFE6;
     border-radius: 8px;
     padding: 12px 16px;
-    font-size: 15px;
+    font-size: 14px;
     outline: none;
-    box-shadow: 0 2px 8px #0001;
-    transition: border 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
     
     &:focus {
-      border-color: #3a5cff;
+      border-color: $primary-color;
+      box-shadow: 0 0 0 2px rgba(85, 75, 219, 0.1);
+    }
+    
+    &::placeholder {
+      color: #C0C4CC;
     }
   }
 
   .dropdown {
     position: absolute;
-    top: 44px;
+    top: 100%;
     left: 0;
     right: 0;
     background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px #0002;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     z-index: 10;
-    padding: 4px 0;
+    margin-top: 4px;
+    max-height: 280px;
+    overflow-y: auto;
   }
 
   .dropdown-item {
-    padding: 10px 20px 8px 20px;
+    padding: 12px 16px;
     cursor: pointer;
-    border-radius: 8px;
     transition: background 0.2s;
     display: flex;
     flex-direction: column;
+    border-bottom: 1px solid #F2F3F5;
+    
+    &:last-child {
+      border-bottom: none;
+    }
     
     &.selected,
     &:hover {
-      background: #f4f7ff;
+      background: $primary-light;
     }
     
     .name {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 500;
+      color: #303133;
     }
     
     .members {
       font-size: 12px;
-      color: #a0a0a0;
-      margin-top: 2px;
+      color: #909399;
+      margin-top: 4px;
     }
   }
 
   .user-list {
-    margin: 16px 0 0 0;
+    margin: 0;
+    max-height: 320px;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
   .user-row {
     display: flex;
     align-items: center;
-    background: #fafbfc;
+    width: 100%;
+    box-sizing: border-box;
+    background: #fff;
     border-radius: 10px;
-    margin-bottom: 12px;
-    padding: 16px 20px;
-    box-shadow: 0 1px 4px #0001;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    
+    &:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
   }
 
   .user-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     
     .name {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 500;
-      color: #222;
+      color: #334155;
+      word-break: break-word;
     }
     
     .type {
-      font-size: 13px;
-      color: #a0a0a0;
-      margin-top: 2px;
+      font-size: 12px;
+      color: #64748b;
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      background: #ecfdf5;
+      color: #059669;
+      border-radius: 6px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      width: fit-content;
     }
   }
 
   .permission-select {
-    min-width: 120px;
-    margin-right: 24px;
+    min-width: 100px;
+    margin-right: 16px;
     position: relative;
-    background: #f4f7ff;
-    border-radius: 8px;
-    padding: 6px 18px;
-    font-size: 15px;
-    color: #3a5cff;
+    background: $primary-light;
+    border-radius: 6px;
+    padding: 6px 28px 6px 12px;
+    font-size: 13px;
+    color: $primary-color;
     cursor: pointer;
     user-select: none;
-    border: 1px solid #e5e6eb;
-    transition: border 0.2s;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    font-weight: 500;
 
     &.disabled {
-      background: #f5f5f5;
-      color: #999;
+      background: #F5F7FA;
+      color: #C0C4CC;
       cursor: not-allowed;
-      border: 1px solid #e5e6eb;
       
-      &:hover {
-        border: 1px solid #e5e6eb;
+      &::after {
+        border-top-color: #C0C4CC;
       }
     }
 
     &::after {
       content: '';
       position: absolute;
-      right: 12px;
+      right: 10px;
       top: 50%;
       transform: translateY(-50%);
       width: 0;
       height: 0;
       border-left: 4px solid transparent;
       border-right: 4px solid transparent;
-      border-top: 4px solid #3a5cff;
+      border-top: 5px solid $primary-color;
     }
     
     &:hover:not(.disabled) {
-      border: 1px solid #3a5cff;
+      border-color: $primary-color;
     }
   }
 
   .permission-dropdown {
     position: absolute;
     left: 0;
-    top: 38px;
+    top: calc(100% + 4px);
     background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 2px 12px #0002;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     min-width: 120px;
-    z-index: 20;
-    padding: 4px 0;
+    z-index: 9999;
+    overflow: hidden;
+    
+    * {
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
   }
 
   .permission-option {
-    padding: 8px 18px;
+    padding: 10px 14px;
     cursor: pointer;
-    font-size: 15px;
-    color: #222;
-    border-radius: 8px;
+    font-size: 13px;
+    color: #606266;
     transition: background 0.2s, color 0.2s;
-    position: relative;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 
     &::before,
     &::after {
-      display: none !important;  // 强制移除所有伪元素
+      display: none !important;
     }
     
     &.selected {
-      background: #f4f7ff;
-      color: #3a5cff;
+      background: $primary-light;
+      color: $primary-color;
       font-weight: 500;
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
     }
     
     &:hover {
-      background: #f4f7ff;
-      color: #3a5cff;
+      background: $primary-light;
+      color: $primary-color;
+    }
+    
+    &:focus,
+    &:focus-visible,
+    &:active {
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
     }
   }
 
   .remove-btn {
-    color: #f53f3f;
-    font-size: 15px;
-    margin-left: 12px;
+    color: #F56C6C;
+    font-size: 13px;
     cursor: pointer;
     font-weight: 500;
     transition: color 0.2s;
+    padding: 4px 8px;
+    border-radius: 4px;
     
     &:hover {
-      color: #d72626;
+      color: #F34D4D;
+      background: #FEF0F0;
     }
   }
 
   .empty-state {
     text-align: center;
-    padding: 40px 20px;
+    padding: 48px 20px;
+    background: #FAFAFA;
+    border-radius: 8px;
+    border: 1px dashed #DCDFE6;
     
     .empty-icon {
-      font-size: 48px;
+      font-size: 40px;
       margin-bottom: 16px;
+      opacity: 0.8;
     }
     
     .empty-text {
-      font-size: 16px;
+      font-size: 15px;
       color: #303133;
       margin-bottom: 8px;
+      font-weight: 500;
     }
     
     .empty-subtext {
-      font-size: 14px;
+      font-size: 13px;
       color: #909399;
     }
   }
@@ -568,39 +634,42 @@ onUnmounted(() => {
   .footer-btns {
     display: flex;
     justify-content: flex-end;
-    gap: 16px;
-    margin-top: 32px;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #EBEEF5;
   }
 
   .cancel-btn {
-    border: 1px solid #e5e6eb;
+    border: 1px solid #DCDFE6;
     background: #fff;
-    color: #222;
+    color: #606266;
     border-radius: 8px;
-    padding: 10px 32px;
-    font-size: 15px;
+    padding: 10px 24px;
+    font-size: 14px;
     cursor: pointer;
-    transition: background 0.2s, border 0.2s;
+    transition: all 0.2s;
     
     &:hover {
-      background: #f4f7ff;
-      border: 1px solid #3a5cff;
+      color: $primary-color;
+      border-color: $primary-color;
+      background: $primary-light;
     }
   }
 
   .save-btn {
-    background: #3a5cff;
+    background: $primary-color;
     color: #fff;
     border: none;
     border-radius: 8px;
-    padding: 10px 32px;
-    font-size: 15px;
+    padding: 10px 24px;
+    font-size: 14px;
     cursor: pointer;
     font-weight: 500;
     transition: background 0.2s;
     
     &:hover {
-      background: #2446b9;
+      background: $primary-hover;
     }
   }
 }

@@ -21,7 +21,7 @@
               </div>
 
               <div class="add-btn">
-                <el-button style="width: 240px" type="primary" :icon="Plus">新建知识库</el-button>
+                <el-button style="width: 240px" type="primary" :icon="Plus" @click="openCreateKBDialog">新建知识库</el-button>
               </div>
 
               <div class="line-split"></div>
@@ -535,6 +535,106 @@
               :username="currentUsername"
             />
           </el-drawer>
+
+          <!-- 创建知识库对话框 -->
+          <el-dialog 
+            v-model="showCreateKBDialog" 
+            title="创建知识库" 
+            width="500px"
+            :close-on-click-modal="false"
+            class="kb-dialog"
+          >
+            <el-form :model="newKB" label-width="80px">
+              <el-form-item label="名称" required>
+                <el-input 
+                  v-model="newKB.name" 
+                  placeholder="请输入知识库名称" 
+                  maxlength="50"
+                  show-word-limit
+                />
+              </el-form-item>
+            </el-form>
+
+            <template #footer>
+              <el-button @click="showCreateKBDialog = false">取消</el-button>
+              <el-button 
+                type="primary" 
+                @click="createKnowledgeBase" 
+                :loading="createKBLoading"
+                :disabled="!newKB.name.trim()"
+              >
+                确认创建
+              </el-button>
+            </template>
+          </el-dialog>
+
+          <!-- 重命名知识库对话框 -->
+          <el-dialog
+            v-model="showRenameDialog"
+            title="重命名知识库"
+            width="500px"
+            :close-on-click-modal="false"
+            class="kb-dialog"
+          >
+            <el-form :model="renameForm" label-width="100px">
+              <el-form-item label="知识库名称" required>
+                <el-input
+                  v-model="renameForm.name"
+                  placeholder="请输入新的知识库名称"
+                  maxlength="50"
+                  show-word-limit
+                />
+              </el-form-item>
+            </el-form>
+
+            <template #footer>
+              <el-button @click="showRenameDialog = false">取消</el-button>
+              <el-button 
+                type="primary" 
+                @click="confirmRename" 
+                :disabled="!renameForm.name.trim()"
+              >
+                确认重命名
+              </el-button>
+            </template>
+          </el-dialog>
+
+          <!-- 共享设置弹窗 -->
+          <el-dialog
+            v-model="showShareModal"
+            :title="`共享设置 - ${currentDatasetName}`"
+            width="80%"
+            top="8vh"
+            :close-on-click-modal="false"
+            class="kb-dialog"
+          >
+            <ShareSettings
+              v-if="showShareModal"
+              :dataset-id="currentDatasetId"
+              :dataset-name="currentDatasetName"
+              @close="showShareModal = false"
+            />
+          </el-dialog>
+
+          <!-- 文档管理弹窗 -->
+          <el-dialog
+            v-model="showDocumentModal"
+            :title="`文档管理 - ${currentDatasetName}`"
+            width="90%"
+            top="5vh"
+            :close-on-click-modal="false"
+            class="kb-dialog"
+          >
+            <DocumentManagement
+              :dataset-id="currentDatasetId"
+              :dataset-name="currentDatasetName"
+              @close="showDocumentModal = false"
+              @document-changed="handleDocumentChanged"
+            />
+            <template #footer>
+              <el-button @click="showDocumentModal = false">关闭</el-button>
+            </template>
+          </el-dialog>
         </el-header>
         <el-main>
           <HomePage v-if="isHomePage" />
@@ -576,7 +676,7 @@ import {
   Timer,
   View
 } from '@element-plus/icons-vue'
-import { computed, nextTick, onBeforeMount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeMount, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import documentApi from '@/api/document'
@@ -589,6 +689,8 @@ import { MoreOne, HomeTwo, History } from '@icon-park/vue-next'
 import HomePage from '@/views/user-home/components/HomePage.vue'
 import ChatPage from '@/views/user-home/components/ChatPage.vue'
 import ChatHistoryPanel from '@/views/user-manage/component/ChatHistoryPanel.vue'
+import DocumentManagement from '@/views/user-knowledge/components/DocumentManagement.vue'
+import ShareSettings from '@/views/user-knowledge/components/ShareSettings.vue'
 
 // 类型定义
 interface TreeNode {
@@ -619,6 +721,13 @@ const userRole = computed(() => user.getRole())
 const selectedNode = ref<TreeNode | null>(null)
 const isAdmin = computed(() => userRole.value === 'ADMIN')
 const isCollapsed = ref(false)
+
+// 新建知识库相关
+const showCreateKBDialog = ref(false)
+const createKBLoading = ref(false)
+const newKB = ref({
+  name: ''
+})
 
 // 切换侧边栏折叠状态
 const toggleCollapse = () => {
@@ -1121,6 +1230,68 @@ const handleKBAction = async (command: { action: string; data: TreeNode }) => {
   }
 }
 
+// 确认重命名知识库
+const confirmRename = async () => {
+  if (!renameForm.value.name.trim()) {
+    ElMessage.warning('请输入知识库名称')
+    return
+  }
+
+  try {
+    const newName = renameForm.value.name.trim()
+    const updateData = {
+      name: newName,
+      desc: newName
+    }
+
+    const response = await datasetApi.putDataset(renameForm.value.id, updateData)
+
+    if (response.code === 200) {
+      ElMessage.success('知识库重命名成功')
+
+      // 更新本地数据
+      const updatedKB = personalKBs.value.find((kb) => kb.id === renameForm.value.id)
+      if (updatedKB) {
+        updatedKB.name = newName
+        updatedKB.description = newName
+        updatedKB.desc = newName
+      }
+
+      showRenameDialog.value = false
+
+      // 重新排序并更新树
+      await sortPersonalKBs()
+    } else {
+      ElMessage.error(response.message || '重命名失败')
+    }
+  } catch (error: any) {
+    console.error('重命名失败:', error)
+    ElMessage.error('重命名失败，请稍后重试')
+  }
+}
+
+// 处理文档变化事件
+const handleDocumentChanged = async () => {
+  try {
+    // 刷新当前知识库的文档列表
+    if (currentDatasetId.value) {
+      // 查找当前知识库所在的类型
+      for (const category of treeData.value) {
+        const kbNode = category.children?.find(
+          (child) => child.datasetId === currentDatasetId.value
+        )
+        if (kbNode) {
+          // 重新加载该知识库的文档
+          await loadDocuments(currentDatasetId.value, kbNode.id)
+          break
+        }
+      }
+    }
+  } catch (error) {
+    console.error('刷新文档列表失败:', error)
+  }
+}
+
 // 获取知识库类型
 const getKBType = (data: TreeNode): string => {
   // 通过父节点或ID前缀确定知识库类型
@@ -1239,6 +1410,67 @@ const loadPersonalKBs = async () => {
   }
 }
 
+// 打开创建知识库对话框
+const openCreateKBDialog = () => {
+  newKB.value = { name: '' }
+  showCreateKBDialog.value = true
+}
+
+// 创建知识库
+const createKnowledgeBase = async () => {
+  if (!newKB.value.name.trim()) {
+    ElMessage.warning('请输入知识库名称')
+    return
+  }
+
+  createKBLoading.value = true
+
+  try {
+    // 获取默认的 embedding 模型
+    let embeddingModeId = ''
+    try {
+      const modelRes = await modelApi.getModel({ model_type: 'EMBEDDING' })
+      const modelList = modelRes.data || []
+      // 自动选择名为 maxkb-embedding 的模型作为默认
+      const defaultModel = modelList.find(
+        (m: any) => m?.name === 'maxkb-embedding' || m?.model_name === 'maxkb-embedding'
+      )
+      if (defaultModel?.id) {
+        embeddingModeId = defaultModel.id
+      } else if (modelList[0]?.id) {
+        embeddingModeId = modelList[0].id
+      }
+      console.log('获取到默认embedding模型ID:', embeddingModeId)
+    } catch (error) {
+      console.warn('获取默认embedding模型失败，使用空值:', error)
+    }
+
+    // 调用API创建知识库
+    const newKnowledgeBase = {
+      name: newKB.value.name.trim(),
+      desc: newKB.value.name.trim(), // 描述默认使用名称
+      type: '0', // 默认类型为普通知识库
+      embedding_mode_id: embeddingModeId
+    }
+
+    await datasetApi.postDataset(newKnowledgeBase)
+
+    ElMessage.success('知识库创建成功')
+
+    // 重置表单并关闭对话框
+    newKB.value = { name: '' }
+    showCreateKBDialog.value = false
+
+    // 刷新个人知识库列表
+    await loadPersonalKBs()
+  } catch (error) {
+    console.error('创建知识库失败:', error)
+    ElMessage.error('知识库创建失败')
+  } finally {
+    createKBLoading.value = false
+  }
+}
+
 // 刷新知识库数据
 const refreshKnowledgeBase = async (type: string) => {
   try {
@@ -1262,7 +1494,11 @@ const refreshKnowledgeBase = async (type: string) => {
 // 排序个人知识库
 const sortPersonalKBs = async () => {
   try {
-    if (personalKBs.value.length === 0) return
+    // 即使是空列表也需要更新树，确保树能反映最新状态
+    if (personalKBs.value.length === 0) {
+      await updateTreeData('my', [])
+      return
+    }
 
     // 复制数组并深拷贝每个对象，确保使用最新数据
     let sortedKBs = personalKBs.value.map((kb) => ({
@@ -1695,6 +1931,77 @@ const loadAvailableSTTModels = async () => {
   }
 }
 
+// 检查上传文档是否完成
+const checkUploadCompletion = async (datasetId: string): Promise<boolean> => {
+  // 定义状态常量
+  const PENDING = 'nn0'
+  const STARTED = 'nn1'
+  const SUCCESS = 'nn2'
+  const FAILURE = 'nn3'
+  const REVOKE = 'nn4'
+  const REVOKED = 'nn5'
+
+  try {
+    const params = {
+      current_page: 1,
+      page_size: 50
+    }
+    const response = await documentApi.getDocument(datasetId, params, params)
+
+    if (response.data && response.data.records.length > 0) {
+      const records = response.data.records
+
+      // 检查是否有任何文档仍在等待或执行中
+      const hasPendingOrStarted = records.some(
+        (record: any) => record.status === PENDING || record.status === STARTED
+      )
+
+      if (hasPendingOrStarted) {
+        // 仍有文档在处理中，继续等待
+        console.log('文档仍在处理中，继续等待...')
+        return true
+      }
+
+      // 所有文档已完成处理，清除定时器
+      if (uploadCheckTimer) {
+        await loadPersonalKBs()
+        window.localStorage.removeItem('uploading_dataset_id')
+      }
+
+      // 重新判断所有文档的最终状态
+      const allSuccess = records.every((record: any) => record.status === SUCCESS)
+      const hasFailure = records.some((record: any) => record.status === FAILURE)
+      const hasRevoked = records.some((record: any) => record.status === REVOKED)
+      const hasRevoke = records.some((record: any) => record.status === REVOKE)
+
+      if (allSuccess) {
+        await loadPersonalKBs()
+        ElMessage.success('上传成功：所有文档处理完成')
+      } else if (hasFailure) {
+        await loadPersonalKBs()
+        ElMessage.error('上传失败：部分或全部文档处理失败')
+      } else if (hasRevoked) {
+        ElMessage.warning('上传已取消')
+      } else if (hasRevoke) {
+        ElMessage.warning('上传正在取消中')
+      } else {
+        ElMessage.info('上传状态未知，请检查文档详情')
+      }
+
+      return false
+    } else {
+      console.error('获取文档列表失败，响应数据异常')
+      return false
+    }
+  } catch (error) {
+    console.error('检查上传状态失败:', error)
+    ElMessage.error('检查上传状态失败')
+    return false
+  }
+}
+
+let uploadCheckTimer: number | null = null
+
 onMounted(async () => {
   // 获取当前用户信息
   getCurrentUserInfo()
@@ -1741,10 +2048,62 @@ onMounted(async () => {
     loadAvailableModels(),
     loadAvailableSTTModels()
   ])
+
+  // 启动上传状态检查定时器
+  if (!uploadCheckTimer) {
+    uploadCheckTimer = window.setInterval(() => {
+      const uploadDatasetId = window.localStorage.getItem('uploading_dataset_id')
+      if (!uploadDatasetId) return
+      checkUploadCompletion(uploadDatasetId)
+    }, 6000)
+  }
+})
+
+// 清理上传状态检查定时器
+onBeforeUnmount(() => {
+  if (uploadCheckTimer) {
+    clearInterval(uploadCheckTimer)
+    uploadCheckTimer = null
+  }
 })
 </script>
 
 <style lang="scss" scoped>
+// 知识库弹窗主题色样式
+:deep(.kb-dialog) {
+  .el-dialog__header {
+    padding: 16px 20px;
+    margin-right: 0;
+    border-bottom: 1px solid #ebeef5;
+    
+    .el-dialog__title {
+      font-weight: 600;
+      font-size: 16px;
+      color: #303133;
+    }
+  }
+  
+  .el-dialog__body {
+    padding: 24px;
+  }
+  
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #ebeef5;
+    
+    .el-button--primary {
+      background-color: #554BDB;
+      border-color: #554BDB;
+      
+      &:hover,
+      &:focus {
+        background-color: #6B62E0;
+        border-color: #6B62E0;
+      }
+    }
+  }
+}
+
 :deep(.el-button--primary) {
   --el-color-primary: v-bind('user.themeInfo?.theme || "#5f55e5"');
   --el-button-bg-color: v-bind('user.themeInfo?.theme || "#5f55e5"');

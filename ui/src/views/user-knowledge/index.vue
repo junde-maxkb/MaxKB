@@ -1190,6 +1190,7 @@ import {
   onBeforeUnmount
 } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { replaceQuickChartWithEncodedUrl, transformWhenAltIsQuickChart } from '@/config/quickchart'
 import useStore from '@/stores'
 import {
   ArrowDown,
@@ -2854,19 +2855,7 @@ function tryNormalizeJsObjectToJson(str: string) {
   return s
 }
 
-// 替换文本中的 quickchart 标记为编码后的 URL
-function replaceQuickChartWithEncodedUrl(text: string) {
-  return text.replace(/\[quickchart\]\(([^)]+)\)/g, (match, jsonStr) => {
-    try {
-      const encodedParam = encodeURIComponent(jsonStr.replace('https://quickchart.io/chart?c=', ''))
-      let qualifiedUrl = `https://quickchart.io/chart?c=${encodedParam}`
-      return `![quickchart-over](${qualifiedUrl})`
-    } catch (e) {
-      console.log('JSON解析失败:', e, jsonStr)
-      return match // JSON 无效则保留原样
-    }
-  })
-}
+// QuickChart 相关函数已移至 @/config/quickchart.ts
 
 // 获取当前模式的标签名称
 const getCurrentModeLabel = (): string => {
@@ -4864,10 +4853,7 @@ ${contextNote}
 请按照专业的综述格式，生成结构清晰、逻辑严谨的中文内容。如果用户要求不够明确，请友好地询问更具体的综述需求。`
 }
 
-// 处理 quickchart 图片链接，去掉 alt 文本并对 c 参数进行编码
-function transformWhenAltIsQuickChart(text: string): string {
-  return text
-}
+// QuickChart 相关函数已移至 @/config/quickchart.ts
 
 const getQuestionPrompt = (
   userQuestion: string = '',
