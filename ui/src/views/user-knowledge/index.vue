@@ -190,7 +190,7 @@
                   </div>
 
                   <!-- 二级目录 - 知识库 -->
-                  <div v-else-if="data.level === 2 && data.label !='CNKI文献'" class="node-content level-2-content">
+                  <div v-else-if="data.level === 2" class="node-content level-2-content">
                     <div class="node-left">
                       <el-icon class="node-icon">
                         <Folder />
@@ -294,12 +294,12 @@
                   </div>
 
                   <!-- 三级目录 - 文档 -->
-                  <div v-else-if="data.level === 3 || data.label =='CNKI文献'" class="node-content level-3-content">
+                  <div v-else-if="data.level === 3" class="node-content level-3-content">
                     <el-icon class="node-icon">
                       <DocumentCopy />
                     </el-icon>
                     <span class="node-label" :title="data.label">{{ data.label }}</span>
-                    <span class="file-size">{{ data.label =='CNKI文献' ? '（184912）':formatFileSize(data.size) }}</span>
+                    <span class="file-size">{{ formatFileSize(data.size) }}</span>
                   </div>
                 </div>
               </template>
@@ -369,25 +369,15 @@
 
                   <!-- AI引导式问答 -->
                   <div v-if="message.role === 'assistant' && guides.length > 0">
-                    <h3
-                      style="margin-top: 30px; font-size: 16px; font-width: 600; font-family: Hei"
-                    >
-                      我觉得您可能会对以下几个方向感兴趣：
-                    </h3>
+                    <div>我觉得您可能会对以下几个方向感兴趣：</div>
                     <div style="display: grid; gap: 5px; cursor: pointer; margin-top: 10px">
                       <span v-for="(guide, index) in guides" :key="index">
                         <el-tag
-                          size="default"
+                          size="small"
                           class="guide-tag"
                           :key="index"
                           @click="handleGuideTagClick(guide.submit)"
-                          style="
-                            cursor: pointer;
-                            width: 100%;
-                            font-size: 16px;
-                            font-width: 600;
-                            font-family: Hei;
-                          "
+                          style="cursor: pointer"
                         >
                           {{ guide.display }}
                         </el-tag>
@@ -447,21 +437,7 @@
                   </div>
                 </div>
               </div>
-              <div
-                style="max-width: 60vw"
-                v-if="
-                  chatMessages[chatMessages.length - 1].role === 'assistant' && guides.length > 0
-                "
-              >
-                <Suggestions
-                  :suggestions="guides"
-                  @suggestion-click="
-                    (item) => {
-                      handleGuideTagClick(item.submit)
-                    }
-                  "
-                />
-              </div>
+
               <!-- 流式输出显示 -->
               <div v-if="isStreaming" class="message ai-message streaming">
                 <div class="message-content">
@@ -475,8 +451,7 @@
                   </div>
                 </div>
               </div>
-
-              <div style="height: 50px"></div>
+              <div style="height: 100px"></div>
             </div>
 
             <!-- 集成聊天输入组件 -->
@@ -1260,7 +1235,6 @@ import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import useGuide from '@/utils/useGuide'
-import Suggestions from '@/views/user-knowledge/components/Suggestions.vue'
 
 // 类型定义
 interface TreeNode {
@@ -1306,7 +1280,7 @@ interface KBForm {
 }
 
 // 响应式数据
-const guides = ref<{ submit: string; display: string }[]>([])
+const guides = ref<{submit: string, display: string}[]>([])
 const searchText = ref('')
 const selectedKB = ref<TreeNode | null>(null)
 const selectedNode = ref<TreeNode | null>(null)
@@ -1895,7 +1869,7 @@ const getSelectedDatasets = (): TreeNode[] => {
 // 获取选中的文档列表
 const getSelectedDocuments = (): TreeNode[] => {
   const checkedNodes = treeRef.value?.getCheckedNodes() || []
-  return checkedNodes.filter((node: TreeNode) => node.level === 3 || node.id === 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505')
+  return checkedNodes.filter((node: TreeNode) => node.level === 3)
 }
 
 // 处理一级目录的三个点菜单操作
@@ -2312,13 +2286,6 @@ const loadOrganizationKBs = async () => {
         }))
       )
 
-      orgKBsList.push({
-        id: "d1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505",
-        name: 'CNKI文献',
-        create_time: '2024-01-01T00:00:00Z',
-        creator: '系统集成'
-      })
-
       organizationKBs.value = orgKBsList
 
       // 加载后立即应用排序
@@ -2612,24 +2579,6 @@ const updateNodeChildren = (nodeId: string, children: TreeNode[]) => {
   findAndUpdate(treeData.value)
 }
 
-// CNKI文献查询
-const performCNKISearch = async (query: string) => {
-  try {
-    const response = await documentApi.cnkiSearch(query)
-
-    if (response.code === 200 && response.data) {
-      console.log('CNKI文献查询结果:', response.data)
-      return response.data // 返回查询结果
-    } else {
-      console.warn('CNKI文献查询失败:', response.message)
-      return []
-    }
-  } catch (error) {
-    console.error('CNKI文献查询异常:', error)
-    return []
-  }
-}
-
 // 基于选中文档进行知识检索
 const performKnowledgeSearch = async (query: string) => {
   try {
@@ -2779,39 +2728,6 @@ const performKnowledgeSearch = async (query: string) => {
       // 对每个选中的知识库进行检索
       for (const dataset of selectedDatasets) {
         if (!dataset.datasetId) continue
-        console.log(query, dataset.datasetId)
-        if (dataset.datasetId === 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505') {
-          // 处理 CNKI 知识库的特殊查询
-          const cnkiResults = await performCNKISearch(query);
-          console.log('CNKI 知识库查询结果数量:', cnkiResults);
-          if (cnkiResults.length > 0) {
-            const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length;
-            let acceptedCNKIResults = cnkiResults;
-            if (remainingSlots <= 0) {
-              reachedMaxResults = true;
-              console.log(
-                `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${cnkiResults.length} 条, 采纳: 0 条 (总量达到上限 ${MAX_TOTAL_RESULTS})`
-              );
-            } else {
-              if (cnkiResults.length > remainingSlots) {
-                acceptedCNKIResults = cnkiResults.slice(0, remainingSlots);
-                reachedMaxResults = true;
-              }
-              console.log(
-                `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${cnkiResults.length} 条, 采纳: ${acceptedCNKIResults.length} 条`
-              );
-              searchResults.push(...acceptedCNKIResults);
-              if (searchResults.length >= MAX_TOTAL_RESULTS) {
-                reachedMaxResults = true;
-              }
-            }
-          } else {
-            console.log(
-              `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: 0 条, 采纳: 0 条`
-            );
-          }
-          continue; // 跳过后续常规模块
-        }
 
         try {
           const searchData = {
@@ -3425,16 +3341,7 @@ ${chatMessages.value}
               currentAssistantMessage
             )
           } catch (e) {
-            try {
-              guides.value = await getGuideQuestions(
-                modelId,
-                mode,
-                userQuestion,
-                currentAssistantMessage
-              )
-            } catch (e) {
-              console.log('获取引导问题失败:', e)
-            }
+            console.log('获取引导问题失败:', e)
           }
 
           // 问数解析
@@ -4793,11 +4700,11 @@ const getReviewPrompt = (
       ? `\n\n用户附加要求：${userQuestion}, 如果用户未标明字数，需要足够详细不低于2000字，如果标明了字数则需要完全遵守用户的要求，且尽可能使用专业术语来表达\n`
       : ''
     return `# 角色定位
-你是一位资深的学术综述专家，擅长撰写高水平的**叙述性文献综述（Narrative Review）**。你的核心能力在于**从杂乱的文献中自动识别核心主题**，并将碎片化的观点整合成一篇逻辑连贯、引用严谨的学术文章。你特别擅长使用**“学者主导”**的句式，将不同专家的观点编织在同一个主题段落中。
+你是一位专业的知识综合分析专家，擅长处理多来源检索结果，能够从复杂与冗长的信息中提炼核心知识，形成结构严谨、逻辑通顺、重点明确的综述报告。你的任务是对输入的检索内容进行深入整合与系统分析，生成高质量的中文综述。
 
 ---
 
-# 输入内容
+# 输入信息
 
 ## 文档元数据
 - 文档名称：${documentName}
@@ -4810,53 +4717,62 @@ ${documentContent}
 
 # 综述要求
 
-## 核心原则
-1.  **维度自适应（关键）**：**不再预设固定的研究维度**。请你先通读所有检索内容，自动归纳出文献中讨论最集中的 **3-6 个核心主题维度**（例如：如果文献主要讨论了定义、技术实现和伦理挑战，那么你的维度就是这三个）。
-2.  **严格模仿图片风格**：全文采用**“总-分-总”**的段落结构。段落开头先用一句话概括该维度的总体情况，然后依次引出各位学者的观点。
-3.  **“学者主导”句式（关键）**：**严禁**使用被动语态（如“有研究指出”）。必须采用 **“身份+姓名+动词+观点+意义”** 的句式。
-    *   *正确示例*：**学者李国杰院士提出**智能化科研（AI4R）作为第四科研范式，其核心在于AI全方位融入科研流程，**这为理解智能时代知识生产提供了技术与协作层面的基础框架（李国杰， 2025）**。
-4.  **段落融合**：在同一个维度下，必须将多位学者的观点写在**同一个长段落**中，通过逻辑词（如“进一步”、“从另一角度”、“与之对应”）进行衔接。
-5.  **尾注引用**：如果检索内容提供了年份，请在每个观点结束处加上 \`(作者, 年份)\` 的引用标记。
+## 质量要求
+1. **准确性**：忠实反映原文内容，不夸大、不遗漏核心观点。
+2. **逻辑性**：内容结构清晰，章节之间衔接自然，论述条理分明。
+3. **简洁性**：语言凝练，避免重复与无效信息，突出重点。
+4. **一致性**：全篇保持统一语言（中文或英文），与当前对话语言风格一致。
+5. **篇幅要求**：全文长度需 **≥ 2000 字**，内容全面详尽。
+6. **格式规范**：使用 **标准 Markdown** 输出，包含标题、列表、段落等结构。
 
 ---
 
-# 综述结构
+# 内容结构
 
-请按照以下四大板块组织内容，正文全部为长段落：
+综述需按照以下四个层次展开：
 
-## 1. 核心概念与背景
-- 定义核心主题，整合多方来源对背景的描述，建立统一的知识基调。
+## 1. 主题概述
+- 提炼文档的主要主题、研究背景或业务场景
+- 明确文档所关注的问题域与总体目标
 
-## 2. 国内外研究现状与趋势（核心主体）
-**请根据检索内容，自动提炼出 3-10 个最核心的研究维度（一级标题），并针对每个维度进行深度综述。**
+## 2. 核心内容（重点章节）
+- 按主题分类提炼至少 **五个核心板块**
+- 对每个核心板块进行：
+  - 关键观点总结
+  - 方法、数据、论点或机制概述
+  - 文档中的重要证据或细节说明
+- 保持条理清晰、结构稳定
 
-*写作模板（请在每个自定维度中套用此逻辑）：*
-> [维度总述句，概括该主题的研究现状]。[学者A头衔+姓名] [动词（提出/指出/分析）] [观点A内容]，[该观点的意义/影响] ([姓名], [年份])。[学者B头衔+姓名] 则从 [某角度] 出发，[动词] [观点B内容]，他认为 [观点B的深层含义] ([姓名], [年份])。而 [学者C头衔+姓名] 进一步补充了 [观点C]，表明了 [某种趋势] ([姓名], [年份])。
+## 3. 重要细节
+- 集中呈现支撑文档主张的重要技术细节、数据指标、实验发现或关键案例
+- 对重要公式、流程、模型、框架等做简要但清晰的说明
 
-*(请确保每个维度下的内容充实，尽可能穷尽检索到的相关学者观点)*
-
-## 3. 逻辑关联与体系分析
-- 深入分析上述你归纳出的各维度之间的内在联系。
-- 阐述不同学者观点是如何共同构建起该领域的知识大厦的。
-
-## 4. 总结与展望
-- 基于全篇综述，给出高屋建瓴的总结。
-- 指出主题的本质特征、关键趋势或实践价值。
+## 4. 结论要点
+- 总结文档的主要贡献或关键结论
+- 提炼文档可能给出的建议、启示或应用价值
 
 ---
 
-# 执行指令（请反复阅读）
+# 执行指令
 
-1.  **拒绝列表**：全文禁止使用 Bullet points。
-2.  **显性归属**：每一句核心观点都必须以**“学者/教授/专家 + 姓名”**作为主语开头。
-3.  **完整性**：在描述学者观点时，不仅要写“他说了什么”，还要尽可能写出“这意味着什么”或“揭示了什么”（如图片中的“揭示了知识生产在智能时代的本质变化”）。
-4.  **引用格式**：严格保留 \`(姓名, 年份)\` 的尾注格式（如果数据源中有年份）。
-5.  **篇幅**：≥ 2000 字，确保每个维度的论述都丰满、厚实。
+请严格遵循以下执行要求：
+
+1. **全面覆盖**：综述需覆盖文档中所有重要主题，不得遗漏关键板块（通常至少五类）。
+2. **证据引用**：在综述中体现文档中的关键数据、关键场景、重要案例或重要证据。
+3. **结构清晰**：确保综述的四大内容层次之间逻辑强、分界清晰。
+4. **篇幅达标**：内容必须达到 **至少 2000 字**，可根据文档复杂度进一步扩展。
+5. **双语对应（如必要）**：当用户需要双语时，确保中文和英文结构完全一致，否则默认单语。
+6. **输出格式**：完整使用 Markdown，包括：
+   - 标题层级
+   - 列表
+   - 段落
+   - 必要的引用区块或加粗强调
 
 ---
 
 # 最终输出
-请根据上述要求，对输入的检索内容生成一篇高质量、风格与参考图片一致的中文知识综述。`
+请根据上述要求，生成一份高质量文档综述。
+`
   }
 
   // 基于知识库内容的综述模式
@@ -4865,7 +4781,7 @@ ${documentContent}
       ? `\n\n用户问题：${userQuestion}, 如果用户未标明字数，需要足够详细不低于2000字，如果标明了字数则需要完全遵守用户的要求，且尽可能使用专业术语来表达\n`
       : ''
     return `# 角色定位
-你是一位资深的学术综述专家，擅长撰写高水平的**叙述性文献综述（Narrative Review）**。你的核心能力在于**从杂乱的文献中自动识别核心主题**，并将碎片化的观点整合成一篇逻辑连贯、引用严谨的学术文章。你特别擅长使用**“学者主导”**的句式，将不同专家的观点编织在同一个主题段落中。
+你是一位专业的知识综合分析专家，擅长处理多来源检索结果，能够从复杂与冗长的信息中提炼核心知识，形成结构严谨、逻辑通顺、重点明确的综述报告。你的任务是对输入的检索内容进行深入整合与系统分析，生成高质量的中文综述。
 
 ---
 
@@ -4884,52 +4800,62 @@ ${contextNote}
 # 综述要求
 
 ## 核心原则
-1.  **维度自适应（关键）**：**不再预设固定的研究维度**。请你先通读所有检索内容，自动归纳出文献中讨论最集中的 **3-6 个核心主题维度**（例如：如果文献主要讨论了定义、技术实现和伦理挑战，那么你的维度就是这三个）。
-2.  **严格模仿图片风格**：全文采用**“总-分-总”**的段落结构。段落开头先用一句话概括该维度的总体情况，然后依次引出各位学者的观点。
-3.  **“学者主导”句式（关键）**：**严禁**使用被动语态（如“有研究指出”）。必须采用 **“身份+姓名+动词+观点+意义”** 的句式。
-    *   *正确示例*：**学者李国杰院士提出**智能化科研（AI4R）作为第四科研范式，其核心在于AI全方位融入科研流程，**这为理解智能时代知识生产提供了技术与协作层面的基础框架（李国杰， 2025）**。
-4.  **段落融合**：在同一个维度下，必须将多位学者的观点写在**同一个长段落**中，通过逻辑词（如“进一步”、“从另一角度”、“与之对应”）进行衔接。
-5.  **尾注引用**：如果检索内容提供了年份，请在每个观点结束处加上 \`(作者, 年份)\` 的引用标记。
+1. **全面性**：整合所有检索到的内容，不遗漏任何关键观点、定义或信息块。
+2. **相关性**：优先提炼与主题高度相关的概念、理论、过程、机制或结论。
+3. **逻辑性**：确保综述内部结构严密，各部分之间逻辑清晰、有明确的上下文衔接。
+4. **简洁性**：在保持信息完整的前提下，语言简练，不堆砌内容，避免重复。
+5. **可读性**：采用正式、清晰、易读的 Markdown 结构，包括标题、列表、段落等排版元素。
+6. **一致性**：综述使用中文（如需英文版本，可镜像生成），语言风格统一连贯。
+7. **篇幅要求**：综述需 **≥ 2000 字**，在信息丰富处可延展分析，越详尽越好。
 
 ---
 
 # 综述结构
 
-请按照以下四大板块组织内容，正文全部为长段落：
+请按照以下四大层次组织内容，并确保每层次内容充分展开：
 
-## 1. 核心概念与背景
-- 定义核心主题，整合多方来源对背景的描述，建立统一的知识基调。
+## 1. 核心概念
+- 定义检索主题与核心术语
+- 解释关键理论、工作机制、背景知识或基础原理
+- 用清晰严谨的语言为全篇建立知识框架
 
-## 2. 国内外研究现状与趋势（核心主体）
-**请根据检索内容，自动提炼出 3-10 个最核心的研究维度（一级标题），并针对每个维度进行深度综述。**
+## 2. 关键要点（不少于 5 项）
+- 提炼检索内容中最重要的观点、事实、发现、机制或模型
+- 每个要点需独立成段，包含：
+  - 要点主旨
+  - 内容来源中的关键信息
+  - 涵盖细节、案例、数据或示例（如果提供了）
+- 要点应覆盖该主题的主要维度
 
-*写作模板（请在每个自定维度中套用此逻辑）：*
-> [维度总述句，概括该主题的研究现状]。[学者A头衔+姓名] [动词（提出/指出/分析）] [观点A内容]，[该观点的意义/影响] ([姓名], [年份])。[学者B头衔+姓名] 则从 [某角度] 出发，[动词] [观点B内容]，他认为 [观点B的深层含义] ([姓名], [年份])。而 [学者C头衔+姓名] 进一步补充了 [观点C]，表明了 [某种趋势] ([姓名], [年份])。
+## 3. 逻辑关系
+- 分析关键要点之间的联系、层次、因果关系或依赖结构
+- 说明这些信息如何共同构成一个完整的知识体系
+- 必要时可使用列表、图示式结构（用文字描述）
 
-*(请确保每个维度下的内容充实，尽可能穷尽检索到的相关学者观点)*
-
-## 3. 逻辑关联与体系分析
-- 深入分析上述你归纳出的各维度之间的内在联系。
-- 阐述不同学者观点是如何共同构建起该领域的知识大厦的。
-
-## 4. 总结与展望
-- 基于全篇综述，给出高屋建瓴的总结。
-- 指出主题的本质特征、关键趋势或实践价值。
+## 4. 重要结论
+- 总结检索内容的核心洞察
+- 指出主题的本质特征、关键趋势、意义或实践价值
+- 如有可能，指出主题的局限性、空白点或未来可能的方向
 
 ---
 
-# 执行指令（请反复阅读）
+# 执行指令
 
-1.  **拒绝列表**：全文禁止使用 Bullet points。
-2.  **显性归属**：每一句核心观点都必须以**“学者/教授/专家 + 姓名”**作为主语开头。
-3.  **完整性**：在描述学者观点时，不仅要写“他说了什么”，还要尽可能写出“这意味着什么”或“揭示了什么”（如图片中的“揭示了知识生产在智能时代的本质变化”）。
-4.  **引用格式**：严格保留 \`(姓名, 年份)\` 的尾注格式（如果数据源中有年份）。
-5.  **篇幅**：≥ 2000 字，确保每个维度的论述都丰满、厚实。
+请严格遵循以下要求：
+
+1. **清晰定义核心概念**，确保综述开头建立稳固的认知基础。
+2. **列出不少于 5 个关键要点**，每个要点都需展开详细说明。
+3. **分析关键要点之间的逻辑关系**，体现结构化思维。
+4. **输出具有洞察力的总结性结论**，避免流于表面描述。
+5. **整体内容结构与信息点保持一致性**。
+6. **全文至少 2000 字**，如信息丰富请进一步扩展分析。
+7. 输出必须使用 **标准 Markdown 格式**，标题层级清晰。
 
 ---
 
 # 最终输出
-请根据上述要求，对输入的检索内容生成一篇高质量、风格与参考图片一致的中文知识综述。`
+请根据上述要求，对输入的检索内容生成一篇高质量的中文知识综述。
+`
   }
 
   // 通用综述模式（当没有具体内容时）
@@ -5749,6 +5675,12 @@ onUnmounted(() => {
     }
   }
 
+  .knowledge-tree {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+
     /* 自定义滚动条样式 */
     &::-webkit-scrollbar {
       width: 6px;
@@ -5815,8 +5747,8 @@ onUnmounted(() => {
 
       &.active {
         .node-content {
-          background: var(--el-button-hover-bg-color);
-          //border: 1px solid #3370ff;
+          background: #e6f3ff;
+          border: 1px solid #3370ff;
         }
       }
     }
@@ -6018,6 +5950,7 @@ onUnmounted(() => {
   display: grid;
   align-items: center;
   gap: 5px;
+
 }
 
 .knowledge-main {
