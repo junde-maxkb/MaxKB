@@ -188,31 +188,12 @@ const paginationConfig = reactive({
 
 // 搜索处理函数
 function handleSearch() {
-  // 搜索时重置到第一页
   paginationConfig.current_page = 1
+  getChatHistory()
 }
 
-// 列表（增加搜索过滤）
-const filteredList = computed(() => {
-  let list = [...chatHistoryList.value]
-
-  // 如果有搜索关键词，进行过滤
-  if (searchKeyword.value.trim()) {
-    const keyword = searchKeyword.value.trim().toLowerCase()
-    list = list.filter(item => {
-      const title = (item.title || item.application_name || '').toLowerCase()
-      return title.includes(keyword)
-    })
-  }
-
-  return list
-})
-
-// 分页显示列表
 const displayedList = computed(() => {
-  const start = (paginationConfig.current_page - 1) * paginationConfig.page_size
-  const end = start + paginationConfig.page_size
-  return filteredList.value.slice(start, end)
+  return chatHistoryList.value
 })
 
 function closeHandle() {
@@ -221,18 +202,22 @@ function closeHandle() {
   mouseId.value = ''
   paginationConfig.current_page = 1
   paginationConfig.total = 0
+  searchKeyword.value = ''
 }
 
 function getChatHistory() {
   if (!props.userId) return
   loading.value = true
-  // 获取所有历史记录，在前端进行分页
+  const page = {
+    current_page: paginationConfig.current_page,
+    page_size: paginationConfig.page_size
+  }
   userApi
-    .getChatHistory(props.userId, loading)
+    .getChatHistoryPage(props.userId, page, loading)
     .then((res: any) => {
       if (res.code === 200) {
-        chatHistoryList.value = res.data || []
-        updatePaginationTotal()
+        chatHistoryList.value = res.data.records || []
+        paginationConfig.total = res.data.total || 0
       }
     })
     .finally(() => {
@@ -241,30 +226,20 @@ function getChatHistory() {
 }
 
 function handleRefresh() {
-  paginationConfig.current_page = 1
   getChatHistory()
-}
-
-function updatePaginationTotal() {
-  paginationConfig.total = filteredList.value.length
 }
 
 function handleSizeChange(size: number) {
   paginationConfig.page_size = size
   paginationConfig.current_page = 1
+  getChatHistory()
 }
 
 function handlePageChange(page: number) {
   paginationConfig.current_page = page
+  getChatHistory()
 }
 
-function clickHistoryHandle(item: any) {
-  selectedHistoryId.value = item.id
-}
-
-function mouseenter(item: any) {
-  mouseId.value = item.id
-}
 
 async function viewDetail(item: any) {
   selectedHistory.value = item
@@ -310,13 +285,6 @@ watch(
     }
   },
   { immediate: true }
-)
-
-watch(
-  () => filteredList.value.length,
-  () => {
-    updatePaginationTotal()
-  }
 )
 
 defineExpose({
