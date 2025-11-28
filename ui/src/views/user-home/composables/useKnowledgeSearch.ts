@@ -12,6 +12,7 @@ const MAX_TOTAL_RESULTS = 200
 const MAX_RESULTS_PER_DOCUMENT = 3
 const MIN_RESULTS_PER_DOCUMENT = 3
 const DEFAULT_SIMILARITY = 0.3
+const MAX_CONTEXT_CHARS = 15000 // 上下文最大字符数限制
 
 export function useKnowledgeSearch() {
   // 搜索状态
@@ -74,68 +75,52 @@ export function useKnowledgeSearch() {
     console.log('查询:', query)
     console.log('选中文档数量:', selectedDocuments.length)
     console.log('选中知识库数量:', selectedDatasets.length)
-    console.log('树形数据顶级节点数量:', treeData.length)
     
-    // 调试: 打印第一个选中文档的结构
-    if (selectedDocuments.length > 0) {
-      console.log('第一个选中文档结构:', JSON.stringify(selectedDocuments[0], null, 2))
-    }
-    if (selectedDatasets.length > 0) {
-      console.log('第一个选中知识库结构:', JSON.stringify(selectedDatasets[0], null, 2))
-    }
-
     try {
-      let searchResults: SearchResult[] = []
+      let allResults: SearchResult[] = []
       let hasConnectionError = false
       let hasEmbeddingError = false
       const isDocumentSearch = selectedDocuments.length > 0
-      let reachedMaxResults = false
 
-      // 如果选中了具体文档，优先基于文档进行检索
+      // 1. 准备所有检索任务
+      const searchTasks: Promise<any>[] = []
+
       if (isDocumentSearch) {
         console.log('基于选中的文档进行检索:', selectedDocuments)
 
         // 按知识库分组文档
         const documentsByDataset = new Map<string, TreeNode[]>()
         selectedDocuments.forEach((doc) => {
-          console.log('处理文档节点:', { label: doc.label, documentId: doc.documentId, datasetId: doc.datasetId, level: doc.level })
           if (doc.datasetId) {
             if (!documentsByDataset.has(doc.datasetId)) {
               documentsByDataset.set(doc.datasetId, [])
             }
             documentsByDataset.get(doc.datasetId)!.push(doc)
-          } else {
-            console.warn('文档没有 datasetId:', doc)
           }
         })
 
-        // 对每个知识库的选中文档进行检索
+        // 为每个文档创建检索任务
         for (const [datasetId, docs] of documentsByDataset) {
           const datasetNode = findDatasetNode(datasetId, treeData)
           const datasetName = datasetNode?.label || '未知知识库'
 
           for (const doc of docs) {
-            if (reachedMaxResults) break
             if (!doc.documentId) continue
 
-            try {
-              const searchData = {
-                query_text: query,
-                top_number: 50,
-                similarity: DEFAULT_SIMILARITY,
-                search_mode: 'blend',
-                document_ids: `${doc.documentId}`
-              }
-              
-              console.log(`准备调用 API: dataset=${datasetId}, searchData=`, searchData)
-
-              const response = await datasetApi.getDatasetHitTest(datasetId, searchData)
-              console.log(`API 响应: code=${response.code}, data=`, response.data)
-              
-              if (response.code === 200 && response.data) {
-                const rawCount = Array.isArray(response.data) ? response.data.length : 0
-                const formattedResults = response.data
-                  .map((item: any) => ({
+            const task = async () => {
+              try {
+                const searchData = {
+                  query_text: query,
+                  top_number: 50,
+                  similarity: DEFAULT_SIMILARITY,
+                  search_mode: 'blend',
+                  document_ids: `${doc.documentId}`
+                }
+                
+                const response = await datasetApi.getDatasetHitTest(datasetId, searchData)
+                
+                if (response.code === 200 && response.data) {
+                  return response.data.map((item: any) => ({
                     ...item,
                     dataset_name: datasetName,
                     dataset_id: datasetId,
@@ -144,173 +129,92 @@ export function useKnowledgeSearch() {
                     source: doc.label || item.document_name || item.source,
                     _score: item.similarity ?? item.comprehensive_score ?? 0
                   }))
-                  .sort((a: any, b: any) => b._score - a._score)
-                  .map(({ _score, ...rest }: any) => rest)
-
-                if (formattedResults.length > 0) {
-                  const sliceCount =
-                    formattedResults.length >= MIN_RESULTS_PER_DOCUMENT
-                      ? Math.min(formattedResults.length, MAX_RESULTS_PER_DOCUMENT)
-                      : formattedResults.length
-
-                  let accepted = formattedResults.slice(0, sliceCount)
-                  const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
-
-                  if (remainingSlots <= 0) {
-                    reachedMaxResults = true
-                    console.log(
-                      `文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: 0 条 (总量达到上限)`
-                    )
-                    break
+                } else if (response.code === 500) {
+                  if (response.message?.includes('Failed to establish a new connection') || response.message?.includes('Connection refused')) {
+                    hasEmbeddingError = true
                   }
-
-                  if (accepted.length > remainingSlots) {
-                    accepted = accepted.slice(0, remainingSlots)
-                    reachedMaxResults = true
-                  }
-
-                  searchResults.push(...accepted)
-                  if (searchResults.length >= MAX_TOTAL_RESULTS) {
-                    reachedMaxResults = true
-                  }
-
-                  console.log(
-                    `文档命中测试 => 数据集: ${datasetName}(${datasetId}), 文档: ${doc.label || doc.documentId}, 原始召回: ${rawCount} 条, 采纳: ${accepted.length} 条`
-                  )
                 }
+              } catch (error: any) {
+                console.warn(`文档 ${doc.label} 检索失败:`, error)
+                if (error.message?.includes('Failed to establish a new connection') || error.message?.includes('Connection refused')) {
+                  hasEmbeddingError = true
+                } else {
+                  hasConnectionError = true
+                }
+              }
+              return []
+            }
+            searchTasks.push(task())
+          }
+        }
+      } else if (selectedDatasets.length > 0) {
+        console.log('基于选中的知识库进行检索:', selectedDatasets)
+
+        // 为每个知识库创建检索任务
+        for (const dataset of selectedDatasets) {
+          if (!dataset.datasetId) continue
+
+          const task = async () => {
+            // CNKI 特殊处理
+            if (dataset.datasetId === 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505') {
+              return await performCNKISearch(query)
+            }
+
+            try {
+              const searchData = {
+                query_text: query,
+                top_number: 300,
+                similarity: DEFAULT_SIMILARITY,
+                search_mode: 'blend'
+              }
+              
+              const response = await datasetApi.getDatasetHitTest(dataset.datasetId!, searchData)
+              
+              if (response.code === 200 && response.data) {
+                return response.data.map((item: any) => ({
+                  ...item,
+                  dataset_name: dataset.label,
+                  source: dataset.label,
+                  _score: item.similarity ?? item.comprehensive_score ?? 0
+                }))
               } else if (response.code === 500) {
-                if (
-                  response.message?.includes('Failed to establish a new connection') ||
-                  response.message?.includes('Connection refused')
-                ) {
+                if (response.message?.includes('Failed to establish a new connection') || response.message?.includes('Connection refused')) {
                   hasEmbeddingError = true
                 }
               }
             } catch (error: any) {
-              console.warn(`文档 ${doc.label || doc.documentId} 检索失败:`, error)
-              if (
-                error.message?.includes('Failed to establish a new connection') ||
-                error.message?.includes('Connection refused')
-              ) {
+              console.warn(`知识库 ${dataset.label} 检索失败:`, error)
+              if (error.message?.includes('Failed to establish a new connection') || error.message?.includes('Connection refused')) {
                 hasEmbeddingError = true
               } else {
                 hasConnectionError = true
               }
             }
-
-            if (reachedMaxResults) break
+            return []
           }
-
-          if (reachedMaxResults) break
-        }
-      }
-      // 如果没有选中文档但选中了知识库，则基于整个知识库进行检索
-      else if (selectedDatasets.length > 0) {
-        console.log('基于选中的知识库进行检索:', selectedDatasets)
-
-        for (const dataset of selectedDatasets) {
-          if (!dataset.datasetId) continue
-          if (reachedMaxResults) break
-
-          // 处理 CNKI 知识库的特殊查询
-          if (dataset.datasetId === 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505') {
-            const cnkiResults = await performCNKISearch(query)
-            if (cnkiResults.length > 0) {
-              const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
-              if (remainingSlots <= 0) {
-                reachedMaxResults = true
-              } else {
-                let acceptedCNKIResults = cnkiResults
-                if (cnkiResults.length > remainingSlots) {
-                  acceptedCNKIResults = cnkiResults.slice(0, remainingSlots)
-                  reachedMaxResults = true
-                }
-                searchResults.push(...acceptedCNKIResults)
-                if (searchResults.length >= MAX_TOTAL_RESULTS) {
-                  reachedMaxResults = true
-                }
-              }
-            }
-            continue
-          }
-
-          try {
-            const searchData = {
-              query_text: query,
-              top_number: 300,
-              similarity: DEFAULT_SIMILARITY,
-              search_mode: 'blend'
-            }
-            
-            console.log(`准备调用知识库 API: dataset=${dataset.datasetId}, label=${dataset.label}, searchData=`, searchData)
-
-            const response = await datasetApi.getDatasetHitTest(dataset.datasetId, searchData)
-            console.log(`知识库 API 响应: code=${response.code}, data长度=`, response.data?.length)
-            
-            if (response.code === 200 && response.data) {
-              const rawCount = Array.isArray(response.data) ? response.data.length : 0
-              let results = response.data.map((item: any) => ({
-                ...item,
-                dataset_name: dataset.label,
-                source: dataset.label
-              }))
-
-              if (results.length > 0) {
-                const remainingSlots = MAX_TOTAL_RESULTS - searchResults.length
-                if (remainingSlots <= 0) {
-                  reachedMaxResults = true
-                } else {
-                  if (results.length > remainingSlots) {
-                    results = results.slice(0, remainingSlots)
-                    reachedMaxResults = true
-                  }
-                  searchResults.push(...results)
-                  if (searchResults.length >= MAX_TOTAL_RESULTS) {
-                    reachedMaxResults = true
-                  }
-                }
-              }
-
-              console.log(
-                `知识库命中测试 => 知识库: ${dataset.label}(${dataset.datasetId}), 原始召回: ${rawCount} 条, 采纳: ${results.length} 条`
-              )
-            } else if (response.code === 500) {
-              if (
-                response.message?.includes('Failed to establish a new connection') ||
-                response.message?.includes('Connection refused')
-              ) {
-                hasEmbeddingError = true
-              }
-            }
-          } catch (error: any) {
-            console.warn(`知识库 ${dataset.label} 检索失败:`, error)
-            if (
-              error.message?.includes('Failed to establish a new connection') ||
-              error.message?.includes('Connection refused')
-            ) {
-              hasEmbeddingError = true
-            } else {
-              hasConnectionError = true
-            }
-          }
+          searchTasks.push(task())
         }
       } else {
-        console.log('未选中任何文档或知识库')
-        return {
-          results: [],
-          hasEmbeddingError: false,
-          hasConnectionError: false
-        }
+        return { results: [], hasEmbeddingError: false, hasConnectionError: false }
       }
 
-      // 按相似度排序
-      if (!isDocumentSearch) {
-        searchResults.sort((a, b) => {
-          const sa = a.similarity ?? a.comprehensive_score ?? 0
-          const sb = b.similarity ?? b.comprehensive_score ?? 0
-          return sb - sa
-        })
-      }
+      // 2. 并发执行所有检索任务
+      const resultsArrays = await Promise.all(searchTasks)
+      
+      // 3. 合并结果
+      resultsArrays.forEach(results => {
+        if (results && results.length > 0) {
+          allResults.push(...results)
+        }
+      })
+
+      // 4. 全局排序
+      allResults.sort((a: any, b: any) => (b._score || 0) - (a._score || 0))
+
+      // 5. 统一截断
+      const finalResults = allResults.slice(0, MAX_TOTAL_RESULTS).map(({ _score, ...rest }: any) => rest)
+
+      console.log(`检索完成: 总召回 ${allResults.length} 条, 最终采纳 ${finalResults.length} 条`)
 
       // 更新警告状态
       if (hasEmbeddingError) {
@@ -322,7 +226,7 @@ export function useKnowledgeSearch() {
       }
 
       return {
-        results: searchResults,
+        results: finalResults,
         hasEmbeddingError,
         hasConnectionError
       }
@@ -339,7 +243,7 @@ export function useKnowledgeSearch() {
   }
 
   /**
-   * 构建搜索上下文
+   * 构建搜索上下文 (优化版：压缩格式 + 动态截断)
    */
   const buildSearchContext = (
     searchResults: SearchResult[],
@@ -356,15 +260,41 @@ export function useKnowledgeSearch() {
       contextNote = '\n\n注意：知识库检索服务暂时不可用。回答将基于通用知识。'
       context = '由于知识库检索服务不可用，暂时无法检索相关内容。'
     } else if (searchResults.length > 0) {
-      context = searchResults
-        .map(
-          (result, index) => `参考资料${index + 1}：
-标题：${result.title || '无标题'}
-内容：${result.content}
-来源：${result.document_name || result.source}
-数据集：${result.dataset_name}`
-        )
-        .join('\n\n')
+      // 再次确保按相似度排序
+      const sortedResults = [...searchResults].sort((a, b) => {
+        const sa = a.similarity ?? a.comprehensive_score ?? 0
+        const sb = b.similarity ?? b.comprehensive_score ?? 0
+        return sb - sa
+      })
+
+      let currentLength = 0
+      const contextParts: string[] = []
+
+      for (let i = 0; i < sortedResults.length; i++) {
+        const result = sortedResults[i]
+        
+        // 紧凑格式：[序号] 标题 | 来源 \n 内容
+        const titlePart = result.title ? `标题：${result.title} | ` : ''
+        const sourcePart = result.document_name || result.source || '未知来源'
+        
+        // 智能合并：如果标题和来源相同，只显示一个
+        const headerInfo = (result.title === sourcePart) 
+          ? `来源：${sourcePart}`
+          : `${titlePart}来源：${sourcePart}`
+
+        const itemText = `[${i + 1}] ${headerInfo}\n${result.content}`
+        
+        // 动态截断：检查是否超出字符限制
+        if (currentLength + itemText.length > MAX_CONTEXT_CHARS) {
+          console.log(`上下文构建截断: 已达到 ${currentLength} 字符，丢弃剩余 ${sortedResults.length - i} 条结果`)
+          break
+        }
+        
+        contextParts.push(itemText)
+        currentLength += itemText.length + 2 // +2 for \n\n
+      }
+      
+      context = contextParts.join('\n\n')
     } else {
       context = '未找到与问题相关的知识库内容。'
       contextNote = '\n\n注意：在选中的知识库中未找到相关内容，回答将基于通用知识。'

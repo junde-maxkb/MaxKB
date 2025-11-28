@@ -122,7 +122,6 @@
             </div>
           </div>
           <h1 class="greeting">{{ greeting }}，有什么我可以帮助你的吗？</h1>
-          <p class="hint-text">请从左侧选择知识库或文档开始问答</p>
         </div>
 
       <!-- 开启新对话按钮 (对话模式时显示) -->
