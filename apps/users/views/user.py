@@ -524,9 +524,12 @@ class SSOLoginCallbackView(APIView):
 
         name = payload.get('name', '')
         email = payload.get('email')
+        account = payload.get('account')
 
-        if not email:
-            return result.error("未获取到邮箱")
+        if not email and account:
+            email = f"{account}@example.com"
+        else:
+            return result.error("认证信息不完整，缺少邮箱")
         from users.models.user import User as UserModel
         # 3. 创建或获取用户
         user, created = QuerySet(UserModel).get_or_create(
