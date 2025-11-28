@@ -227,12 +227,6 @@ export function useChat() {
     }
   }
 
-  // 重新生成
-  const regenerate = (message: ChatMessage) => {
-    ElMessage.info('正在重新生成...')
-    // TODO: 实现重新生成逻辑
-  }
-
   // 点赞
   const handleLike = (message: ChatMessage) => {
     message.vote_status = message.vote_status === '1' ? '-1' : '1'
@@ -268,7 +262,6 @@ export function useChat() {
     newChat,
     scrollToBottom,
     copyText,
-    regenerate,
     handleLike,
     handleDislike,
     getAnswerText

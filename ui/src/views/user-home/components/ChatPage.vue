@@ -30,6 +30,31 @@
                       :reasoning_content="item.reasoning_content || ''"
                     />
                   </div>
+                  <!-- 检索文档展示（可折叠） -->
+                  <div class="retrieved-documents" v-if="item.write_ed && item.paragraphs?.length">
+                    <div class="retrieved-header" @click="toggleRetrievedDocs(item.id)">
+                      <el-icon :size="14"><Document /></el-icon>
+                      <span>参考来源 ({{ getUniqueDocuments(item.paragraphs).length }})</span>
+                      <el-icon :size="12" class="toggle-icon" :class="{ 'is-expanded': item.id && expandedRetrievedDocs[item.id] }">
+                        <ArrowDown />
+                      </el-icon>
+                    </div>
+                    <transition name="collapse">
+                      <div class="retrieved-list" v-show="item.id && expandedRetrievedDocs[item.id]">
+                        <el-tooltip 
+                          v-for="(doc, docIndex) in getUniqueDocuments(item.paragraphs)" 
+                          :key="docIndex"
+                          :content="doc.dataset_name + ' / ' + doc.document_name"
+                          placement="top"
+                        >
+                          <div class="retrieved-item">
+                            <el-icon :size="12"><Tickets /></el-icon>
+                            <span class="doc-name">{{ doc.document_name || doc.source }}</span>
+                          </div>
+                        </el-tooltip>
+                      </div>
+                    </transition>
+                  </div>
                   <!-- 操作按钮 - 在气泡内右下角 -->
                   <div class="message-actions" v-if="item.write_ed">
                     <el-tooltip content="重新生成" placement="top">
@@ -58,8 +83,8 @@
                   正在思考中<span class="dotting"></span><span class="dotting"></span><span class="dotting"></span>
                 </div>
 
-                <!-- 推荐问题 - 只在最后一条AI消息且已完成时显示 -->
-                <div class="recommend-questions" v-if="item.write_ed && isLastAssistantMessage(index)">
+                <!-- 推荐问题 - 只在最后一条AI消息且已完成时显示（翻译模式不显示） -->
+                <div class="recommend-questions" v-if="item.write_ed && isLastAssistantMessage(index) && !isAITranslateMode">
                   <!-- 加载中状态 -->
                   <div v-if="guidesLoading" class="recommend-loading">
                     <el-icon class="is-loading"><Loading /></el-icon>
@@ -234,6 +259,7 @@
 import { ref, computed, onMounted, nextTick, h, watch, inject } from 'vue'
 import { 
   ArrowDown, 
+  ArrowUp,
   Microphone, 
   Paperclip, 
   Position,
@@ -246,7 +272,8 @@ import {
   DataLine,
   PieChart,
   Close,
-  Loading
+  Loading,
+  Tickets
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MdRenderer from '@/components/markdown/MdRenderer.vue'
@@ -276,7 +303,7 @@ import {
   getChatSystemPrompt,
   replaceQuickChartWithEncodedUrl
 } from '../composables/usePrompts'
-import type { TreeNode, ChatMessage, SearchResult } from '../types/chat'
+import type { TreeNode, ChatMessage, SearchResult, ParagraphInfo } from '../types/chat'
 
 // 自定义点赞/踩图标
 const Good = () => h('svg', { 
@@ -374,6 +401,13 @@ const userStoppedGeneration = ref(false) // 用户是否主动停止了生成
 const inputAreaRef = ref<HTMLElement | null>(null) // 输入区域的 ref
 const currentChatHistoryId = ref('') // 当前聊天记录ID
 const savedMessageCount = ref(0) // 已保存的消息数量
+const expandedRetrievedDocs = ref<Record<string, boolean>>({}) // 控制参考来源的展开/收起
+
+// 切换参考来源的展开/收起状态
+const toggleRetrievedDocs = (messageId: string | undefined) => {
+  if (!messageId) return
+  expandedRetrievedDocs.value[messageId] = !expandedRetrievedDocs.value[messageId]
+}
 
 // Store
 const { user } = useStore()
@@ -518,6 +552,28 @@ const greeting = computed(() => {
 // 获取回答文本（兼容旧格式）
 const getAnswerText = (item: ChatMessage) => {
   return item.content || ''
+}
+
+// 获取唯一的文档列表（去重）
+const getUniqueDocuments = (paragraphs: ParagraphInfo[] | undefined) => {
+  if (!paragraphs || paragraphs.length === 0) return []
+  
+  const seen = new Set<string>()
+  const uniqueDocs: { document_name: string; dataset_name: string; source: string }[] = []
+  
+  for (const p of paragraphs) {
+    const key = `${p.dataset_name}-${p.document_name || p.source}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      uniqueDocs.push({
+        document_name: p.document_name || '',
+        dataset_name: p.dataset_name,
+        source: p.source
+      })
+    }
+  }
+  
+  return uniqueDocs
 }
 
 // 发送消息
@@ -930,9 +986,234 @@ const handleScroll = () => {
 }
 
 // 重新生成回答
-const regenerate = (item: ChatMessage) => {
-  ElMessage.info('正在重新生成...')
-  // 实际实现中调用 API 重新生成
+const regenerate = async (item: ChatMessage) => {
+  // 找到该 AI 消息对应的上一条用户消息
+  const itemIndex = chatMessages.value.findIndex(msg => msg.id === item.id)
+  if (itemIndex <= 0) {
+    ElMessage.warning('无法找到对应的用户问题')
+    return
+  }
+
+  // 找到该 AI 消息之前的最后一条用户消息
+  let userMessageIndex = -1
+  for (let i = itemIndex - 1; i >= 0; i--) {
+    if (chatMessages.value[i].role === 'user') {
+      userMessageIndex = i
+      break
+    }
+  }
+
+  if (userMessageIndex === -1) {
+    ElMessage.warning('无法找到对应的用户问题')
+    return
+  }
+
+  const userQuestion = chatMessages.value[userMessageIndex].content
+
+  // 检查是否正在生成中
+  if (isStreaming.value) {
+    ElMessage.warning('当前正在生成中，请稍候')
+    return
+  }
+
+  // 检查模型是否已选择
+  if (!props.selectedModelId) {
+    ElMessage.warning('请先选择对话模型')
+    return
+  }
+
+  // 清除推荐问题
+  guides.value = []
+  guidesLoading.value = true
+
+  // 重置该 AI 消息的内容和状态
+  chatMessages.value[itemIndex].content = ''
+  chatMessages.value[itemIndex].write_ed = false
+  chatMessages.value[itemIndex].reasoning_content = ''
+
+  // 重置用户滚动状态
+  userScrolledUp.value = false
+  userStoppedGeneration.value = false
+
+  loading.value = true
+  isStreaming.value = true
+
+  await nextTick()
+  scrollToBottom()
+
+  try {
+    const modelId = props.selectedModelId
+
+    // 获取保存的文档内容
+    const savedTranslateDocContent = translateDocumentContent.value
+    const savedTranslateDocName = translateDocumentName.value
+    const savedSummaryDocContent = summaryDocumentContent.value
+    const savedSummaryDocName = summaryDocumentName.value
+    const savedReviewDocContent = reviewDocumentContent.value
+    const savedReviewDocName = reviewDocumentName.value
+    const savedQuestionDocContent = questionDocumentContent.value
+    const savedQuestionDocName = questionDocumentName.value
+    const savedUploadedDocContent = uploadedDocumentContent.value
+    const savedUploadedDocName = uploadedDocumentName.value
+
+    // 执行知识库检索
+    const searchResponse = await performKnowledgeSearch(
+      userQuestion,
+      props.selectedDocuments || [],
+      props.selectedDatasets || [],
+      props.treeData || []
+    )
+
+    const { results: searchResults, hasEmbeddingError, hasConnectionError } = searchResponse
+
+    // 构建搜索上下文
+    const { context, contextNote } = buildSearchContext(searchResults, hasEmbeddingError, hasConnectionError)
+    const searchResultsForAI = formatSearchResultsForAI(searchResults)
+
+    // 构建系统提示词（与 sendMessage 逻辑一致）
+    let systemPrompt = ''
+    let currentIntent: 'writing' | 'polish' | 'expand' | 'chat' | null = null
+
+    if (isAITranslateMode.value) {
+      if (savedTranslateDocContent) {
+        systemPrompt = getTranslatePrompt(
+          targetLanguage.value,
+          '',
+          savedTranslateDocContent,
+          savedTranslateDocName,
+          userQuestion
+        )
+      } else {
+        systemPrompt = getTranslatePrompt(targetLanguage.value, userQuestion)
+      }
+    } else if (isAIWritingMode.value) {
+      const intent = await detectWritingIntent(userQuestion, modelId)
+      currentIntent = intent
+
+      if (intent === 'chat') {
+        systemPrompt = getChatSystemPrompt(context, contextNote, hasEmbeddingError || hasConnectionError, chatMessages.value.slice(0, itemIndex))
+      } else {
+        let documentContext = ''
+        if (savedUploadedDocContent) {
+          documentContext = `\n\n上传文档内容（${savedUploadedDocName}）：\n${savedUploadedDocContent}`
+        }
+        systemPrompt = getPromptByIntent(intent, userQuestion, context, documentContext, contextNote)
+      }
+    } else if (isAISummaryMode.value) {
+      if (savedSummaryDocContent) {
+        systemPrompt = getSummaryPrompt('中英文', userQuestion, savedSummaryDocContent, savedSummaryDocName, '', '', chatMessages.value.slice(0, itemIndex).slice(-10))
+      } else {
+        systemPrompt = getSummaryPrompt('中英文', userQuestion, '', '', context, contextNote, chatMessages.value.slice(0, itemIndex).slice(-10))
+      }
+    } else if (isAIReviewMode.value) {
+      if (savedReviewDocContent) {
+        systemPrompt = getReviewPrompt(userQuestion, savedReviewDocContent, savedReviewDocName)
+      } else {
+        systemPrompt = getReviewPrompt(userQuestion, '', '', context, contextNote)
+      }
+    } else if (isAIQuestionMode.value) {
+      if (savedQuestionDocContent) {
+        systemPrompt = getQuestionPrompt(userQuestion, savedQuestionDocContent, savedQuestionDocName)
+      } else {
+        systemPrompt = getQuestionPrompt(userQuestion, '', '', context, contextNote)
+      }
+    } else {
+      systemPrompt = getChatSystemPrompt(context, contextNote, hasEmbeddingError || hasConnectionError, chatMessages.value.slice(0, itemIndex))
+    }
+
+    // 构建消息数组（只包含该消息之前的历史）
+    const skipHistory = shouldSkipHistory(currentIntent || undefined)
+    const historyMessages = chatMessages.value.slice(0, itemIndex)
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...(skipHistory ? [] : historyMessages.slice(-10).map(m => ({ role: m.role, content: m.content }))),
+      { role: 'user', content: userQuestion }
+    ]
+
+    // 调用流式 API
+    const resp = await postModelChatStream(modelId, { messages })
+
+    if (resp?.body && typeof resp.body.getReader === 'function') {
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let currentAssistantMessage = ''
+
+      while (isStreaming.value) {
+        const { value, done } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const parts = chunk.match(/data:.*?\n\n/gs) || chunk.match(/data:[^\n]+/g)
+
+        if (parts) {
+          for (const part of parts) {
+            try {
+              const jsonStr = part.replace(/^data:\s*/, '').replace(/\n\n$/, '').trim()
+              if (!jsonStr) continue
+
+              const json = JSON.parse(jsonStr)
+
+              if (json?.content !== undefined && json.content !== '') {
+                currentAssistantMessage += json.content
+                chatMessages.value[itemIndex].content = currentAssistantMessage
+                await nextTick()
+                scrollToBottom()
+              }
+            } catch (e) {
+              console.warn('解析流式数据失败:', e)
+            }
+          }
+        }
+      }
+
+      // 流式输出完成后处理
+      if (currentAssistantMessage) {
+        chatMessages.value[itemIndex].content = replaceQuickChartWithEncodedUrl(currentAssistantMessage)
+        chatMessages.value[itemIndex].write_ed = true
+
+        if (searchResultsForAI.length > 0) {
+          chatMessages.value[itemIndex].paragraphs = deduplicateParagraphs(searchResultsForAI)
+        }
+
+        // 获取推荐问题
+        if (!userStoppedGeneration.value) {
+          try {
+            const { getGuideQuestions } = useGuide()
+            const guideQuestions = await getGuideQuestions(
+              modelId,
+              currentModeLabel.value,
+              userQuestion,
+              currentAssistantMessage
+            )
+            guides.value = guideQuestions
+          } catch (e) {
+            console.warn('获取推荐问题失败:', e)
+          } finally {
+            guidesLoading.value = false
+          }
+        } else {
+          guidesLoading.value = false
+        }
+      } else {
+        chatMessages.value[itemIndex].content = isStreaming.value ? '抱歉，模型服务暂时不可用，请稍后重试。' : '回答已中断。'
+        chatMessages.value[itemIndex].write_ed = true
+        guidesLoading.value = false
+      }
+    } else {
+      chatMessages.value[itemIndex].content = '抱歉，模型服务暂时不可用，请稍后重试。'
+      chatMessages.value[itemIndex].write_ed = true
+    }
+  } catch (error) {
+    console.error('重新生成失败:', error)
+    chatMessages.value[itemIndex].content = '抱歉，重新生成时发生错误，请稍后重试。'
+    chatMessages.value[itemIndex].write_ed = true
+  } finally {
+    loading.value = false
+    isStreaming.value = false
+    guidesLoading.value = false
+    await nextTick()
+    scrollToBottom()
+  }
 }
 
 // 发送推荐问题
@@ -1399,6 +1680,8 @@ onMounted(() => {
             display: inline-flex;
             align-items: center;
             line-height: 1;
+            max-width: 100%;
+            overflow: hidden;
           }
 
           .document-icon {
@@ -1411,8 +1694,7 @@ onMounted(() => {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            flex: 1;
-            min-width: 0;
+            max-width: 120px;
           }
 
           &:hover {
@@ -1560,6 +1842,82 @@ onMounted(() => {
 
           .answer-content {
             margin-bottom: 8px;
+          }
+
+          .retrieved-documents {
+            margin-top: 12px;
+            margin-bottom: 8px;
+            padding: 10px 12px;
+            background: #f8f9fb;
+            border-radius: 6px;
+
+            .retrieved-header {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              font-size: 12px;
+              color: #8f959e;
+              cursor: pointer;
+              user-select: none;
+              transition: color 0.2s;
+
+              &:hover {
+                color: #5E56DD;
+              }
+
+              .el-icon {
+                color: #5E56DD;
+              }
+
+              .toggle-icon {
+                margin-left: auto;
+                transition: transform 0.3s ease;
+                color: #909399;
+
+                &.is-expanded {
+                  transform: rotate(180deg);
+                }
+              }
+            }
+
+            .retrieved-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              margin-top: 8px;
+              overflow: hidden;
+
+              .retrieved-item {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                padding: 4px 10px;
+                background: #fff;
+                border: 1px solid #e4e7ed;
+                border-radius: 4px;
+                font-size: 12px;
+                color: #606266;
+                cursor: default;
+                max-width: 180px;
+                transition: all 0.2s;
+
+                &:hover {
+                  border-color: #5E56DD;
+                  color: #5E56DD;
+                }
+
+                .el-icon {
+                  color: #909399;
+                  flex-shrink: 0;
+                }
+
+                .doc-name {
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                }
+              }
+            }
           }
 
           .message-actions {
@@ -1792,5 +2150,19 @@ onMounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+// 折叠动画
+.collapse-enter-active,
+.collapse-leave-active {
+  transition: all 0.3s ease;
+  max-height: 200px;
+}
+
+.collapse-enter-from,
+.collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
 }
 </style>
