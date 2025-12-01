@@ -1,7 +1,7 @@
 <template>
   <div class="home-container">
     <div class="img-container">
-      <img src="https://picsum.photos/1455/218">
+      <img src="/home-top.png" alt="">
     </div>
     <h2 style="margin-top: 24px">
       您好，欢迎进入AI知识库系统～
@@ -76,6 +76,9 @@
       <el-button type="primary">
         新手指南<el-icon class="el-icon--right"><ArrowRight /></el-icon>
       </el-button>
+      <el-button type="primary" @click="startChat">
+        开始问答<el-icon class="el-icon--right"><ChatDotSquare /></el-icon>
+      </el-button>
     </div>
   </div>
 </template>
@@ -86,8 +89,18 @@ import { ArrowRight } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
+// 定义事件
+const emit = defineEmits<{
+  (e: 'start-chat'): void
+}>()
+
 const goToHome = () => {
   router.push('/user-home')
+}
+
+// 开始问答
+const startChat = () => {
+  emit('start-chat')
 }
 </script>
 
@@ -107,7 +120,7 @@ const goToHome = () => {
     margin-top: 16px;
     padding: 10px 18px;
     border-radius:11px;
-    background:rgba(223, 234, 251, .4);
+    background: rgb(248, 241, 250);
   }
 
   ul {

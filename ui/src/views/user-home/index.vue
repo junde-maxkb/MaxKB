@@ -637,7 +637,7 @@
           </el-dialog>
         </el-header>
         <el-main>
-          <HomePage v-if="isHomePage" />
+          <HomePage v-if="isHomePage" @start-chat="isHomePage = false" />
           <ChatPage 
             v-else 
             :selected-documents="selectedDocuments"
@@ -714,7 +714,7 @@ interface TreeNode {
 
 const router = useRouter()
 const { user } = useStore()
-const isHomePage = ref(false)
+const isHomePage = ref(true)
 const drawer = ref(false)
 const messages = ref<Message[]>([])
 const userRole = computed(() => user.getRole())
