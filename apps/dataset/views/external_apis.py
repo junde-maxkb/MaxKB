@@ -38,12 +38,4 @@ class CNKIView(APIView):
         if json_data['status'] != 'success':
             return result.error('CNKI 文献 Api 异常')
 
-        return result.success([
-            {
-                'title': i.get('title'),
-                'content': i.get('content'),
-                'authors': i.get('authors'),
-                'document_name': i.get('document_name'),
-                'dataset_name': 'CNKI 文献'
-            } for i in json_data['data']
-        ])
+        return result.success(json_data['data'])

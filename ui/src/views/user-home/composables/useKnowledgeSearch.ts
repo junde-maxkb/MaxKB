@@ -26,59 +26,28 @@ export function useKnowledgeSearch() {
   const performCNKISearch = async (query: string): Promise<any[]> => {
     try {
       // TODO: 暂时使用 mock 数据，待 API 调试完成后切换回真实接口
-      const useMockData = false
+      const useMockData = true
       
       if (useMockData) {
         console.log('CNKI文献查询 [MOCK模式]:', query)
         // Mock 数据 - 模拟 CNKI 返回的文献
         const mockResults = [
           {
-            title: '人工智能在教育领域的应用研究综述',
-            content: '随着人工智能技术的快速发展，其在教育领域的应用日益广泛。本文综述了AI在个性化学习、智能评测、教育管理等方面的最新进展，分析了当前面临的挑战与机遇，并对未来发展趋势进行了展望。研究表明，AI技术能够有效提升教学效率，促进教育公平。',
-            author: '张三, 李四',
-            journal: '教育研究',
-            publish_date: '2024-06',
-            keywords: '人工智能; 教育应用; 个性化学习'
-          },
-          {
-            title: '基于大语言模型的智能教学系统设计与实现',
-            content: '本研究设计并实现了一个基于大语言模型的智能教学系统。系统采用GPT架构，结合知识图谱技术，能够根据学生的学习情况提供个性化的学习建议和答疑服务。实验结果表明，该系统在提升学生学习效果方面具有显著作用。',
-            author: '王五, 赵六',
-            journal: '计算机教育',
-            publish_date: '2024-08',
-            keywords: '大语言模型; 智能教学; 知识图谱'
-          },
-          {
-            title: '数字化转型背景下的教师专业发展路径探析',
-            content: '教育数字化转型对教师专业发展提出了新的要求。本文从数字素养、技术融合教学能力、创新意识等维度分析了教师专业发展的新内涵，提出了"技术赋能、协同发展、持续学习"的教师专业发展路径，为教育数字化转型提供理论支撑。',
-            author: '陈七',
-            journal: '教师教育研究',
-            publish_date: '2024-03',
-            keywords: '数字化转型; 教师专业发展; 数字素养'
-          },
-          {
-            title: '智慧教育生态系统构建研究',
-            content: '智慧教育是教育信息化发展的高级阶段。本研究从生态系统视角出发，分析了智慧教育生态系统的构成要素、运行机制和发展规律，提出了"平台+资源+服务"的智慧教育生态构建模式，为区域智慧教育建设提供参考。',
-            author: '刘八, 周九',
-            journal: '电化教育研究',
-            publish_date: '2024-05',
-            keywords: '智慧教育; 生态系统; 教育信息化'
-          },
-          {
-            title: '教育大数据驱动的精准教学模式研究',
-            content: '教育大数据为精准教学提供了技术支撑。本研究构建了基于学习分析的精准教学模型，通过采集和分析学生的学习行为数据，实现学情精准诊断、资源精准推送、效果精准评价。案例研究表明，该模式能有效提升教学针对性和有效性。',
-            author: '吴十',
-            journal: '中国电化教育',
-            publish_date: '2024-07',
-            keywords: '教育大数据; 精准教学; 学习分析'
-          }
+    "abstract": "蓬勃发展的数字技术深刻影响着教育发展的格局,全面革新了教育发展的逻辑内涵与实践路向,教育数字化、数字教育、人工智能+教育业已成为新时代教育改革的重要议题。然而,数字技术为教育生态重构和教育理念重塑提供新思路与新方法的同时,也带来了诸多挑战。在新的技术背景下,如何以数字变革推进高等教育数字化转型的进程,新型人技关系下数字教育运行的基本逻辑是什么,如何发展可信的人工智能并建立起相应准则,人工智能赋能教育产生了怎样的现实挑战,未来进路如何等问题,成为推动数字技术与教育深度融合的关键,引起了教育研究者的高度关注和热切讨论。本刊特约请5位教育领域的专家围绕上述问题进行阐述,以期为发展数字教育、建设教育强国贡献学界智慧。",
+    "authors": "夏立新;杨宗凯;黄荣怀;顾建军;刘三(女牙);",
+    "journal": "华中师范大学学报(人文社会科学版)",
+    "keywords": "",
+    "orgs": "华中师范大学信息管理学院;华中师范大学国家数字化学习工程技术研究中心、教育大数据应用技术国家工程研究中心;北京师范大学教育学部、互联网教育智能技术及应用国家工程研究中心;南京师范大学教育科学学院;华中师范大学人工智能教育学部;",
+    "pubdate": "2023-09-26",
+    "title": "教育数字化与新时代教育变革(笔谈)"
+}
         ]
         
         // 格式化为标准结构
         return mockResults.map((item, index) => ({
           title: item.title,
-          content: item.content,
-          document_name: `${item.title} (${item.author}, ${item.publish_date})`,
+          content: item.abstract,
+          document_name: `${item.title} (${item.authors}, ${item.pubdate} ${item.journal})`,
           dataset_name: 'CNKI文献',
           dataset_id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505',
           document_id: `cnki-mock-${index}`,
@@ -86,8 +55,8 @@ export function useKnowledgeSearch() {
           similarity: 0.85 - index * 0.05, // 模拟递减的相似度
           comprehensive_score: 0.85 - index * 0.05,
           _score: 0.85 - index * 0.05,
-          author: item.author,
-          publish_date: item.publish_date,
+          author: item.authors,
+          publish_date: item.pubdate,
           journal: item.journal,
           keywords: item.keywords
         }))
@@ -99,14 +68,16 @@ export function useKnowledgeSearch() {
         console.log('CNKI文献查询结果:', response.data)
         // 格式化 CNKI 结果，使其符合 SearchResult 结构
         return response.data.map((item: any, index: number) => {
-          const title = item.title || item.name || '未知标题'
-          const author = item.author || '未知作者'
-          const date = item.publish_date || item.date || '未知年份'
+          const title = item.title || '未知标题'
+          const author = item.authors || '未知作者'
+          const date = item.pubdate || '未知年份'
+          const journal = item.journal || '未知期刊'
+          const orgs = item.orgs || item.institution || '未知单位'
 
           return {
             title: title,
             content: item.content || item.abstract || item.summary || '',
-            document_name: `${title} (${author}, ${date})`,
+            document_name: `${title} (${author}, ${date} ${journal})`,
             dataset_name: 'CNKI文献',
             dataset_id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505',
             document_id: item.id || item.doc_id || `cnki-${index}`,
