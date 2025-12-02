@@ -78,7 +78,7 @@ export function useKnowledgeSearch() {
         return mockResults.map((item, index) => ({
           title: item.title,
           content: item.content,
-          document_name: item.title,
+          document_name: `${item.title} (${item.author}, ${item.publish_date})`,
           dataset_name: 'CNKI文献',
           dataset_id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505',
           document_id: `cnki-mock-${index}`,
@@ -98,23 +98,29 @@ export function useKnowledgeSearch() {
       if (response.code === 200 && response.data) {
         console.log('CNKI文献查询结果:', response.data)
         // 格式化 CNKI 结果，使其符合 SearchResult 结构
-        return response.data.map((item: any, index: number) => ({
-          title: item.title || item.name || '未知标题',
-          content: item.content || item.abstract || item.summary || '',
-          document_name: item.title || item.name || `CNKI文献-${index + 1}`,
-          dataset_name: 'CNKI文献',
-          dataset_id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505',
-          document_id: item.id || item.doc_id || `cnki-${index}`,
-          source: item.source || item.journal || 'CNKI',
-          similarity: item.similarity ?? item.score ?? 0.8,
-          comprehensive_score: item.comprehensive_score ?? item.score ?? 0.8,
-          _score: item.similarity ?? item.score ?? 0.8,
-          // 保留原始字段以备需要
-          author: item.author,
-          publish_date: item.publish_date || item.date,
-          journal: item.journal,
-          keywords: item.keywords
-        }))
+        return response.data.map((item: any, index: number) => {
+          const title = item.title || item.name || '未知标题'
+          const author = item.author || '未知作者'
+          const date = item.publish_date || item.date || '未知年份'
+
+          return {
+            title: title,
+            content: item.content || item.abstract || item.summary || '',
+            document_name: `${title} (${author}, ${date})`,
+            dataset_name: 'CNKI文献',
+            dataset_id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505',
+            document_id: item.id || item.doc_id || `cnki-${index}`,
+            source: item.source || item.journal || 'CNKI',
+            similarity: item.similarity ?? item.score ?? 0.8,
+            comprehensive_score: item.comprehensive_score ?? item.score ?? 0.8,
+            _score: item.similarity ?? item.score ?? 0.8,
+            // 保留原始字段以备需要
+            author: item.author,
+            publish_date: item.publish_date || item.date,
+            journal: item.journal,
+            keywords: item.keywords
+          }
+        })
       } else {
         console.warn('CNKI文献查询失败:', response.message)
         return []
