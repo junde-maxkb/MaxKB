@@ -26,7 +26,7 @@ export function useKnowledgeSearch() {
   const performCNKISearch = async (query: string): Promise<any[]> => {
     try {
       // TODO: 暂时使用 mock 数据，待 API 调试完成后切换回真实接口
-      const useMockData = true
+      const useMockData = false
       
       if (useMockData) {
         console.log('CNKI文献查询 [MOCK模式]:', query)
