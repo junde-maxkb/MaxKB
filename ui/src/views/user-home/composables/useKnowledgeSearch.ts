@@ -103,6 +103,52 @@ export function useKnowledgeSearch() {
   }
 
   /**
+   * CNKI全文文献查询
+   */
+  const performCNKIFullSearch = async (query: string): Promise<any[]> => {
+    try {
+      // 真实 API 调用
+      const response = await documentApi.cnkiFullSearch(query)
+      if (response.code === 200 && response.data) {
+        console.log('CNKI全文文献查询结果:', response.data)
+        // 格式化 CNKI Full 结果，使其符合 SearchResult 结构
+        return response.data.map((item: any, index: number) => {
+          const title = item.title || '未知标题'
+          const author = item.authors || '未知作者'
+          const date = item.pubdate || '未知年份'
+          const journal = item.journal || '未知期刊'
+
+          return {
+            title: title,
+            // 优先使用 content（全文内容），其次是 abstract
+            content: item.content || item.abstract || item.summary || '',
+            document_name: `${title} (${author}, ${date} ${journal})`,
+            dataset_name: 'CNKI全文文献',
+            dataset_id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506',
+            document_id: item.id || item.doc_id || `cnki-full-${index}`,
+            source: item.source || item.journal || 'CNKI',
+            similarity: item.similarity ?? item.score ?? 0.8,
+            comprehensive_score: item.comprehensive_score ?? item.score ?? 0.8,
+            _score: item.similarity ?? item.score ?? 0.8,
+            // 保留原始字段以备需要
+            author: item.authors,
+            publish_date: item.pubdate,
+            journal: item.journal,
+            keywords: item.keywords,
+            orgs: item.orgs
+          }
+        })
+      } else {
+        console.warn('CNKI全文文献查询失败:', response.message)
+        return []
+      }
+    } catch (error) {
+      console.error('CNKI全文文献查询异常:', error)
+      return []
+    }
+  }
+
+  /**
    * 从树形数据中查找知识库节点
    */
   const findDatasetNode = (datasetId: string, treeData: TreeNode[]): TreeNode | null => {
@@ -147,6 +193,8 @@ export function useKnowledgeSearch() {
 
       // CNKI 知识库的特殊 ID
       const CNKI_DATASET_ID = 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505'
+      // CNKI 全文文献知识库的特殊 ID
+      const CNKI_FULL_DATASET_ID = 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506'
 
       // 1. 准备所有检索任务
       const searchTasks: Promise<any>[] = []
@@ -164,11 +212,25 @@ export function useKnowledgeSearch() {
           searchTasks.push(cnkiTask())
         }
 
-        // 按知识库分组文档（排除 CNKI）
+        // 检查是否包含 CNKI 全文知识库
+        const cnkiFullNode = selectedDocuments.find(doc => doc.id === CNKI_FULL_DATASET_ID || doc.datasetId === CNKI_FULL_DATASET_ID)
+        if (cnkiFullNode) {
+          console.log('检测到 CNKI 全文知识库，执行 CNKI 全文检索')
+          const cnkiFullTask = async () => {
+            return await performCNKIFullSearch(query)
+          }
+          searchTasks.push(cnkiFullTask())
+        }
+
+        // 按知识库分组文档（排除 CNKI 和 CNKI Full）
         const documentsByDataset = new Map<string, TreeNode[]>()
         selectedDocuments.forEach((doc) => {
           // 排除 CNKI 节点
           if (doc.id === CNKI_DATASET_ID || doc.datasetId === CNKI_DATASET_ID) {
+            return
+          }
+          // 排除 CNKI Full 节点
+          if (doc.id === CNKI_FULL_DATASET_ID || doc.datasetId === CNKI_FULL_DATASET_ID) {
             return
           }
           if (doc.datasetId) {
@@ -238,6 +300,11 @@ export function useKnowledgeSearch() {
             // CNKI 特殊处理
             if (dataset.datasetId === CNKI_DATASET_ID) {
               return await performCNKISearch(query)
+            }
+
+            // CNKI Full 特殊处理
+            if (dataset.datasetId === CNKI_FULL_DATASET_ID) {
+              return await performCNKIFullSearch(query)
             }
 
             try {
@@ -428,6 +495,7 @@ export function useKnowledgeSearch() {
     // 方法
     performKnowledgeSearch,
     performCNKISearch,
+    performCNKIFullSearch,
     buildSearchContext,
     formatSearchResultsForAI,
     deduplicateParagraphs,

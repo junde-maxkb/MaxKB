@@ -276,7 +276,7 @@
 
                     <!-- 二级目录 - 知识库 -->
                     <div
-                      v-else-if="data.level === 2 && data.label != 'CNKI文献'"
+                      v-else-if="data.level === 2 && data.label != 'CNKI文献' && data.label != 'CNKI全文文献'"
                       class="node-content level-2-content"
                     >
                       <div class="node-left">
@@ -404,7 +404,7 @@
 
                     <!-- 三级目录 - 文档 -->
                     <div
-                      v-else-if="data.level === 3 || data.label == 'CNKI文献'"
+                      v-else-if="data.level === 3 || data.label == 'CNKI文献' || data.label == 'CNKI全文文献'"
                       class="node-content level-3-content"
                     >
                       <el-icon class="node-icon">
@@ -440,7 +440,7 @@
                       </el-icon>
                       <span class="node-label" :title="data.label">{{ data.label }}</span>
                       <span class="file-size">{{
-                        data.label == 'CNKI文献' ? '（184912）' : formatFileSize(data.size)
+                        data.label == 'CNKI文献' ? '（1849.9万）' : data.label == 'CNKI全文文献' ? '（322.1万）' : formatFileSize(data.size)
                       }}</span>
                     </div>
                   </div>
@@ -1044,8 +1044,14 @@ const getSelectedDocuments = (): TreeNode[] => {
     datasetId: n.datasetId, 
     documentId: n.documentId 
   })))
-  // 文档节点：level=3 或者特殊的CNKI知识库
-  const docs = checkedNodes.filter((node: TreeNode) => node.level === 3 || node.id === 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505')
+  // 文档节点：level=3 或者特殊的CNKI知识库（摘要和全文）
+  const CNKI_DATASET_ID = 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505'
+  const CNKI_FULL_DATASET_ID = 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506'
+  const docs = checkedNodes.filter((node: TreeNode) => 
+    node.level === 3 || 
+    node.id === CNKI_DATASET_ID || 
+    node.id === CNKI_FULL_DATASET_ID
+  )
   console.log('过滤后的文档节点:', docs.length, '个')
   return docs
 }
@@ -1334,6 +1340,13 @@ const loadOrganizationKBs = async () => {
       orgKBsList.push({
         id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505',
         name: 'CNKI文献',
+        create_time: '2024-01-01T00:00:00Z',
+        creator: '系统集成'
+      })
+
+      orgKBsList.push({
+        id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506',
+        name: 'CNKI全文文献',
         create_time: '2024-01-01T00:00:00Z',
         creator: '系统集成'
       })

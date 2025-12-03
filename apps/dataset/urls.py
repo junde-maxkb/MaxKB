@@ -88,4 +88,5 @@ urlpatterns = [
     # 通用知识库操作路由（必须在所有具体路径之后）
     path('dataset/<str:dataset_id>', views.Dataset.Operate.as_view(), name="dataset_key"),
     path('dataset/external_api/cnki_doc', views.CNKIView.as_view(), name="CNKI文献"),
+    path('dataset/external_api/cnki_full_doc', views.CNKIAllFulltextView.as_view(), name="CNKI Full 文献"),
 ]

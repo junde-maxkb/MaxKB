@@ -428,6 +428,18 @@ const cnkiSearch: (
   return get(`${prefix}/external_api/cnki_doc`, { query })
 }
 
+
+/**
+ * CNKIFull文献查询
+ * @param 参数
+ * query: string,
+ */
+const cnkiFullSearch: (
+  query: string
+) => Promise<Result<any>> = (query) => {
+  return get(`${prefix}/external_api/cnki_full_doc`, { query })
+}
+
 export default {
   postSplitDocument,
   getDocument,
@@ -458,5 +470,6 @@ export default {
   putLarkDocumentSync,
   delMulLarkSyncDocument,
   exportDabase,
-  cnkiSearch
+  cnkiSearch,
+  cnkiFullSearch
 }
