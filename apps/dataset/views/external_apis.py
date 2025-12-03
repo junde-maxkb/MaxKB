@@ -26,7 +26,7 @@ class CNKIView(APIView):
 
         params = {
             'query': query,
-            'limit': '10',
+            'limit': '50',
             'method': 'hybrid',
         }
 
@@ -59,7 +59,7 @@ class CNKIAllFulltextView(APIView):
 
         params = {
             'query': query,
-            'limit': '10',
+            'limit': '50',
         }
 
         response = requests.get('http://172.16.99.54/weaviate/query/cnki_all_fulltext', params=params)
