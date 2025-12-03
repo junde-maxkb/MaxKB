@@ -343,7 +343,8 @@ const {
   copyText,
   handleLike,
   handleDislike,
-  scrollToBottom: chatScrollToBottom
+  scrollToBottom: chatScrollToBottom,
+  deduplicateCitations
 } = useChat()
 
 const {
@@ -792,8 +793,8 @@ ${contextNote}`
               
               if (json?.content !== undefined && json.content !== '') {
                 currentAssistantMessage += json.content
-                // 直接修改数组中的对象，确保响应式更新
-                chatMessages.value[assistantMsgIndex].content = currentAssistantMessage
+                // 直接修改数组中的对象，确保响应式更新，实时去重文献引用
+                chatMessages.value[assistantMsgIndex].content = deduplicateCitations(currentAssistantMessage)
                 console.log('累计内容长度:', currentAssistantMessage.length)
                 await nextTick()
                 scrollToBottom()
@@ -817,7 +818,8 @@ ${contextNote}`
 
       // 流式输出完成后处理
       if (currentAssistantMessage) {
-        chatMessages.value[assistantMsgIndex].content = replaceQuickChartWithEncodedUrl(currentAssistantMessage)
+        // 先去重文献引用，再处理图表URL
+        chatMessages.value[assistantMsgIndex].content = replaceQuickChartWithEncodedUrl(deduplicateCitations(currentAssistantMessage))
         chatMessages.value[assistantMsgIndex].write_ed = true
 
         // 添加分段信息
@@ -1154,7 +1156,8 @@ const regenerate = async (item: ChatMessage) => {
 
               if (json?.content !== undefined && json.content !== '') {
                 currentAssistantMessage += json.content
-                chatMessages.value[itemIndex].content = currentAssistantMessage
+                // 实时去重文献引用
+                chatMessages.value[itemIndex].content = deduplicateCitations(currentAssistantMessage)
                 await nextTick()
                 scrollToBottom()
               }
@@ -1167,7 +1170,8 @@ const regenerate = async (item: ChatMessage) => {
 
       // 流式输出完成后处理
       if (currentAssistantMessage) {
-        chatMessages.value[itemIndex].content = replaceQuickChartWithEncodedUrl(currentAssistantMessage)
+        // 先去重文献引用，再处理图表URL
+        chatMessages.value[itemIndex].content = replaceQuickChartWithEncodedUrl(deduplicateCitations(currentAssistantMessage))
         chatMessages.value[itemIndex].write_ed = true
 
         if (searchResultsForAI.length > 0) {

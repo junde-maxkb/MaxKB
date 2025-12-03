@@ -243,6 +243,32 @@ export function useChat() {
     return message.content || ''
   }
 
+  /**
+   * 去除重复的文献引用，只保留每个引用的第一次出现
+   * 匹配形式如：(段胜峰, 2023)、（张三等, 2021）、(Smith et al., 2020)
+   * 支持中英文括号
+   */
+  const deduplicateCitations = (text: string): string => {
+    // 匹配中英文文献引用格式，支持中文括号（）和英文括号()
+    // 格式：(作者, 年份) 或 （作者，年份） 或 (Author et al., year)
+    const citationRegex = /[（(]([^()（）]+[,，]\s*\d{4})[)）]/g
+    const seenCitations = new Set<string>()
+    
+    return text.replace(citationRegex, (match, citation) => {
+      // 标准化引用：去除多余空格，统一中英文逗号
+      const normalized = citation.trim().replace(/\s+/g, ' ').replace(/，/g, ',')
+      
+      if (seenCitations.has(normalized)) {
+        // 已出现过，删除（返回空字符串）
+        return ''
+      } else {
+        // 第一次出现，保留
+        seenCitations.add(normalized)
+        return match
+      }
+    })
+  }
+
   return {
     // 状态
     chatMessages,
@@ -264,6 +290,7 @@ export function useChat() {
     copyText,
     handleLike,
     handleDislike,
-    getAnswerText
+    getAnswerText,
+    deduplicateCitations
   }
 }

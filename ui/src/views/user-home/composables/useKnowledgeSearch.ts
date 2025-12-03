@@ -12,7 +12,7 @@ const MAX_TOTAL_RESULTS = 200
 const MAX_RESULTS_PER_DOCUMENT = 3
 const MIN_RESULTS_PER_DOCUMENT = 3
 const DEFAULT_SIMILARITY = 0.3
-const MAX_CONTEXT_CHARS = 15000 // 上下文最大字符数限制
+const MAX_CONTEXT_CHARS = 20000 // 上下文最大字符数限制
 
 export function useKnowledgeSearch() {
   // 搜索状态
@@ -420,16 +420,24 @@ export function useKnowledgeSearch() {
       for (let i = 0; i < sortedResults.length; i++) {
         const result = sortedResults[i]
         
-        // 紧凑格式：[序号] 标题 | 来源 \n 内容
-        const titlePart = result.title ? `标题：${result.title} | ` : ''
-        const sourcePart = result.document_name || result.source || '未知来源'
+        // 构建文章元信息
+        const title = result.title || '未知标题'
+        const source = result.document_name || result.source || '未知来源'
+        const datasetName = result.dataset_name || ''
         
-        // 智能合并：如果标题和来源相同，只显示一个
-        const headerInfo = (result.title === sourcePart) 
-          ? `来源：${sourcePart}`
-          : `${titlePart}来源：${sourcePart}`
-
-        const itemText = `[${i + 1}] ${headerInfo}\n${result.content}`
+        // 结构化格式：清晰区分【文章信息】和【文章内容】
+        const articleMeta = [
+          `【文章 ${i + 1}】`,
+          `┌ 标题：${title}`,
+          source !== title ? `├ 来源：${source}` : null,
+          datasetName ? `├ 知识库：${datasetName}` : null,
+          `└ 内容：`
+        ].filter(Boolean).join('\n')
+        
+        // 内容部分添加缩进，便于区分
+        const contentLines = result.content.split('\n').map(line => `  ${line}`).join('\n')
+        
+        const itemText = `${articleMeta}\n${contentLines}`
         
         // 动态截断：检查是否超出字符限制
         if (currentLength + itemText.length > MAX_CONTEXT_CHARS) {
@@ -438,10 +446,10 @@ export function useKnowledgeSearch() {
         }
         
         contextParts.push(itemText)
-        currentLength += itemText.length + 2 // +2 for \n\n
+        currentLength += itemText.length + 4 // +4 for \n---\n
       }
       
-      context = contextParts.join('\n\n')
+      context = contextParts.join('\n---\n')
     } else {
       context = '未找到与问题相关的知识库内容。'
       contextNote = '\n\n注意：在选中的知识库中未找到相关内容，回答将基于通用知识。'
