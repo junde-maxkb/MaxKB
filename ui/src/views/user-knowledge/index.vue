@@ -3335,7 +3335,7 @@ ${chatMessages.value}
 
           // 问数解析
           if (isAIQuestionMode.value) {
-            const content = replaceQuickChartWithEncodedUrl(currentAssistantMessage)
+            const content = transformWhenAltIsQuickChart(replaceQuickChartWithEncodedUrl(currentAssistantMessage))
             console.log('替换 quickchart URL 后的内容:', content)
             chatMessages.value[chatMessages.value.length - 1].content = content
             setTimeout(() => {

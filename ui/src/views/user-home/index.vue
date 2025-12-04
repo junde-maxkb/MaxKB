@@ -276,7 +276,7 @@
 
                     <!-- 二级目录 - 知识库 -->
                     <div
-                      v-else-if="data.level === 2 && data.id != 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505' && data.id != 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506'"
+                      v-else-if="data.level === 2 && data.label != 'CNKI文献（核心）' && data.label != 'CNKI文献（全部）'"
                       class="node-content level-2-content"
                     >
                       <div class="node-left">
@@ -404,7 +404,7 @@
 
                     <!-- 三级目录 - 文档 -->
                     <div
-                      v-else-if="data.level === 3 || data.id == 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505' || data.id == 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506'"
+                      v-else-if="data.level === 3 || data.label == 'CNKI文献（核心）' || data.label == 'CNKI文献（全部）'"
                       class="node-content level-3-content"
                     >
                       <el-icon class="node-icon">
@@ -440,7 +440,7 @@
                       </el-icon>
                       <span class="node-label" :title="data.label">{{ data.label }}</span>
                       <span class="file-size">{{
-                        data.id == 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505' ? '（核心）' : data.id == 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506' ? '（全部）' : formatFileSize(data.size)
+                        data.label == 'CNKI文献（核心）' ? '' : data.label == 'CNKI文献（全部）' ? '' : formatFileSize(data.size)
                       }}</span>
                     </div>
                   </div>
@@ -1339,14 +1339,14 @@ const loadOrganizationKBs = async () => {
 
       orgKBsList.push({
         id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505',
-        name: 'CNKI文献',
+        name: 'CNKI文献（核心）',
         create_time: '2024-01-01T00:00:00Z',
         creator: '系统集成'
       })
 
       orgKBsList.push({
         id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506',
-        name: 'CNKI文献',
+        name: 'CNKI文献（全部）',
         create_time: '2024-01-01T00:00:00Z',
         creator: '系统集成'
       })

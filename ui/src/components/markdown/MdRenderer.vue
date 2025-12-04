@@ -33,7 +33,8 @@
         ref="editorRef"
         editorId="preview-only"
         :modelValue="item.content"
-        :key="index"
+        :key="`${index}-${streaming}`"
+        :noMermaid="streaming"
         class="maxkb-md"
       />
     </template>
@@ -76,10 +77,12 @@ const props = withDefaults(
     chat_record_id?: string
     runtime_node_id?: string
     disabled?: boolean
+    streaming?: boolean
   }>(),
   {
     source: '',
-    disabled: false
+    disabled: false,
+    streaming: false
   }
 )
 const editorRef = ref()

@@ -22,6 +22,17 @@ import 'cropperjs/dist/cropper.css'
 
 import mermaid from 'mermaid'
 
+// 初始化 mermaid 配置
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'default',
+  securityLevel: 'loose',
+  flowchart: {
+    useMaxWidth: true,
+    htmlLabels: true
+  }
+})
+
 import highlight from 'highlight.js'
 import 'highlight.js/styles/atom-one-dark.css'
 

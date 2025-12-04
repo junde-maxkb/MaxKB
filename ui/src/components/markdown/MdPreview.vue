@@ -1,5 +1,5 @@
 <template>
-  <MdPreview :language="language" noIconfont noPrettier :codeFoldable="false" v-bind="$attrs" />
+  <MdPreview :language="language" noIconfont noPrettier :codeFoldable="false" :noMermaid="noMermaid" v-bind="$attrs" />
 </template>
 
 <script setup lang="ts">
@@ -11,6 +11,16 @@ import useStore from '@/stores'
 import ZH_TW from '@vavt/cm-extension/dist/locale/zh-TW'
 
 defineOptions({ name: 'MdPreview' })
+
+const props = withDefaults(
+  defineProps<{
+    noMermaid?: boolean
+  }>(),
+  {
+    noMermaid: false
+  }
+)
+
 const { user } = useStore()
 const language = computed(() => user.getLanguage() || getBrowserLang() || '')
 config({

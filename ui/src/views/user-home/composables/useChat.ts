@@ -217,11 +217,37 @@ export function useChat() {
     isStreaming.value = false
   }
 
-  // 复制文本
+  // 复制文本（支持多浏览器）
   const copyText = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text)
-      ElMessage.success('已复制到剪贴板')
+      // 优先使用现代 Clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+        ElMessage.success('已复制到剪贴板')
+        return
+      }
+      
+      // 降级方案：使用 execCommand（兼容旧浏览器和非 HTTPS 环境）
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      // 防止页面滚动
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      textArea.style.top = '-9999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      
+      // execCommand 已弃用但仍是最佳降级方案
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      if (successful) {
+        ElMessage.success('已复制到剪贴板')
+      } else {
+        ElMessage.error('复制失败')
+      }
     } catch {
       ElMessage.error('复制失败')
     }

@@ -28,6 +28,7 @@
                     <MdRenderer
                       :source="getAnswerText(item)"
                       :reasoning_content="item.reasoning_content || ''"
+                      :streaming="!item.write_ed"
                     />
                   </div>
                   <!-- 检索文档展示（可折叠） -->
@@ -83,8 +84,8 @@
                   正在思考中<span class="dotting"></span><span class="dotting"></span><span class="dotting"></span>
                 </div>
 
-                <!-- 推荐问题 - 只在最后一条AI消息且已完成时显示（翻译模式不显示） -->
-                <div class="recommend-questions" v-if="item.write_ed && isLastAssistantMessage(index) && !isAITranslateMode">
+                <!-- 推荐问题 - 只在最后一条AI消息且已完成时显示（翻译模式和摘要模式不显示） -->
+                <div class="recommend-questions" v-if="item.write_ed && isLastAssistantMessage(index) && !isAITranslateMode && !isAISummaryMode && (guidesLoading || guides?.length)">
                   <!-- 加载中状态 -->
                   <div v-if="guidesLoading" class="recommend-loading">
                     <el-icon class="is-loading"><Loading /></el-icon>
@@ -255,7 +256,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, h, watch, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, h, watch, inject } from 'vue'
 import { 
   ArrowDown, 
   ArrowUp,
@@ -302,6 +303,12 @@ import {
   getChatSystemPrompt,
   replaceQuickChartWithEncodedUrl
 } from '../composables/usePrompts'
+import { 
+  transformWhenAltIsQuickChart, 
+  getPendingChartFixes, 
+  fixChartJsonWithAI,
+  getQuickChartUrl 
+} from '@/config/quickchart'
 import type { TreeNode, ChatMessage, SearchResult, ParagraphInfo } from '../types/chat'
 
 // 自定义点赞/踩图标
@@ -402,6 +409,38 @@ const inputAreaRef = ref<HTMLElement | null>(null) // 输入区域的 ref
 const currentChatHistoryId = ref('') // 当前聊天记录ID
 const savedMessageCount = ref(0) // 已保存的消息数量
 const expandedRetrievedDocs = ref<Record<string, boolean>>({}) // 控制参考来源的展开/收起
+
+// 写作/问数模式检索缓存（保证多轮对话中引用的文献一致性）
+const cachedSearchContext = ref<{
+  context: string
+  contextNote: string
+  searchResultsForAI: SearchResult[]
+  hasEmbeddingError: boolean
+  hasConnectionError: boolean
+  // 缓存时的知识库选择快照，用于判断是否需要重新检索
+  selectedDatasetsSnapshot: string
+  selectedDocumentsSnapshot: string
+} | null>(null)
+
+// 获取知识库选择的唯一标识
+const getKnowledgeSelectionKey = (): { datasetsKey: string; documentsKey: string } => {
+  const datasetsIds = (props.selectedDatasets || []).map(d => d.id).sort()
+  const documentsIds = (props.selectedDocuments || []).map(d => d.id).sort()
+  return {
+    datasetsKey: JSON.stringify(datasetsIds),
+    documentsKey: JSON.stringify(documentsIds)
+  }
+}
+
+// 检查知识库选择是否发生变化
+const hasKnowledgeSelectionChanged = (): boolean => {
+  if (!cachedSearchContext.value) return true
+  
+  const { datasetsKey, documentsKey } = getKnowledgeSelectionKey()
+  
+  return datasetsKey !== cachedSearchContext.value.selectedDatasetsSnapshot ||
+         documentsKey !== cachedSearchContext.value.selectedDocumentsSnapshot
+}
 
 // 切换参考来源的展开/收起状态
 const toggleRetrievedDocs = (messageId: string | undefined) => {
@@ -658,26 +697,67 @@ const sendMessage = async () => {
     const modelId = props.selectedModelId
 
     // 执行知识库检索
-    console.log('=== 开始知识检索 ===')
-    console.log('用户问题:', userQuestion)
-    console.log('选中的文档:', props.selectedDocuments)
-    console.log('选中的知识库:', props.selectedDatasets)
-    console.log('树形数据:', props.treeData?.length, '个顶级节点')
+    let context = ''
+    let contextNote = ''
+    let searchResultsForAI: SearchResult[] = []
+    let hasEmbeddingError = false
+    let hasConnectionError = false
+
+    // 写作模式和问数模式下使用缓存的检索结果（保证多轮对话引用一致性）
+    // 但如果知识库选择发生变化，则需要重新检索
+    const canUseCache = (isAIWritingMode.value || isAIQuestionMode.value) && 
+                        cachedSearchContext.value && 
+                        !hasKnowledgeSelectionChanged()
     
-    const searchResponse = await performKnowledgeSearch(
-      userQuestion,
-      props.selectedDocuments || [],
-      props.selectedDatasets || [],
-      props.treeData || []
-    )
+    if (canUseCache) {
+      console.log('=== 使用缓存的检索结果 ===')
+      context = cachedSearchContext.value!.context
+      contextNote = cachedSearchContext.value!.contextNote
+      searchResultsForAI = cachedSearchContext.value!.searchResultsForAI
+      hasEmbeddingError = cachedSearchContext.value!.hasEmbeddingError
+      hasConnectionError = cachedSearchContext.value!.hasConnectionError
+    } else {
+      console.log('=== 开始知识检索 ===')
+      console.log('用户问题:', userQuestion)
+      console.log('选中的文档:', props.selectedDocuments)
+      console.log('选中的知识库:', props.selectedDatasets)
+      console.log('树形数据:', props.treeData?.length, '个顶级节点')
+      
+      const searchResponse = await performKnowledgeSearch(
+        userQuestion,
+        props.selectedDocuments || [],
+        props.selectedDatasets || [],
+        props.treeData || []
+      )
 
-    const { results: searchResults, hasEmbeddingError, hasConnectionError } = searchResponse
-    console.log('知识检索结果:', searchResults.length, '条')
-    console.log('嵌入错误:', hasEmbeddingError, '连接错误:', hasConnectionError)
+      const { results: searchResults, hasEmbeddingError: embErr, hasConnectionError: connErr } = searchResponse
+      hasEmbeddingError = embErr
+      hasConnectionError = connErr
+      console.log('知识检索结果:', searchResults.length, '条')
+      console.log('嵌入错误:', hasEmbeddingError, '连接错误:', hasConnectionError)
 
-    // 构建搜索上下文
-    const { context, contextNote } = buildSearchContext(searchResults, hasEmbeddingError, hasConnectionError)
-    const searchResultsForAI = formatSearchResultsForAI(searchResults)
+      // 构建搜索上下文
+      const searchContext = buildSearchContext(searchResults, hasEmbeddingError, hasConnectionError)
+      context = searchContext.context
+      contextNote = searchContext.contextNote
+      searchResultsForAI = formatSearchResultsForAI(searchResults)
+
+      // 写作模式和问数模式下缓存检索结果
+      if (isAIWritingMode.value || isAIQuestionMode.value) {
+        console.log('=== 缓存检索结果（首次检索）===')
+        const { datasetsKey, documentsKey } = getKnowledgeSelectionKey()
+        cachedSearchContext.value = {
+          context,
+          contextNote,
+          searchResultsForAI,
+          hasEmbeddingError,
+          hasConnectionError,
+          // 保存当前知识库选择快照
+          selectedDatasetsSnapshot: datasetsKey,
+          selectedDocumentsSnapshot: documentsKey
+        }
+      }
+    }
     
     console.log('=== 构建上下文 ===')
     console.log('context:', context.substring(0, 300))
@@ -756,7 +836,7 @@ ${contextNote}`
 
     // 调用流式 API
     const resp = await postModelChatStream(modelId, { messages })
-    console.log('API 响应:', resp ? '成功获取响应体' : '响应为空')
+    console.debug('API 响应:', resp ? '成功获取响应体' : '响应为空')
 
     if (resp?.body && typeof resp.body.getReader === 'function') {
       const reader = resp.body.getReader()
@@ -768,34 +848,34 @@ ${contextNote}`
       while (isStreaming.value) {
         const { value, done } = await reader.read()
         if (done) {
-          console.log('流式读取完成')
+          console.debug('流式读取完成')
           break
         }
 
         const chunk = decoder.decode(value)
-        console.log('收到原始数据块:', chunk.substring(0, 200)) // 只打印前200字符
+        console.debug('收到原始数据块:', chunk.substring(0, 200)) // 只打印前200字符
         
         // 尝试多种格式匹配
         const parts = chunk.match(/data:.*?\n\n/gs) || chunk.match(/data:[^\n]+/g)
 
         if (parts) {
-          console.log('匹配到', parts.length, '个数据块')
+          console.debug('匹配到', parts.length, '个数据块')
           for (const part of parts) {
             try {
               const jsonStr = part.replace(/^data:\s*/, '').replace(/\n\n$/, '').trim()
               if (!jsonStr) continue
               
-              console.log('解析JSON:', jsonStr.substring(0, 100))
+              console.debug('解析JSON:', jsonStr.substring(0, 100))
               const json = JSON.parse(jsonStr)
               
               // 检查是否有内容（包括空字符串的情况也记录）
-              console.log('JSON内容:', JSON.stringify(json))
+              console.debug('JSON内容:', JSON.stringify(json))
               
               if (json?.content !== undefined && json.content !== '') {
                 currentAssistantMessage += json.content
                 // 直接修改数组中的对象，确保响应式更新，实时去重文献引用
                 chatMessages.value[assistantMsgIndex].content = deduplicateCitations(currentAssistantMessage)
-                console.log('累计内容长度:', currentAssistantMessage.length)
+                console.debug('累计内容长度:', currentAssistantMessage.length)
                 await nextTick()
                 scrollToBottom()
               }
@@ -818,8 +898,11 @@ ${contextNote}`
 
       // 流式输出完成后处理
       if (currentAssistantMessage) {
-        // 先去重文献引用，再处理图表URL
-        chatMessages.value[assistantMsgIndex].content = replaceQuickChartWithEncodedUrl(deduplicateCitations(currentAssistantMessage))
+        // 先去重文献引用，再处理图表URL，最后处理未编码的quickchart链接
+        const processedContent = transformWhenAltIsQuickChart(
+          replaceQuickChartWithEncodedUrl(deduplicateCitations(currentAssistantMessage))
+        )
+        chatMessages.value[assistantMsgIndex].content = processedContent
         chatMessages.value[assistantMsgIndex].write_ed = true
 
         // 添加分段信息
@@ -827,8 +910,8 @@ ${contextNote}`
           chatMessages.value[assistantMsgIndex].paragraphs = deduplicateParagraphs(searchResultsForAI)
         }
         
-        // 如果用户没有主动停止生成，才获取推荐问题
-        if (!userStoppedGeneration.value) {
+        // 如果用户没有主动停止生成，且不是翻译/摘要模式，才获取推荐问题
+        if (!userStoppedGeneration.value && !isAITranslateMode.value && !isAISummaryMode.value) {
           try {
             const { getGuideQuestions } = useGuide()
             const guideQuestions = await getGuideQuestions(
@@ -846,7 +929,11 @@ ${contextNote}`
           }
         } else {
           guidesLoading.value = false
-          console.log('用户主动停止生成，跳过推荐问题')
+          if (isAITranslateMode.value || isAISummaryMode.value) {
+            console.log('翻译/摘要模式，跳过推荐问题')
+          } else {
+            console.log('用户主动停止生成，跳过推荐问题')
+          }
         }
       } else {
         chatMessages.value[assistantMsgIndex].content = isStreaming.value ? '抱歉，模型服务暂时不可用，请稍后重试。' : '回答已中断。'
@@ -1170,16 +1257,19 @@ const regenerate = async (item: ChatMessage) => {
 
       // 流式输出完成后处理
       if (currentAssistantMessage) {
-        // 先去重文献引用，再处理图表URL
-        chatMessages.value[itemIndex].content = replaceQuickChartWithEncodedUrl(deduplicateCitations(currentAssistantMessage))
+        // 先去重文献引用，再处理图表URL，最后处理未编码的quickchart链接
+        const processedContent = transformWhenAltIsQuickChart(
+          replaceQuickChartWithEncodedUrl(deduplicateCitations(currentAssistantMessage))
+        )
+        chatMessages.value[itemIndex].content = processedContent
         chatMessages.value[itemIndex].write_ed = true
 
         if (searchResultsForAI.length > 0) {
           chatMessages.value[itemIndex].paragraphs = deduplicateParagraphs(searchResultsForAI)
         }
 
-        // 获取推荐问题
-        if (!userStoppedGeneration.value) {
+        // 获取推荐问题（翻译/摘要模式不生成）
+        if (!userStoppedGeneration.value && !isAITranslateMode.value && !isAISummaryMode.value) {
           try {
             const { getGuideQuestions } = useGuide()
             const guideQuestions = await getGuideQuestions(
@@ -1246,6 +1336,7 @@ const startNewChat = async () => {
   userScrolledUp.value = false // 重置滚动状态
   currentChatHistoryId.value = '' // 重置聊天记录ID
   savedMessageCount.value = 0 // 重置已保存消息数量
+  cachedSearchContext.value = null // 清除检索缓存
 
   // 4. 恢复聊天内容区域的透明度（虽然内容已清空，但为下次显示做准备）
   if (chatContentRef.value) {
@@ -1444,7 +1535,77 @@ const handleStopGeneration = () => {
 }
 
 onMounted(() => {
-  // 初始化
+  // 注册全局图表修复函数
+  ;(window as any).__fixQuickChart = async (fixId: string) => {
+    const pendingFixes = getPendingChartFixes()
+    const fix = pendingFixes.find(f => f.id === fixId)
+    if (!fix) {
+      console.error('未找到待修复的图表配置:', fixId)
+      return
+    }
+
+    // 找到对应的 DOM 元素
+    const errorElement = document.querySelector(`[data-fix-id="${fixId}"]`)
+    if (!errorElement) {
+      console.error('未找到图表错误元素:', fixId)
+      return
+    }
+
+    // 显示修复中状态
+    const fixBtn = errorElement.querySelector('.quickchart-fix-btn') as HTMLButtonElement
+    if (fixBtn) {
+      fixBtn.disabled = true
+      fixBtn.textContent = '🔄 修复中...'
+    }
+
+    try {
+      const modelId = props.selectedModelId
+      if (!modelId) {
+        throw new Error('未选择模型')
+      }
+
+      const fixedJson = await fixChartJsonWithAI(fix.originalJson, fix.error, modelId)
+      
+      if (fixedJson) {
+        // 修复成功，替换为图表
+        const encodedParam = encodeURIComponent(fixedJson)
+        const qualifiedUrl = getQuickChartUrl(encodedParam)
+        
+        // 创建图片元素替换错误提示
+        const imgContainer = document.createElement('p')
+        imgContainer.innerHTML = `<img src="${qualifiedUrl}" alt="quickchart-over" style="max-width: 100%;" />`
+        errorElement.replaceWith(imgContainer)
+        
+        // 更新消息内容（保持状态同步）
+        const msgIndex = chatMessages.value.findIndex(msg => 
+          msg.role === 'assistant' && msg.content.includes(fixId)
+        )
+        if (msgIndex !== -1) {
+          chatMessages.value[msgIndex].content = chatMessages.value[msgIndex].content.replace(
+            new RegExp(`<div class="quickchart-error"[^>]*data-fix-id="${fixId}"[^>]*>[\\s\\S]*?<\\/div>\\s*<\\/div>`),
+            `![quickchart-over](${qualifiedUrl})`
+          )
+        }
+      } else {
+        // 修复失败
+        if (fixBtn) {
+          fixBtn.disabled = false
+          fixBtn.textContent = '❌ 修复失败，点击重试'
+        }
+      }
+    } catch (e) {
+      console.error('图表修复失败:', e)
+      if (fixBtn) {
+        fixBtn.disabled = false
+        fixBtn.textContent = '❌ 修复失败，点击重试'
+      }
+    }
+  }
+})
+
+onUnmounted(() => {
+  // 清理全局函数
+  delete (window as any).__fixQuickChart
 })
 </script>
 
@@ -2167,5 +2328,81 @@ onMounted(() => {
   opacity: 0;
   max-height: 0;
   margin-top: 0;
+}
+</style>
+
+<style lang="scss">
+// QuickChart 错误提示样式（非 scoped，因为是动态生成的 HTML）
+.quickchart-error {
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 0;
+
+  .quickchart-error-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .quickchart-error-icon {
+    font-size: 18px;
+  }
+
+  .quickchart-error-title {
+    color: var(--el-color-warning);
+    font-weight: 500;
+    flex: 1;
+  }
+
+  .quickchart-fix-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--el-color-primary);
+    background: var(--el-color-primary-light-9);
+    color: var(--el-color-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+      background: var(--el-color-primary);
+      color: #fff;
+    }
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+  }
+
+  .quickchart-error-details {
+    margin-top: 10px;
+
+    summary {
+      cursor: pointer;
+      color: var(--el-text-color-secondary);
+      font-size: 13px;
+
+      &:hover {
+        color: var(--el-color-primary);
+      }
+    }
+
+    pre {
+      margin-top: 8px;
+      padding: 10px;
+      background: var(--el-fill-color);
+      border-radius: 4px;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  }
 }
 </style>
