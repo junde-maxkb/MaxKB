@@ -48,7 +48,7 @@ export function useKnowledgeSearch() {
           title: item.title,
           content: item.abstract,
           document_name: `${item.title} (${item.authors}, ${item.pubdate} ${item.journal})`,
-          dataset_name: 'CNKI文献',
+          dataset_name: 'CNKI文献（核心）',
           dataset_id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97505',
           document_id: `cnki-mock-${index}`,
           source: item.journal,
@@ -123,7 +123,7 @@ export function useKnowledgeSearch() {
             // 优先使用 content（全文内容），其次是 abstract
             content: item.content || item.abstract || item.summary || '',
             document_name: `${title} (${author}, ${date} ${journal})`,
-            dataset_name: 'CNKI全文文献',
+            dataset_name: 'CNKI文献（全部）',
             dataset_id: 'd1f6f1cc-b3c3-11f0-9ffe-1df6b9a97506',
             document_id: item.id || item.doc_id || `cnki-full-${index}`,
             source: item.source || item.journal || 'CNKI',
